@@ -1,6 +1,6 @@
 /* sw.js — Budget Tracker PWA */
 
-const CACHE_VERSION = '2026-01-10-1';
+const CACHE_VERSION = '2026-01-10-2';
 const CACHE_NAME = `budget-tracker-${CACHE_VERSION}`;
 
 const CORE = [
@@ -30,12 +30,20 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
 
-  // Navigation requests: network-first, fallback to cache
+  // 1) Never try to cache or handle non-GET requests (POST/PUT/etc.).
+  //    This prevents "Request method 'POST' is unsupported" from Cache.put().
+  if (req.method !== 'GET') {
+    event.respondWith(fetch(req));
+    return;
+  }
+
+  // 2) For navigation requests: network-first, fallback to cached shell
   if (req.mode === 'navigate') {
     event.respondWith((async () => {
       try {
         const fresh = await fetch(req);
         const cache = await caches.open(CACHE_NAME);
+        // Cache the app shell under a stable key
         cache.put('./', fresh.clone());
         return fresh;
       } catch {
@@ -46,15 +54,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Other requests: cache-first
-  event.respondWith((async () => {
-    const cached = await caches.match(req);
-    if (cached) return cached;
+  // 3) For same-origin static assets: cache-first
+  const url = new URL(req.url);
+  const isSameOrigin = url.origin === self.location.origin;
 
-    const fresh = await fetch(req);
-    const cache = await caches.open(CACHE_NAME);
-    if (fresh && fresh.ok) cache.put(req, fresh.clone());
-    return fresh;
-  })());
+  if (isSameOrigin) {
+    event.respondWith((async () => {
+      const cached = await caches.match(req);
+      if (cached) return cached;
+
+      const fresh = await fetch(req);
+      if (fresh && fresh.ok) {
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(req, fresh.clone());
+      }
+      return fresh;
+    })());
+    return;
+  }
+
+  // 4) For cross-origin GET requests (e.g., your Apps Script API, fonts, etc.):
+  //    do NOT cache, just pass through.
+  event.respondWith(fetch(req));
 });
 
