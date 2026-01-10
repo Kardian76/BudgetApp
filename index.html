@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Budget Tracker</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2563eb">
+
+<!-- PWA manifest (same-origin with the page) -->
+<link rel="manifest" href="./manifest.webmanifest?v=2026-01-10-1">
+
+<!-- iOS home screen icon(s) -->
+<link rel="apple-touch-icon" sizes="180x180" href="./Nova_192.png">
+<link rel="apple-touch-icon" sizes="167x167" href="./Nova_192.png">
+<link rel="apple-touch-icon" sizes="152x152" href="./Nova_192.png">
+<link rel="apple-touch-icon" sizes="120x120" href="./Nova_192.png">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Budget">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+<style>
+:root {
+  --bg-color: #f4f6f9;
+  --card-bg: #ffffff;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --text-main: #111827;
+  --text-muted: #6b7280;
+  --border-color: #e5e7eb;
+  --success: #16a34a;
+  --warning: #b45309;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  --tap-min: 54px;
+}
+* { box-sizing: border-box; }
+html {
+  font-size: 22px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+}
+.container {
+  width: 100%;
+  padding: calc(1.5rem + var(--safe-top))
+           calc(1.5rem + var(--safe-right))
+           calc(1.75rem + var(--safe-bottom))
+           calc(1.5rem + var(--safe-left));
+}
+h1 {
+  text-align: center;
+  margin: 0 0 0.5rem 0;
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+.subtitle {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  margin: 0 0 2rem 0;
+  line-height: 1.35;
+}
+.card {
+  background: var(--card-bg);
+  border-radius: 1.1rem;
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.06);
+  border: 1px solid rgba(17,24,39,0.05);
+}
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+.summary-row:last-child { margin-bottom: 0; }
+.summary-row span { font-weight: 900; }
+
+h2 {
+  text-align: center;
+  font-size: 1.35rem;
+  margin: 0 0 1.25rem 0;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+.form-group-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+input {
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 0.95rem 1rem;
+  font-size: 1.15rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--border-color);
+  text-align: center;
+  background: #fff;
+}
+input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.18);
+}
+button {
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 1rem 1rem;
+  font-size: 1.2rem;
+  font-weight: 900;
+  border-radius: 0.9rem;
+  border: none;
+  background-color: var(--primary);
+  color: #ffffff;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { background-color: var(--primary-hover); }
+button:disabled { background-color: #9ca3af; cursor: not-allowed; }
+
+.success-message {
+  text-align: center;
+  font-size: 1rem;
+  color: var(--success);
+  margin-top: 1rem;
+  display: none;
+}
+.help-text {
+  text-align: center;
+  margin-top: 0.85rem;
+  font-size: 1rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+.status-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.25rem;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  font-size: 0.95rem;
+  background: #fff;
+}
+.pill.online { color: var(--success); }
+.pill.offline { color: var(--warning); }
+.pill.syncing { color: var(--primary); }
+.pill.bad { color: #b91c1c; }
+
+.pending-list {
+  margin: 1rem 0 0 0;
+  padding-left: 1.25rem;
+  font-size: 1.05rem;
+}
+.pending-list li { margin: 0.5rem 0; }
+.pending-empty {
+  margin-top: 0.75rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+.last-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+.last-box {
+  border: 1px solid var(--border-color);
+  border-radius: 0.85rem;
+  padding: 1rem;
+  background: #fff;
+}
+.last-title {
+  font-weight: 900;
+  margin-bottom: 0.75rem;
+  font-size: 1.1rem;
+  text-align: center;
+}
+.last-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.05rem;
+  margin: 0.35rem 0;
+}
+.last-row span { font-weight: 800; }
+.center { text-align: center; margin-top: 1.5rem; }
+img { max-width: 130px; height: auto; opacity: 0.92; }
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h1>Budget Tracker</h1>
+  <div class="subtitle">Works offline. Offline entries sync when online.</div>
+
+  <div class="card">
+    <div class="summary-row">
+      <div>Food Remaining</div>
+      <span id="foodRemaining">$0.00</span>
+    </div>
+    <div class="summary-row">
+      <div>Fun Remaining</div>
+      <span id="funRemaining">$0.00</span>
+    </div>
+
+    <div class="status-row">
+      <span class="pill" id="netStatusPill">Checking…</span>
+    </div>
+    <div class="status-row" style="margin-top:0.75rem;">
+      <span class="pill" id="pwaPill">PWA: checking…</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Enter Expenses / Refunds</h2>
+    <div class="form-group-vertical">
+      <input type="number" step="0.01" id="foodInput" placeholder="Food" inputmode="decimal">
+      <input type="number" step="0.01" id="funInput" placeholder="Fun" inputmode="decimal">
+    </div>
+
+    <button id="submitBtn" disabled>Submit</button>
+    <div id="successMsg" class="success-message">Saved</div>
+
+    <div class="help-text">
+      Tip: enter negative values for refunds or to add money back.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Last Budget Period</h2>
+    <div class="last-grid">
+      <div class="last-box">
+        <div class="last-title">Food</div>
+        <div class="last-row"><div>Spent</div><span id="lastFoodSpent">$0.00</span></div>
+        <div class="last-row"><div>Leftover</div><span id="lastFoodLeftover">$0.00</span></div>
+      </div>
+
+      <div class="last-box">
+        <div class="last-title">Fun</div>
+        <div class="last-row"><div>Spent</div><span id="lastFunSpent">$0.00</span></div>
+        <div class="last-row"><div>Leftover</div><span id="lastFunLeftover">$0.00</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Pending Offline Transactions</h2>
+    <ul id="pendingList" class="pending-list"></ul>
+    <div id="pendingEmpty" class="pending-empty">None</div>
+  </div>
+
+  <div class="center">
+    <img src="./Nova_192.png" alt="Budget App Icon">
+  </div>
+</div>
+
+<script>
+/**
+ * IMPORTANT:
+ * Replace API_URL with your Apps Script Web App /exec URL after you deploy it.
+ * It must be the "Anyone" accessible deployment if you want client-side fetch without auth friction.
+ */
+const API_URL = "https://script.google.com/macros/s/AKfycbyUxYJpwUv0AXWIgiTQ-rA8uy27LrnbhAPZ7o4sSKP4Go9T5mEQ5ZUn_mRbblWvYdgIUA/exec";
+
+// If you enable an API key in Code.gs (recommended), set it here too.
+const API_KEY = ""; // e.g. "your-long-random-string"
+
+const pwaPill = document.getElementById('pwaPill');
+const netStatusPill = document.getElementById('netStatusPill');
+
+const foodInput = document.getElementById('foodInput');
+const funInput = document.getElementById('funInput');
+const submitBtn = document.getElementById('submitBtn');
+
+const foodRemainingEl = document.getElementById('foodRemaining');
+const funRemainingEl = document.getElementById('funRemaining');
+
+const lastFoodSpentEl = document.getElementById('lastFoodSpent');
+const lastFoodLeftoverEl = document.getElementById('lastFoodLeftover');
+const lastFunSpentEl = document.getElementById('lastFunSpent');
+const lastFunLeftoverEl = document.getElementById('lastFunLeftover');
+
+const pendingListEl = document.getElementById('pendingList');
+const pendingEmptyEl = document.getElementById('pendingEmpty');
+
+const successMsg = document.getElementById('successMsg');
+
+const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+
+let db = null;
+let isSyncing = false;
+
+/* ========== PWA / Service Worker ========== */
+(async function initPwa() {
+  try {
+    if (!('serviceWorker' in navigator)) {
+      pwaPill.textContent = 'PWA: service worker unsupported';
+      pwaPill.className = 'pill bad';
+      return;
+    }
+
+    const reg = await navigator.serviceWorker.register('./sw.js?v=2026-01-10-1');
+    const state = reg.active ? 'active' : (reg.installing ? 'installing' : 'registered');
+
+    pwaPill.textContent = `PWA: ${state}`;
+    pwaPill.className = 'pill online';
+  } catch (e) {
+    console.error(e);
+    pwaPill.textContent = `PWA: SW failed`;
+    pwaPill.className = 'pill bad';
+  }
+})();
+
+/* ========== IndexedDB setup ========== */
+(function initDB(){
+  const req = indexedDB.open('budgetDB', 1);
+  req.onupgradeneeded = e => {
+    const d = e.target.result;
+    if (!d.objectStoreNames.contains('tx')) d.createObjectStore('tx', { autoIncrement: true });
+  };
+  req.onsuccess = e => { db = e.target.result; loadPending(); };
+  req.onerror = () => console.error('IndexedDB error');
+})();
+
+/* ========== Network status pill ========== */
+function setNetStatus(extraLabel) {
+  if (isSyncing) {
+    netStatusPill.textContent = extraLabel || 'Syncing…';
+    netStatusPill.className = 'pill syncing';
+    return;
+  }
+  const online = navigator.onLine;
+  netStatusPill.textContent = online ? 'Online' : 'Offline';
+  netStatusPill.className = `pill ${online ? 'online' : 'offline'}`;
+}
+
+/* ========== API helper (avoid preflight) ==========
+   Apps Script web apps do not support OPTIONS preflight well; keep request "simple":
+   - method: POST
+   - Content-Type: text/plain (not application/json)
+   - no custom headers unless you accept potential preflight risk
+   CORS basics: :contentReference[oaicite:1]{index=1}
+*/
+async function callApi(action, data) {
+  const payload = {
+    action,
+    key: API_KEY || undefined,
+    data: data || {}
+  };
+
+  const resp = await fetch(API_URL, {
+    method: 'POST',
+    mode: 'cors',
+    redirect: 'follow',
+    headers: {
+      'Content-Type': 'text/plain;charset=utf-8'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  // If Apps Script errors, it may return HTML; this makes debugging easier.
+  const text = await resp.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`API response not JSON (HTTP ${resp.status}). Body starts: ${text.slice(0, 120)}`);
+  }
+}
+
+/* ========== UI helpers ========== */
+function showSuccess(text) {
+  successMsg.textContent = text || 'Saved';
+  successMsg.style.display = 'block';
+  setTimeout(() => { successMsg.style.display = 'none'; }, 2000);
+}
+
+function updateButtonState() {
+  submitBtn.disabled = (!foodInput.value && !funInput.value);
+}
+
+/* ========== Summary cache ========== */
+function cacheSummary(summary) {
+  localStorage.setItem('cachedFoodRemaining', String(summary.FoodRemaining ?? 0));
+  localStorage.setItem('cachedFunRemaining', String(summary.FunRemaining ?? 0));
+  localStorage.setItem('cachedLastFoodSpent', String(summary.LastPeriodFoodSpent ?? 0));
+  localStorage.setItem('cachedLastFoodLeftover', String(summary.LastPeriodFoodLeftover ?? 0));
+  localStorage.setItem('cachedLastFunSpent', String(summary.LastPeriodFunSpent ?? 0));
+  localStorage.setItem('cachedLastFunLeftover', String(summary.LastPeriodFunLeftover ?? 0));
+}
+
+function loadCachedSummary() {
+  return {
+    FoodRemaining: Number(localStorage.getItem('cachedFoodRemaining') || 0),
+    FunRemaining: Number(localStorage.getItem('cachedFunRemaining') || 0),
+    LastPeriodFoodSpent: Number(localStorage.getItem('cachedLastFoodSpent') || 0),
+    LastPeriodFoodLeftover: Number(localStorage.getItem('cachedLastFoodLeftover') || 0),
+    LastPeriodFunSpent: Number(localStorage.getItem('cachedLastFunSpent') || 0),
+    LastPeriodFunLeftover: Number(localStorage.getItem('cachedLastFunLeftover') || 0),
+  };
+}
+
+function renderSummary(summary) {
+  foodRemainingEl.textContent = currency.format(summary.FoodRemaining ?? 0);
+  funRemainingEl.textContent = currency.format(summary.FunRemaining ?? 0);
+  lastFoodSpentEl.textContent = currency.format(summary.LastPeriodFoodSpent ?? 0);
+  lastFoodLeftoverEl.textContent = currency.format(summary.LastPeriodFoodLeftover ?? 0);
+  lastFunSpentEl.textContent = currency.format(summary.LastPeriodFunSpent ?? 0);
+  lastFunLeftoverEl.textContent = currency.format(summary.LastPeriodFunLeftover ?? 0);
+}
+
+async function loadSummary() {
+  setNetStatus();
+
+  if (!navigator.onLine) {
+    renderSummary(loadCachedSummary());
+    return;
+  }
+
+  const summary = await callApi('getSummary', {});
+  renderSummary(summary);
+  cacheSummary(summary);
+  setNetStatus();
+}
+
+/* ========== Pending list (IndexedDB) ========== */
+function loadPending() {
+  if (!db) return;
+
+  const store = db.transaction('tx', 'readonly').objectStore('tx');
+  const items = [];
+
+  store.openCursor().onsuccess = e => {
+    const c = e.target.result;
+    if (c) {
+      items.push(c.value);
+      c.continue();
+    } else {
+      items.reverse();
+      renderPending(items);
+    }
+  };
+}
+
+function renderPending(items) {
+  pendingListEl.innerHTML = '';
+
+  if (!items.length) {
+    pendingEmptyEl.style.display = 'block';
+    return;
+  }
+
+  pendingEmptyEl.style.display = 'none';
+  for (const it of items) {
+    const li = document.createElement('li');
+    li.textContent = `Food: ${currency.format(it.food || 0)}  |  Fun: ${currency.format(it.fun || 0)}`;
+    pendingListEl.appendChild(li);
+  }
+}
+
+function enqueueOfflineTx(payload) {
+  if (!db) return;
+  db.transaction('tx','readwrite').objectStore('tx').add(payload);
+  loadPending();
+}
+
+/* ========== Submit handling ========== */
+function optimisticOfflineAdjust(food, fun) {
+  const cached = loadCachedSummary();
+  cached.FoodRemaining = Number(cached.FoodRemaining || 0) - food;
+  cached.FunRemaining  = Number(cached.FunRemaining || 0) - fun;
+  renderSummary(cached);
+  cacheSummary(cached);
+}
+
+async function submitOnline(payload) {
+  submitBtn.disabled = true;
+  successMsg.style.display = 'none';
+
+  const summary = await callApi('submitExpenses', payload);
+  renderSummary(summary);
+  cacheSummary(summary);
+  loadPending();
+  showSuccess('Saved');
+  updateButtonState();
+  setNetStatus();
+}
+
+submitBtn.addEventListener('click', async (e) => {
+  e.preventDefault();
+
+  const food = Number(foodInput.value) || 0;
+  const fun  = Number(funInput.value) || 0;
+
+  foodInput.value = '';
+  funInput.value = '';
+  updateButtonState();
+
+  if (food === 0 && fun === 0) return;
+
+  const payload = { food, fun };
+
+  if (navigator.onLine) {
+    try {
+      await submitOnline(payload);
+    } catch (err) {
+      console.error(err);
+      // If API fails while "online", fall back to queue to avoid losing entry
+      enqueueOfflineTx(payload);
+      optimisticOfflineAdjust(food, fun);
+      showSuccess('Saved offline (API error)');
+      setNetStatus();
+    }
+  } else {
+    enqueueOfflineTx(payload);
+    optimisticOfflineAdjust(food, fun);
+    showSuccess('Saved offline (will sync)');
+    setNetStatus();
+  }
+});
+
+/* ========== Sync queue ========== */
+function syncOfflineQueue() {
+  if (!db || !navigator.onLine) return;
+
+  isSyncing = true;
+  setNetStatus('Syncing…');
+
+  const tx = db.transaction('tx','readwrite');
+  const store = tx.objectStore('tx');
+
+  store.openCursor().onsuccess = async (e) => {
+    const c = e.target.result;
+    if (!c) {
+      isSyncing = false;
+      setNetStatus();
+      loadPending();
+      loadSummary().catch(console.error);
+      return;
+    }
+
+    try {
+      await callApi('submitExpenses', c.value);
+      store.delete(c.key);
+      c.continue();
+    } catch (err) {
+      console.error('Sync failed; will retry later:', err);
+      isSyncing = false;
+      setNetStatus();
+    }
+  };
+
+  tx.onerror = () => {
+    isSyncing = false;
+    setNetStatus();
+  };
+}
+
+window.addEventListener('online', () => {
+  setNetStatus();
+  syncOfflineQueue();
+});
+
+window.addEventListener('offline', () => {
+  isSyncing = false;
+  setNetStatus();
+});
+
+/* Init */
+foodInput.addEventListener('input', updateButtonState);
+funInput.addEventListener('input', updateButtonState);
+
+setNetStatus();
+updateButtonState();
+loadSummary().catch(console.error);
+</script>
+</body>
+</html>
+

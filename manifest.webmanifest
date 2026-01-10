@@ -1,0 +1,26 @@
+{
+  "name": "Budget Tracker",
+  "short_name": "Budget",
+  "description": "Personal budget tracker for food and fun. Works offline and syncs when online.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6f9",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "./Nova_192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./Nova_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+
