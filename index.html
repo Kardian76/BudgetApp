@@ -69,7 +69,7 @@ body {
            calc(1.25rem + var(--safe-left));
 }
 
-/* Header: title + status pill */
+/* Header: centered status pill */
 .header-row {
   display: flex;
   align-items: center;
@@ -77,14 +77,6 @@ body {
   gap: 0.65rem;
   margin: 0 0 1rem 0;
   flex-wrap: wrap;
-}
-
-h1 {
-  margin: 0;
-  font-size: 1.9rem;
-  font-weight: 900;
-  letter-spacing: -0.015em;
-  text-align: center;
 }
 
 .card {
@@ -174,6 +166,7 @@ button:disabled {
 .pill {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   padding: 0.35rem 0.85rem;
   border-radius: 999px;
   border: 1px solid var(--border-color);
@@ -275,7 +268,7 @@ button:disabled {
 }
 .modal .actions .secondary:hover { background: #f9fafb; }
 
-/* Month-to-date card */
+/* Period/last-period card */
 .mtd-title {
   text-align: center;
   font-size: 1.05rem;
@@ -305,8 +298,8 @@ button:disabled {
 
 <body>
 <div class="container">
+  <!-- Removed title; status pill now used as the card header label (replaces "Enter Expenses / Refunds") -->
   <div class="header-row">
-    <h1>Budget Tracker is</h1>
     <span class="pill" id="netStatusPill">Checking…</span>
   </div>
 
@@ -323,10 +316,16 @@ button:disabled {
       <div>Gas Remaining</div>
       <span id="gasRemaining">$0.00</span>
     </div>
+
+    <!-- New tip: indicates when the current budget period ends -->
+    <div class="small-note" id="periodEndsTip">Current period ends: —</div>
   </div>
 
   <div class="card expenses-card">
-    <h2>Enter Expenses / Refunds</h2>
+    <!-- Status pill moved here to replace the h2 label -->
+    <div class="header-row" style="margin: 0 0 0.8rem 0;">
+      <span class="pill" id="entryStatusPill">Checking…</span>
+    </div>
 
     <div class="toggle" role="tablist" aria-label="Entry type">
       <button type="button" id="modeExpenseBtn" class="active">Expense</button>
@@ -344,7 +343,8 @@ button:disabled {
   </div>
 
   <div class="card">
-    <div class="mtd-title" id="mtdTitle">Period-to-date spent</div>
+    <!-- Changed to last period spent -->
+    <div class="mtd-title" id="mtdTitle">Last period spent</div>
 
     <div class="summary-row">
       <div>Food</div>
@@ -428,6 +428,9 @@ const PERIOD_TYPE = "month";
    ========================================================= */
 
 const netStatusPill = document.getElementById('netStatusPill');
+const entryStatusPill = document.getElementById('entryStatusPill'); // mirrors netStatusPill text/state
+
+const periodEndsTip = document.getElementById('periodEndsTip');
 
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsBackdrop = document.getElementById('settingsBackdrop');
@@ -508,14 +511,21 @@ function logWarn(...args) { if (DEBUG_LOGS) console.warn(...args); }
 function setApiStatus(text, isBad) { if (!DEBUG_LOGS) return; (isBad ? logWarn : logInfo)(text); }
 
 function setNetStatus(extraLabel) {
-  if (isSyncing) {
-    netStatusPill.textContent = extraLabel || 'Syncing…';
-    netStatusPill.className = 'pill syncing';
-    return;
-  }
-  const online = navigator.onLine;
-  netStatusPill.textContent = online ? 'Online' : 'Offline';
-  netStatusPill.className = `pill ${online ? 'online' : 'offline'}`;
+  const applyTo = (pill) => {
+    if (!pill) return;
+
+    if (isSyncing) {
+      pill.textContent = extraLabel || 'Syncing…';
+      pill.className = 'pill syncing';
+      return;
+    }
+    const online = navigator.onLine;
+    pill.textContent = online ? 'Online' : 'Offline';
+    pill.className = `pill ${online ? 'online' : 'offline'}`;
+  };
+
+  applyTo(netStatusPill);
+  applyTo(entryStatusPill);
 }
 
 function centsFromDollars(d) { return Math.round(Number(d) * 100); }
@@ -543,6 +553,18 @@ function periodBounds(d = new Date()) {
   const start = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
   const end = new Date(d.getFullYear(), d.getMonth() + 1, 1, 0, 0, 0, 0);
   return { startMs: start.getTime(), endMs: end.getTime() };
+}
+
+function previousPeriodDateRef() {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  return d;
+}
+
+function formatPeriodEndDate(d = new Date()) {
+  // For monthly periods, "ends" is the last day of the month (local time)
+  const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+  return end.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function uuid() {
@@ -771,7 +793,7 @@ async function pruneLocalData(days) {
 
 /* =========================================================
    BUDGETS (locked per period)
-   - Changing Settings updates NEXT period budgets only.
+   - Changing Settings updates NEXT PERIOD budgets only.
    - Current period budgets are locked and will not change.
    ========================================================= */
 
@@ -849,12 +871,16 @@ function setMode(mode) {
   }
 }
 
+function renderPeriodEndsTip() {
+  if (!periodEndsTip) return;
+  periodEndsTip.textContent = `Current period ends: ${formatPeriodEndDate(new Date())}`;
+}
+
 /* =========================================================
-   SUMMARY + PERIOD-TO-DATE TOTALS (currently month-based period)
+   SUMMARY + TOTALS
    ========================================================= */
 
-function computePeriodToDateSpentCents(ledgerItems) {
-  const { startMs, endMs } = periodBounds(new Date());
+function computeSpentForRangeCents(ledgerItems, startMs, endMs) {
   const spent = { food: 0, fun: 0, gas: 0 };
 
   for (const e of ledgerItems) {
@@ -881,8 +907,9 @@ function renderSummary(remainingCents) {
   gasRemainingEl.textContent  = currency.format(dollarsFromCents(remainingCents.gas));
 }
 
-function renderPeriodToDate(spentCents) {
-  mtdTitle.textContent = `Period-to-date spent (${periodLabel(new Date())})`;
+function renderLastPeriodSpent(spentCents) {
+  const prev = previousPeriodDateRef();
+  mtdTitle.textContent = `Last period spent (${periodLabel(prev)})`;
   mtdFoodEl.textContent = currency.format(dollarsFromCents(spentCents.food));
   mtdFunEl.textContent  = currency.format(dollarsFromCents(spentCents.fun));
   mtdGasEl.textContent  = currency.format(dollarsFromCents(spentCents.gas));
@@ -890,6 +917,7 @@ function renderPeriodToDate(spentCents) {
 
 async function loadSummary() {
   setNetStatus();
+  renderPeriodEndsTip();
 
   await rollBudgetPeriodIfNeeded();
 
@@ -901,11 +929,19 @@ async function loadSummary() {
   }
 
   const budgets = await getCurrentPeriodBudgetsCents();
-  const spentCents = computePeriodToDateSpentCents(ledger);
-  const remainingCents = computeRemainingForPeriod(budgets, spentCents);
+
+  // Current period remaining still computed from current period spent
+  const curBounds = periodBounds(new Date());
+  const curSpentCents = computeSpentForRangeCents(ledger, curBounds.startMs, curBounds.endMs);
+  const remainingCents = computeRemainingForPeriod(budgets, curSpentCents);
 
   renderSummary(remainingCents);
-  renderPeriodToDate(spentCents);
+
+  // Card now shows LAST period spent
+  const prev = previousPeriodDateRef();
+  const prevBounds = periodBounds(prev);
+  const lastPeriodSpent = computeSpentForRangeCents(ledger, prevBounds.startMs, prevBounds.endMs);
+  renderLastPeriodSpent(lastPeriodSpent);
 
   if (navigator.onLine) {
     try {
@@ -915,11 +951,19 @@ async function loadSummary() {
       await rollBudgetPeriodIfNeeded();
 
       const budgets2 = await getCurrentPeriodBudgetsCents();
-      const spent2 = computePeriodToDateSpentCents(ledger);
-      const rem2 = computeRemainingForPeriod(budgets2, spent2);
+
+      const curBounds2 = periodBounds(new Date());
+      const curSpent2 = computeSpentForRangeCents(ledger, curBounds2.startMs, curBounds2.endMs);
+      const rem2 = computeRemainingForPeriod(budgets2, curSpent2);
 
       renderSummary(rem2);
-      renderPeriodToDate(spent2);
+
+      const prev2 = previousPeriodDateRef();
+      const prevBounds2 = periodBounds(prev2);
+      const last2 = computeSpentForRangeCents(ledger, prevBounds2.startMs, prevBounds2.endMs);
+      renderLastPeriodSpent(last2);
+
+      renderPeriodEndsTip();
     } catch (e) {
       console.error(e);
     }
@@ -1177,6 +1221,7 @@ setInterval(() => {
 
 setMode("expense");
 setNetStatus();
+renderPeriodEndsTip();
 updateButtonState();
 
 (async function boot() {
