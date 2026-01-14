@@ -265,6 +265,10 @@ img {
       <div>Fun Remaining</div>
       <span id="funRemaining">$0.00</span>
     </div>
+    <div class="summary-row">
+      <div>Gas Remaining</div>
+      <span id="gasRemaining">$0.00</span>
+    </div>
 
     <div class="status-row">
       <span class="pill" id="netStatusPill">Checking…</span>
@@ -283,6 +287,7 @@ img {
     <div class="form-group-vertical">
       <input type="number" step="0.01" id="foodInput" placeholder="Food" inputmode="decimal">
       <input type="number" step="0.01" id="funInput" placeholder="Fun" inputmode="decimal">
+      <input type="number" step="0.01" id="gasInput" placeholder="Gas" inputmode="decimal">
     </div>
 
     <button id="submitBtn" disabled>Submit</button>
@@ -315,6 +320,16 @@ img {
           <div>Leftover</div><span id="lastFunLeftover">$0.00</span>
         </div>
       </div>
+
+      <div class="last-box">
+        <div class="last-title">Gas</div>
+        <div class="last-row">
+          <div>Spent</div><span id="lastGasSpent">$0.00</span>
+        </div>
+        <div class="last-row">
+          <div>Leftover</div><span id="lastGasLeftover">$0.00</span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -331,17 +346,21 @@ img {
 
 <script>
 /* =========================================================
-   CONFIG
+   CONFIG (Worker + shared token)
    ========================================================= */
 
-// Cloudflare Worker proxy URL (MUST be the Worker, not Apps Script)
-const API_URL = "https://budget-app.kardian.workers.dev/";
-
-// Optional: if you set API_KEY in Apps Script properties, set it here too.
-const API_KEY = "";
+const API_BASE = "https://budgetapp-api.kardian.workers.dev";
+const AUTH_TOKEN = "K7QvN2P9x0MZyJHcF4rW8E5U1R_AkDqB3aSXTGm6nVfLw-heCpd";
 
 // Cache-busting version for SW registration
 const SW_VERSION = "2026-01-13-1";
+
+// Defaults (dollars)
+const DEFAULT_BUDGETS = {
+  food: 500,
+  fun: 300,
+  gas: 200,
+};
 
 /* =========================================================
    ELEMENTS / STATE
@@ -353,15 +372,19 @@ const apiPill = document.getElementById('apiPill');
 
 const foodInput = document.getElementById('foodInput');
 const funInput = document.getElementById('funInput');
+const gasInput = document.getElementById('gasInput');
 const submitBtn = document.getElementById('submitBtn');
 
 const foodRemainingEl = document.getElementById('foodRemaining');
 const funRemainingEl = document.getElementById('funRemaining');
+const gasRemainingEl = document.getElementById('gasRemaining');
 
 const lastFoodSpentEl = document.getElementById('lastFoodSpent');
 const lastFoodLeftoverEl = document.getElementById('lastFoodLeftover');
 const lastFunSpentEl = document.getElementById('lastFunSpent');
 const lastFunLeftoverEl = document.getElementById('lastFunLeftover');
+const lastGasSpentEl = document.getElementById('lastGasSpent');
+const lastGasLeftoverEl = document.getElementById('lastGasLeftover');
 
 const pendingListEl = document.getElementById('pendingList');
 const pendingEmptyEl = document.getElementById('pendingEmpty');
@@ -372,6 +395,13 @@ const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: '
 
 let db = null;
 let isSyncing = false;
+
+// Local-only cache of categories (from /api/state)
+let categories = [
+  { key: "food", name: "Food", default_limit: 50000 },
+  { key: "fun", name: "Fun", default_limit: 30000 },
+  { key: "gas", name: "Gas", default_limit: 20000 },
+];
 
 /* =========================================================
    PWA / SERVICE WORKER
@@ -399,15 +429,20 @@ let isSyncing = false;
 
 /* =========================================================
    INDEXEDDB SETUP
+   - tx: offline queue items (each has {items:[...]} compatible with /api/expenses/batch)
+   - meta: stores { key:'cursor', value:number }
+   - ledger: local expenses for offline summary (append-only)
    ========================================================= */
 
 (function initDB(){
-  const req = indexedDB.open('budgetDB', 1);
+  const req = indexedDB.open('budgetDB', 2);
   req.onupgradeneeded = e => {
     const d = e.target.result;
     if (!d.objectStoreNames.contains('tx')) d.createObjectStore('tx', { autoIncrement: true });
+    if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'key' });
+    if (!d.objectStoreNames.contains('ledger')) d.createObjectStore('ledger', { keyPath: 'client_id' });
   };
-  req.onsuccess = e => { db = e.target.result; loadPending(); };
+  req.onsuccess = e => { db = e.target.result; loadPending(); loadSummary().catch(console.error); };
   req.onerror = () => console.error('IndexedDB error');
 })();
 
@@ -431,46 +466,159 @@ function setNetStatus(extraLabel) {
   netStatusPill.className = `pill ${online ? 'online' : 'offline'}`;
 }
 
+function centsFromDollars(d) {
+  // Handles negatives; rounds to nearest cent
+  return Math.round(Number(d) * 100);
+}
+
+function dollarsFromCents(c) {
+  return (Number(c) || 0) / 100;
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function uuid() {
+  if (crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  // Fallback (non-cryptographic; adequate for dedupe in small app)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 /* =========================================================
-   API CALLER (via Cloudflare Worker)
+   API CALLS (Worker)
    ========================================================= */
 
-async function callApi(action, data) {
-  const payload = { action, data: data || {} };
+async function apiGet(path) {
+  setApiStatus(`API: GET ${path}…`, false);
+  const resp = await fetch(`${API_BASE}${path}`, {
+    method: "GET",
+    mode: "cors",
+    cache: "no-store",
+    headers: {
+      "Authorization": `Bearer ${AUTH_TOKEN}`
+    }
+  });
 
-  setApiStatus(`API: calling ${action}…`, false);
+  const text = await resp.text();
+  let json;
+  try { json = JSON.parse(text); }
+  catch {
+    setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true);
+    throw new Error(`Non-JSON response (HTTP ${resp.status}): ${text.slice(0, 200)}`);
+  }
 
-  const resp = await fetch(API_URL, {
+  if (!resp.ok || json?.ok === false) {
+    setApiStatus(`API: error (HTTP ${resp.status})`, true);
+    throw new Error(json?.error || `HTTP ${resp.status}`);
+  }
+
+  setApiStatus(`API: OK`, false);
+  return json;
+}
+
+async function apiHealth() {
+  // no auth required, but we can still call with auth; your worker allows /api/health without auth
+  setApiStatus(`API: health…`, false);
+  const resp = await fetch(`${API_BASE}/api/health`, { method: "GET", mode: "cors", cache: "no-store" });
+  const text = await resp.text();
+  let json;
+  try { json = JSON.parse(text); }
+  catch {
+    setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true);
+    throw new Error(`Non-JSON response (HTTP ${resp.status}): ${text.slice(0, 200)}`);
+  }
+  if (!resp.ok || json?.ok === false) {
+    setApiStatus(`API: health failed`, true);
+    throw new Error(json?.error || `HTTP ${resp.status}`);
+  }
+  setApiStatus(`API: OK`, false);
+  return json;
+}
+
+async function apiPostJson(path, payload) {
+  setApiStatus(`API: POST ${path}…`, false);
+  const resp = await fetch(`${API_BASE}${path}`, {
     method: "POST",
     mode: "cors",
     cache: "no-store",
     headers: {
       "Content-Type": "application/json",
-      ...(API_KEY ? { "X-Api-Key": API_KEY } : {})
+      "Authorization": `Bearer ${AUTH_TOKEN}`
     },
     body: JSON.stringify(payload),
-    redirect: "follow"
   });
 
   const text = await resp.text();
-
   let json;
-  try {
-    json = JSON.parse(text);
-  } catch {
+  try { json = JSON.parse(text); }
+  catch {
     setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true);
-    throw new Error(`Non-JSON response (HTTP ${resp.status}). Body starts: ${text.slice(0, 200)}`);
+    throw new Error(`Non-JSON response (HTTP ${resp.status}): ${text.slice(0, 200)}`);
   }
 
-  console.log(`API ${action} response:`, json);
-
-  if (json && json.ok === false) {
-    setApiStatus(`API: error (${json.error || 'unknown'})`, true);
-    throw new Error(json.error || "API error");
+  if (!resp.ok || json?.ok === false) {
+    setApiStatus(`API: error (HTTP ${resp.status})`, true);
+    throw new Error(json?.error || `HTTP ${resp.status}`);
   }
 
-  setApiStatus(`API: OK (HTTP ${resp.status})`, false);
+  setApiStatus(`API: OK`, false);
   return json;
+}
+
+/* =========================================================
+   LOCAL META (cursor)
+   ========================================================= */
+
+function getMeta(key) {
+  return new Promise((resolve, reject) => {
+    if (!db) return resolve(null);
+    const tx = db.transaction('meta', 'readonly');
+    const store = tx.objectStore('meta');
+    const req = store.get(key);
+    req.onsuccess = () => resolve(req.result ? req.result.value : null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function setMeta(key, value) {
+  return new Promise((resolve, reject) => {
+    if (!db) return resolve();
+    const tx = db.transaction('meta', 'readwrite');
+    tx.objectStore('meta').put({ key, value });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/* =========================================================
+   LEDGER (local expenses)
+   ========================================================= */
+
+function upsertLedgerItems(items) {
+  return new Promise((resolve, reject) => {
+    if (!db) return resolve();
+    const tx = db.transaction('ledger', 'readwrite');
+    const store = tx.objectStore('ledger');
+    for (const it of items) store.put(it);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function getAllLedger() {
+  return new Promise((resolve, reject) => {
+    if (!db) return resolve([]);
+    const tx = db.transaction('ledger', 'readonly');
+    const store = tx.objectStore('ledger');
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
 }
 
 /* =========================================================
@@ -484,70 +632,85 @@ function showSuccess(text) {
 }
 
 function updateButtonState() {
-  submitBtn.disabled = (!foodInput.value && !funInput.value);
+  submitBtn.disabled = (!foodInput.value && !funInput.value && !gasInput.value);
 }
 
 /* =========================================================
-   SUMMARY CACHE
+   CLIENT-SIDE SUMMARY (offline-first)
    ========================================================= */
 
-function cacheSummary(summary) {
-  localStorage.setItem('cachedFoodRemaining', String(summary.FoodRemaining ?? 0));
-  localStorage.setItem('cachedFunRemaining', String(summary.FunRemaining ?? 0));
+function computeSummaryFromLedger(ledgerItems) {
+  // Remaining = default - sum(spend) per category.
+  // amount stored in cents; positive = spend; negative = refund/credit.
+  const spentCents = { food: 0, fun: 0, gas: 0 };
 
-  localStorage.setItem('cachedLastFoodSpent', String(summary.LastPeriodFoodSpent ?? 0));
-  localStorage.setItem('cachedLastFoodLeftover', String(summary.LastPeriodFoodLeftover ?? 0));
-  localStorage.setItem('cachedLastFunSpent', String(summary.LastPeriodFunSpent ?? 0));
-  localStorage.setItem('cachedLastFunLeftover', String(summary.LastPeriodFunLeftover ?? 0));
-}
+  for (const e of ledgerItems) {
+    const k = e.category_key;
+    if (k in spentCents) spentCents[k] += Number(e.amount || 0);
+  }
 
-function loadCachedSummary() {
+  const remainingCents = {
+    food: centsFromDollars(DEFAULT_BUDGETS.food) - spentCents.food,
+    fun:  centsFromDollars(DEFAULT_BUDGETS.fun)  - spentCents.fun,
+    gas:  centsFromDollars(DEFAULT_BUDGETS.gas)  - spentCents.gas,
+  };
+
+  // "Last Budget Period" is not yet defined in your backend.
+  // For now: show 0s (we can implement month boundaries in next step).
   return {
-    FoodRemaining: Number(localStorage.getItem('cachedFoodRemaining') || 0),
-    FunRemaining: Number(localStorage.getItem('cachedFunRemaining') || 0),
+    FoodRemaining: dollarsFromCents(remainingCents.food),
+    FunRemaining:  dollarsFromCents(remainingCents.fun),
+    GasRemaining:  dollarsFromCents(remainingCents.gas),
 
-    LastPeriodFoodSpent: Number(localStorage.getItem('cachedLastFoodSpent') || 0),
-    LastPeriodFoodLeftover: Number(localStorage.getItem('cachedLastFoodLeftover') || 0),
-    LastPeriodFunSpent: Number(localStorage.getItem('cachedLastFunSpent') || 0),
-    LastPeriodFunLeftover: Number(localStorage.getItem('cachedLastFunLeftover') || 0),
+    LastPeriodFoodSpent: 0,
+    LastPeriodFoodLeftover: 0,
+    LastPeriodFunSpent: 0,
+    LastPeriodFunLeftover: 0,
+    LastPeriodGasSpent: 0,
+    LastPeriodGasLeftover: 0,
   };
 }
 
 function renderSummary(summary) {
   foodRemainingEl.textContent = currency.format(summary.FoodRemaining ?? 0);
   funRemainingEl.textContent = currency.format(summary.FunRemaining ?? 0);
+  gasRemainingEl.textContent = currency.format(summary.GasRemaining ?? 0);
 
   lastFoodSpentEl.textContent = currency.format(summary.LastPeriodFoodSpent ?? 0);
   lastFoodLeftoverEl.textContent = currency.format(summary.LastPeriodFoodLeftover ?? 0);
 
   lastFunSpentEl.textContent = currency.format(summary.LastPeriodFunSpent ?? 0);
   lastFunLeftoverEl.textContent = currency.format(summary.LastPeriodFunLeftover ?? 0);
+
+  lastGasSpentEl.textContent = currency.format(summary.LastPeriodGasSpent ?? 0);
+  lastGasLeftoverEl.textContent = currency.format(summary.LastPeriodGasLeftover ?? 0);
 }
 
 async function loadSummary() {
   setNetStatus();
 
-  if (!navigator.onLine) {
-    renderSummary(loadCachedSummary());
-    setApiStatus("API: offline (cached)", false);
-    return;
+  // Always render from local ledger first (offline-first)
+  try {
+    const ledger = await getAllLedger();
+    renderSummary(computeSummaryFromLedger(ledger));
+  } catch (e) {
+    console.error(e);
   }
 
-  try {
-    const summary = await callApi('getSummary', {});
-    renderSummary(summary);
-    cacheSummary(summary);
-  } catch (err) {
-    console.error(err);
-    renderSummary(loadCachedSummary());
-    setApiStatus("API: failed (cached)", true);
-  } finally {
-    setNetStatus();
+  // Then, if online, sync and re-render
+  if (navigator.onLine) {
+    try {
+      await syncNow();
+      const ledger = await getAllLedger();
+      renderSummary(computeSummaryFromLedger(ledger));
+    } catch (e) {
+      console.error(e);
+    }
   }
 }
 
 /* =========================================================
-   PENDING LIST (IndexedDB)
+   PENDING LIST (IndexedDB tx)
    ========================================================= */
 
 function loadPending() {
@@ -578,119 +741,203 @@ function renderPending(items) {
 
   pendingEmptyEl.style.display = 'none';
   for (const it of items) {
+    const totals = { food: 0, fun: 0, gas: 0 };
+    for (const exp of (it.items || [])) {
+      if (exp.category_key in totals) totals[exp.category_key] += exp.amount;
+    }
     const li = document.createElement('li');
-    li.textContent = `Food: ${currency.format(it.food || 0)}  |  Fun: ${currency.format(it.fun || 0)}`;
+    li.textContent =
+      `Food: ${currency.format(dollarsFromCents(totals.food))}  |  Fun: ${currency.format(dollarsFromCents(totals.fun))}  |  Gas: ${currency.format(dollarsFromCents(totals.gas))}`;
     pendingListEl.appendChild(li);
   }
 }
 
-function enqueueOfflineTx(payload) {
+function enqueueOfflineBatch(batch) {
   if (!db) return;
-  db.transaction('tx','readwrite').objectStore('tx').add(payload);
+  db.transaction('tx','readwrite').objectStore('tx').add(batch);
   loadPending();
 }
 
 /* =========================================================
-   SUBMIT HANDLING
+   SUBMIT HANDLING (offline-first)
    ========================================================= */
 
-function optimisticOfflineAdjust(food, fun) {
-  const cached = loadCachedSummary();
-  cached.FoodRemaining = Number(cached.FoodRemaining || 0) - food;
-  cached.FunRemaining  = Number(cached.FunRemaining || 0) - fun;
+async function submitExpenses(foodDollars, funDollars, gasDollars) {
+  const items = [];
+  const occurred_at = nowIso();
+  const created_by = "pwa";
 
-  renderSummary(cached);
-  cacheSummary(cached);
+  // Only create expense items for non-zero entries
+  if (foodDollars !== 0) items.push({
+    client_id: uuid(),
+    category_key: "food",
+    amount: centsFromDollars(foodDollars),
+    note: null,
+    occurred_at,
+    created_by
+  });
+
+  if (funDollars !== 0) items.push({
+    client_id: uuid(),
+    category_key: "fun",
+    amount: centsFromDollars(funDollars),
+    note: null,
+    occurred_at,
+    created_by
+  });
+
+  if (gasDollars !== 0) items.push({
+    client_id: uuid(),
+    category_key: "gas",
+    amount: centsFromDollars(gasDollars),
+    note: null,
+    occurred_at,
+    created_by
+  });
+
+  if (!items.length) return;
+
+  // Always write to local ledger immediately (offline-first)
+  await upsertLedgerItems(items);
+
+  // Put it in outbox for guaranteed delivery
+  const batch = { items };
+  enqueueOfflineBatch(batch);
+
+  // Try to sync immediately if online
+  if (navigator.onLine) {
+    try {
+      await syncNow();
+      showSuccess('Saved');
+    } catch (e) {
+      console.error(e);
+      showSuccess('Saved offline (will sync)');
+    }
+  } else {
+    showSuccess('Saved offline (will sync)');
+  }
 }
 
-async function submitOnline(payload) {
-  submitBtn.disabled = true;
-  successMsg.style.display = 'none';
+/* =========================================================
+   SYNC ENGINE
+   - Push tx queue to /api/expenses/batch
+   - Pull /api/changes?since=cursor and merge into local ledger
+   ========================================================= */
 
-  const summary = await callApi('submitExpenses', payload);
-  renderSummary(summary);
-  cacheSummary(summary);
-  loadPending();
-  showSuccess('Saved');
-  updateButtonState();
-  setNetStatus();
+async function loadState() {
+  // Also updates categories cache (not strictly required yet)
+  const state = await apiGet('/api/state');
+  categories = state.categories || categories;
+  if (typeof state.cursor === "number") {
+    // server cursor is informational; we still track local cursor for pull
+  }
+  return state;
 }
+
+async function pushQueueOnce() {
+  if (!db) return;
+
+  const tx = db.transaction('tx', 'readwrite');
+  const store = tx.objectStore('tx');
+
+  // Process sequentially (simple + reliable)
+  return new Promise((resolve, reject) => {
+    const req = store.openCursor();
+    req.onsuccess = async (e) => {
+      const cursor = e.target.result;
+      if (!cursor) return resolve();
+
+      const batch = cursor.value;
+
+      try {
+        await apiPostJson('/api/expenses/batch', batch);
+        store.delete(cursor.key); // remove from outbox on success
+        cursor.continue();
+      } catch (err) {
+        reject(err);
+      }
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function pullChanges() {
+  const since = Number((await getMeta('cursor')) || 0);
+  const res = await apiGet(`/api/changes?since=${encodeURIComponent(String(since))}`);
+
+  // Merge expenses into local ledger (idempotent by client_id keyPath)
+  if (Array.isArray(res.expenses) && res.expenses.length) {
+    await upsertLedgerItems(res.expenses);
+  }
+
+  // Advance cursor to server cursor
+  if (typeof res.cursor === "number") {
+    await setMeta('cursor', res.cursor);
+  }
+
+  return res;
+}
+
+async function syncNow() {
+  if (!navigator.onLine) return;
+
+  isSyncing = true;
+  setNetStatus('Syncing…');
+
+  try {
+    // (Optional) confirm API reachable
+    await apiHealth();
+
+    // Load categories (useful later)
+    await loadState();
+
+    // Push local queued items
+    await pushQueueOnce();
+
+    // Pull remote changes
+    await pullChanges();
+
+    loadPending();
+    setNetStatus();
+  } finally {
+    isSyncing = false;
+    setNetStatus();
+  }
+}
+
+/* =========================================================
+   INIT + EVENT WIRING
+   ========================================================= */
 
 submitBtn.addEventListener('click', async (e) => {
   e.preventDefault();
 
   const food = Number(foodInput.value) || 0;
   const fun  = Number(funInput.value) || 0;
+  const gas  = Number(gasInput.value) || 0;
 
   foodInput.value = '';
   funInput.value = '';
+  gasInput.value = '';
   updateButtonState();
 
-  if (food === 0 && fun === 0) return;
+  if (food === 0 && fun === 0 && gas === 0) return;
 
-  const payload = { food, fun };
-
-  if (navigator.onLine) {
-    try {
-      await submitOnline(payload);
-    } catch (err) {
-      console.error(err);
-      enqueueOfflineTx(payload);
-      optimisticOfflineAdjust(food, fun);
-      showSuccess('Saved offline (API error)');
-      setNetStatus();
-    }
-  } else {
-    enqueueOfflineTx(payload);
-    optimisticOfflineAdjust(food, fun);
-    showSuccess('Saved offline (will sync)');
-    setNetStatus();
+  try {
+    await submitExpenses(food, fun, gas);
+    await loadSummary();
+  } catch (err) {
+    console.error(err);
   }
 });
 
-/* =========================================================
-   SYNC QUEUE
-   ========================================================= */
-
-function syncOfflineQueue() {
-  if (!db || !navigator.onLine) return;
-
-  isSyncing = true;
-  setNetStatus('Syncing…');
-
-  const tx = db.transaction('tx','readwrite');
-  const store = tx.objectStore('tx');
-
-  store.openCursor().onsuccess = async (e) => {
-    const c = e.target.result;
-    if (!c) {
-      isSyncing = false;
-      setNetStatus();
-      loadPending();
-      loadSummary().catch(console.error);
-      return;
-    }
-
-    try {
-      await callApi('submitExpenses', c.value);
-      store.delete(c.key);
-      c.continue();
-    } catch (err) {
-      console.error('Sync failed; will retry later:', err);
-      isSyncing = false;
-      setNetStatus();
-    }
-  };
-
-  tx.onerror = () => {
-    isSyncing = false;
-    setNetStatus();
-  };
-}
+foodInput.addEventListener('input', updateButtonState);
+funInput.addEventListener('input', updateButtonState);
+gasInput.addEventListener('input', updateButtonState);
 
 window.addEventListener('online', () => {
   setNetStatus();
-  syncOfflineQueue();
+  syncNow().catch(console.error);
 });
 
 window.addEventListener('offline', () => {
@@ -698,17 +945,25 @@ window.addEventListener('offline', () => {
   setNetStatus();
 });
 
-/* =========================================================
-   INIT
-   ========================================================= */
-
-foodInput.addEventListener('input', updateButtonState);
-funInput.addEventListener('input', updateButtonState);
+// Periodic sync while app open (lightweight)
+setInterval(() => {
+  if (navigator.onLine) syncNow().catch(() => {});
+}, 25000);
 
 setNetStatus();
 updateButtonState();
 setApiStatus("API: ready", false);
-loadSummary().catch(console.error);
+
+// Initial sync + render
+(async function boot() {
+  try {
+    await syncNow();
+  } catch (e) {
+    console.error(e);
+  } finally {
+    await loadSummary();
+  }
+})();
 </script>
 </body>
 </html>
