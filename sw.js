@@ -7,8 +7,8 @@ const CORE = [
   './',
   './index.html',
   './manifest.webmanifest', // if you always serve manifest.webmanifest?v=..., this is still fine
-  './Nova_192.png',
-  './Nova_512.png'
+  './Icon_192.png',
+  './Icon_512.png'
 ];
 
 // Your Worker API base (explicit bypass; not cached)
