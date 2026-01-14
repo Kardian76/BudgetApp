@@ -191,27 +191,38 @@ button:disabled {
 .pill.offline { color: var(--warning); }
 .pill.syncing { color: var(--primary); }
 
-.toggle {
-  display: flex;
-  gap: 0.6rem;
-  margin: 0 0 0.8rem 0;
+/* Compact refund switch row */
+.mode-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:0.75rem;
+  margin: 0 0 0.75rem 0;
 }
-.toggle button {
-  width: 50%;
-  min-height: 44px;
-  padding: 0.65rem 0.75rem;
-  font-size: 1rem;
-  border-radius: 0.85rem;
-  font-weight: 900;
-  border: 1px solid var(--border-color);
-  background: #fff;
-  color: var(--text-main);
+.mode-label{
+  font-weight:900;
+  color: var(--text-muted);
+  font-size:0.95rem;
 }
-.toggle button.active {
-  background: var(--primary);
-  color: #fff;
-  border-color: rgba(37, 99, 235, 0.35);
+
+/* iOS/Android friendly switch */
+.switch{ position:relative; display:inline-block; width:46px; height:28px; }
+.switch input{ opacity:0; width:0; height:0; }
+.slider{
+  position:absolute; cursor:pointer; inset:0;
+  background:#e5e7eb; border-radius:999px;
+  transition: .2s;
+  border:1px solid var(--border-color);
 }
+.slider:before{
+  position:absolute; content:"";
+  height:22px; width:22px; left:3px; top:2px;
+  background:white; border-radius:999px;
+  transition:.2s;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.10);
+}
+.switch input:checked + .slider{ background: rgba(37,99,235,0.25); }
+.switch input:checked + .slider:before{ transform: translateX(18px); }
 
 .modal-backdrop {
   position: fixed;
@@ -258,7 +269,7 @@ button:disabled {
 .modal label {
   font-weight: 900;
   font-size: 0.95rem;
-  text-align: center; /* centered labels */
+  text-align: center;
 }
 
 .modal input {
@@ -333,9 +344,13 @@ button:disabled {
   <div class="card expenses-card">
     <h2>Enter Expenses / Refunds</h2>
 
-    <div class="toggle" role="tablist" aria-label="Entry type">
-      <button type="button" id="modeExpenseBtn" class="active">Expense</button>
-      <button type="button" id="modeRefundBtn">Refund</button>
+    <!-- Compact Refund toggle: user always types positive numbers -->
+    <div class="mode-row" aria-label="Refund toggle">
+      <span class="mode-label">Refund</span>
+      <label class="switch">
+        <input type="checkbox" id="refundToggle" aria-label="Refund mode">
+        <span class="slider"></span>
+      </label>
     </div>
 
     <div class="form-group-vertical">
@@ -423,7 +438,6 @@ const STANDARD_TZ = "America/New_York";
    ========================================================= */
 
 const netStatusPill = document.getElementById('netStatusPill');
-
 const periodEndsText = document.getElementById('periodEndsText');
 
 const settingsBtn = document.getElementById('settingsBtn');
@@ -435,8 +449,7 @@ const setFun = document.getElementById('setFun');
 const setGas = document.getElementById('setGas');
 const settingsSubtitle = document.getElementById('settingsSubtitle');
 
-const modeExpenseBtn = document.getElementById('modeExpenseBtn');
-const modeRefundBtn = document.getElementById('modeRefundBtn');
+const refundToggle = document.getElementById('refundToggle');
 
 const foodInput = document.getElementById('foodInput');
 const funInput = document.getElementById('funInput');
@@ -538,7 +551,7 @@ function clampNonNegative(n) {
 }
 
 /* =========================================================
-   EASTERN TIME PERIOD LOGIC (fixed to avoid month drift)
+   EASTERN TIME PERIOD LOGIC
    ========================================================= */
 
 const etPartsFormatter = new Intl.DateTimeFormat('en-US', {
@@ -581,7 +594,6 @@ function currentPeriodInfoET(now = new Date()) {
   const half = (d <= 14) ? 1 : 2;
   const last = lastDayOfMonth(y, m);
 
-  // IMPORTANT: this formatter is already ET-based; do NOT pass a UTC-constructed date here
   const monthYear = etMonthYearFormatter.format(now);
 
   const label = (half === 1)
@@ -602,8 +614,6 @@ function currentPeriodInfoET(now = new Date()) {
 
 function nextPeriodInfoET(now = new Date()) {
   const cur = currentPeriodInfoET(now);
-  // Build the next period start date in ET terms, then anchor it by taking noon UTC of that calendar date.
-  // Noon UTC is safely away from midnight shifts when converting time zones.
   let ny = cur.y, nm = cur.m, nd;
   if (cur.half === 1) {
     nd = 15;
@@ -623,11 +633,6 @@ function formatPeriodEndText(cur) {
 }
 
 function formatEffectiveDateOnly(curNext) {
-  // We only show the date that changes take effect (ET).
-  // Effective at 12:00 AM ET on:
-  const approxUtc = new Date(Date.UTC(curNext.y, curNext.m - 1, (curNext.half === 1 ? 1 : 15), 12, 0, 0));
-  // BUT the "next period" always starts either on the 15th or the 1st. We can derive it:
-  // If next.half=2 -> starts on 15th, else starts on 1st.
   const startDay = (curNext.half === 1) ? 1 : 15;
   const approxStartUtc = new Date(Date.UTC(curNext.y, curNext.m - 1, startDay, 12, 0, 0));
   return etMonthDayFormatter.format(approxStartUtc);
@@ -872,15 +877,8 @@ function updateButtonState() {
   submitBtn.disabled = (!foodInput.value && !funInput.value && !gasInput.value);
 }
 
-function setMode(mode) {
-  entryMode = mode;
-  if (mode === "expense") {
-    modeExpenseBtn.classList.add('active');
-    modeRefundBtn.classList.remove('active');
-  } else {
-    modeRefundBtn.classList.add('active');
-    modeExpenseBtn.classList.remove('active');
-  }
+function setModeFromToggle() {
+  entryMode = refundToggle.checked ? "refund" : "expense";
 }
 
 /* =========================================================
@@ -1103,9 +1101,6 @@ async function syncNow() {
 
 /* =========================================================
    SETTINGS MODAL
-   - Show only effective date (ET) for next period start
-   - Center labels; no "(next period)" text
-   - Prepend $ to values shown in inputs
    ========================================================= */
 
 function moneyStringFromCents(cents) {
@@ -1168,15 +1163,11 @@ settingsCancel.addEventListener('click', closeSettings);
 settingsBackdrop.addEventListener('click', (e) => { if (e.target === settingsBackdrop) closeSettings(); });
 settingsSave.addEventListener('click', () => saveSettings().catch(console.error));
 
-modeExpenseBtn.addEventListener('click', () => setMode("expense"));
-modeRefundBtn.addEventListener('click', () => setMode("refund"));
+refundToggle.addEventListener('change', setModeFromToggle);
 
-function normalizeFieldTextInput(el) {
-  el.value = String(el.value).replace(/-/g, '');
-}
-foodInput.addEventListener('input', () => { normalizeFieldTextInput(foodInput); updateButtonState(); });
-funInput.addEventListener('input',  () => { normalizeFieldTextInput(funInput);  updateButtonState(); });
-gasInput.addEventListener('input',  () => { normalizeFieldTextInput(gasInput);  updateButtonState(); });
+foodInput.addEventListener('input', updateButtonState);
+funInput.addEventListener('input',  updateButtonState);
+gasInput.addEventListener('input',  updateButtonState);
 
 submitBtn.addEventListener('click', async (e) => {
   e.preventDefault();
@@ -1219,7 +1210,8 @@ setInterval(() => {
   if (navigator.onLine) syncNow().then(loadSummary).catch(() => {});
 }, 25000);
 
-setMode("expense");
+/* INIT */
+setModeFromToggle();
 setNetStatus();
 updateButtonState();
 
