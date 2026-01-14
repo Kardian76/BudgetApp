@@ -8,12 +8,12 @@
 
 <!-- PWA -->
 <meta name="theme-color" content="#2563eb">
-<link rel="manifest" href="./manifest.webmanifest?v=2026-01-14-1">
+<link rel="manifest" href="./manifest.webmanifest?v=2026-01-13-1">
 
 <!-- iOS + legacy Android -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Purrfect Budget">
+<meta name="apple-mobile-web-app-title" content="Budget">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
 <!-- iOS home screen icons -->
@@ -28,7 +28,7 @@
 :root {
   --bg-color: #f4f6f9;
   --card-bg: #ffffff;
-  --card-accent: #eef2ff; /* expenses card accent */
+  --card-accent: #eef2ff;
   --primary: #2563eb;
   --primary-hover: #1d4ed8;
   --text-main: #111827;
@@ -69,7 +69,6 @@ body {
            calc(1.25rem + var(--safe-left));
 }
 
-/* Header: centered status pill */
 .header-row {
   display: flex;
   align-items: center;
@@ -77,6 +76,14 @@ body {
   gap: 0.65rem;
   margin: 0 0 1rem 0;
   flex-wrap: wrap;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.9rem;
+  font-weight: 900;
+  letter-spacing: -0.015em;
+  text-align: center;
 }
 
 .card {
@@ -102,6 +109,14 @@ body {
 }
 .summary-row:last-child { margin-bottom: 0; }
 .summary-row span { font-weight: 900; }
+
+.period-end {
+  margin-top: 0.85rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
 
 h2 {
   text-align: center;
@@ -166,7 +181,6 @@ button:disabled {
 .pill {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   padding: 0.35rem 0.85rem;
   border-radius: 999px;
   border: 1px solid var(--border-color);
@@ -178,9 +192,7 @@ button:disabled {
 .pill.online  { color: var(--success); }
 .pill.offline { color: var(--warning); }
 .pill.syncing { color: var(--primary); }
-.pill.bad     { color: var(--danger); }
 
-/* Expense/Refund toggle */
 .toggle {
   display: flex;
   gap: 0.6rem;
@@ -203,7 +215,6 @@ button:disabled {
   border-color: rgba(37, 99, 235, 0.35);
 }
 
-/* Modal */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -268,7 +279,6 @@ button:disabled {
 }
 .modal .actions .secondary:hover { background: #f9fafb; }
 
-/* Period/last-period card */
 .mtd-title {
   text-align: center;
   font-size: 1.05rem;
@@ -282,7 +292,6 @@ button:disabled {
   margin-top: 0.65rem;
 }
 
-/* Settings button at bottom */
 .footer-actions {
   margin-top: 0.25rem;
 }
@@ -298,8 +307,8 @@ button:disabled {
 
 <body>
 <div class="container">
-  <!-- Removed title; status pill now used as the card header label (replaces "Enter Expenses / Refunds") -->
   <div class="header-row">
+    <h1>Budget Tracker is</h1>
     <span class="pill" id="netStatusPill">Checking…</span>
   </div>
 
@@ -317,15 +326,11 @@ button:disabled {
       <span id="gasRemaining">$0.00</span>
     </div>
 
-    <!-- New tip: indicates when the current budget period ends -->
-    <div class="small-note" id="periodEndsTip">Current period ends: —</div>
+    <div class="period-end" id="periodEndsText">Period ends: —</div>
   </div>
 
   <div class="card expenses-card">
-    <!-- Status pill moved here to replace the h2 label -->
-    <div class="header-row" style="margin: 0 0 0.8rem 0;">
-      <span class="pill" id="entryStatusPill">Checking…</span>
-    </div>
+    <h2>Enter Expenses / Refunds</h2>
 
     <div class="toggle" role="tablist" aria-label="Entry type">
       <button type="button" id="modeExpenseBtn" class="active">Expense</button>
@@ -343,8 +348,7 @@ button:disabled {
   </div>
 
   <div class="card">
-    <!-- Changed to last period spent -->
-    <div class="mtd-title" id="mtdTitle">Last period spent</div>
+    <div class="mtd-title" id="mtdTitle">Period-to-date spent</div>
 
     <div class="summary-row">
       <div>Food</div>
@@ -364,7 +368,6 @@ button:disabled {
     </div>
   </div>
 
-  <!-- Settings button moved to bottom -->
   <div class="footer-actions">
     <button id="settingsBtn" type="button">Settings</button>
   </div>
@@ -375,7 +378,7 @@ button:disabled {
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <h3 id="settingsTitle">Settings</h3>
     <p class="muted" id="settingsSubtitle">
-      Budget changes apply starting next period so they do not change the current period’s remaining amounts.
+      Budget changes apply starting next period (Eastern Time) so they do not change the current period’s remaining amounts.
     </p>
 
     <div class="row">
@@ -409,28 +412,30 @@ const API_BASE = "https://budgetapp-api.kardian.workers.dev";
 const AUTH_TOKEN = "K7QvN2P9x0MZyJHcF4rW8E5U1R_AkDqB3aSXTGm6nVfLw-heCpd";
 const SW_VERSION = "2026-01-13-1";
 
-const DEBUG_LOGS = false;
-
-// Default budgets if none stored yet
 const DEFAULT_BUDGETS = { food: 500, fun: 300, gas: 200 };
-
-// Local pruning window (days)
 const PRUNE_DAYS = 60;
 
-// Budget period definition:
-// - We treat a "budget period" as a calendar month (period key YYYY-MM).
-// - Settings now clearly call it "period" and changes apply to NEXT period.
-// If you later define a different period (e.g., biweekly), replace periodKey()/periodLabel()/periodBounds().
-const PERIOD_TYPE = "month";
+const STANDARD_TZ = "America/New_York"; // Eastern Time standard
+
+/*
+  Semi-monthly budget periods in Eastern Time:
+  - Period 1: 1st–14th (ends at 12:00 AM ET on the 15th)
+  - Period 2: 15th–end of month (ends at 12:00 AM ET on the 1st of next month)
+
+  Implementation detail:
+  - We store occurred_at as an ISO timestamp (UTC is fine).
+  - We assign periods by converting occurred_at to Eastern calendar date parts
+    (year/month/day) via Intl.DateTimeFormat timeZone conversion.
+  - This ensures two devices in different time zones still agree on period.
+*/
 
 /* =========================================================
    ELEMENTS / STATE
    ========================================================= */
 
 const netStatusPill = document.getElementById('netStatusPill');
-const entryStatusPill = document.getElementById('entryStatusPill'); // mirrors netStatusPill text/state
 
-const periodEndsTip = document.getElementById('periodEndsTip');
+const periodEndsText = document.getElementById('periodEndsText');
 
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsBackdrop = document.getElementById('settingsBackdrop');
@@ -464,7 +469,7 @@ const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: '
 
 let db = null;
 let isSyncing = false;
-let entryMode = "expense"; // or "refund"
+let entryMode = "expense";
 
 /* =========================================================
    PWA / SERVICE WORKER (silent)
@@ -506,66 +511,21 @@ let entryMode = "expense"; // or "refund"
    HELPERS
    ========================================================= */
 
-function logInfo(...args) { if (DEBUG_LOGS) console.log(...args); }
-function logWarn(...args) { if (DEBUG_LOGS) console.warn(...args); }
-function setApiStatus(text, isBad) { if (!DEBUG_LOGS) return; (isBad ? logWarn : logInfo)(text); }
-
 function setNetStatus(extraLabel) {
-  const applyTo = (pill) => {
-    if (!pill) return;
-
-    if (isSyncing) {
-      pill.textContent = extraLabel || 'Syncing…';
-      pill.className = 'pill syncing';
-      return;
-    }
-    const online = navigator.onLine;
-    pill.textContent = online ? 'Online' : 'Offline';
-    pill.className = `pill ${online ? 'online' : 'offline'}`;
-  };
-
-  applyTo(netStatusPill);
-  applyTo(entryStatusPill);
+  if (isSyncing) {
+    netStatusPill.textContent = extraLabel || 'Syncing…';
+    netStatusPill.className = 'pill syncing';
+    return;
+  }
+  const online = navigator.onLine;
+  netStatusPill.textContent = online ? 'Online' : 'Offline';
+  netStatusPill.className = `pill ${online ? 'online' : 'offline'}`;
 }
 
 function centsFromDollars(d) { return Math.round(Number(d) * 100); }
 function dollarsFromCents(c) { return (Number(c) || 0) / 100; }
 function nowIso() { return new Date().toISOString(); }
-
-function periodKey(d = new Date()) {
-  // Current behavior: calendar month as the period key
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-}
-
-function periodLabel(d = new Date()) {
-  // Current behavior: "Month Year"
-  return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-}
-
-function nextPeriodLabel() {
-  const d = new Date();
-  d.setMonth(d.getMonth() + 1);
-  return periodLabel(d);
-}
-
-function periodBounds(d = new Date()) {
-  // Current behavior: month start -> next month start
-  const start = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
-  const end = new Date(d.getFullYear(), d.getMonth() + 1, 1, 0, 0, 0, 0);
-  return { startMs: start.getTime(), endMs: end.getTime() };
-}
-
-function previousPeriodDateRef() {
-  const d = new Date();
-  d.setMonth(d.getMonth() - 1);
-  return d;
-}
-
-function formatPeriodEndDate(d = new Date()) {
-  // For monthly periods, "ends" is the last day of the month (local time)
-  const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
-  return end.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-}
+function pad2(n) { return String(n).padStart(2,'0'); }
 
 function uuid() {
   if (crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -589,12 +549,103 @@ function clampNonNegative(n) {
 }
 
 /* =========================================================
+   EASTERN TIME PERIOD LOGIC (date-parts based, DST-safe)
+   ========================================================= */
+
+const etPartsFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: STANDARD_TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+});
+
+const etLabelFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: STANDARD_TZ,
+  month: 'long',
+  year: 'numeric'
+});
+
+const etMonthDayFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: STANDARD_TZ,
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric'
+});
+
+function getEtYmd(dateObj) {
+  // Returns { y, m, d } in Eastern calendar terms
+  const parts = etPartsFormatter.formatToParts(dateObj);
+  const map = Object.fromEntries(parts.filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
+  return { y: Number(map.year), m: Number(map.month), d: Number(map.day) };
+}
+
+function lastDayOfMonth(y, m1to12) {
+  return new Date(Date.UTC(y, m1to12, 0)).getUTCDate();
+}
+
+function periodKeyFromYmd(y, m, d) {
+  const half = (d <= 14) ? 1 : 2;
+  return `${y}-${pad2(m)}-${half}`;
+}
+
+function currentPeriodInfoET(now = new Date()) {
+  const { y, m, d } = getEtYmd(now);
+  const half = (d <= 14) ? 1 : 2;
+  const last = lastDayOfMonth(y, m);
+
+  const monthYear = etLabelFormatter.format(new Date(Date.UTC(y, m - 1, 1)));
+  const label = (half === 1)
+    ? `${monthYear} (1–14, ET)`
+    : `${monthYear} (15–${last}, ET)`;
+
+  // Period end at midnight ET:
+  // - For half 1: midnight ET on the 15th
+  // - For half 2: midnight ET on the 1st of next month
+  let endY = y, endM = m, endD;
+  if (half === 1) {
+    endD = 15;
+  } else {
+    endD = 1;
+    if (m === 12) { endM = 1; endY = y + 1; }
+    else { endM = m + 1; }
+  }
+
+  return {
+    y, m, d, half, last,
+    key: `${y}-${pad2(m)}-${half}`,
+    label,
+    endY, endM, endD
+  };
+}
+
+function nextPeriodInfoET(now = new Date()) {
+  const cur = currentPeriodInfoET(now);
+  // Next period is simply the other half (or next month)
+  // We compute by creating a date near the start of next period in UTC,
+  // then converting to ET parts again.
+  //
+  // For half 1 -> next starts on 15th ET
+  // For half 2 -> next starts on 1st ET next month
+  const approxUtc = (cur.half === 1)
+    ? new Date(Date.UTC(cur.y, cur.m - 1, 15, 12, 0, 0)) // midday UTC near 15th
+    : new Date(Date.UTC(cur.endY, cur.endM - 1, 1, 12, 0, 0)); // midday UTC near next 1st
+
+  return currentPeriodInfoET(approxUtc);
+}
+
+function formatPeriodEndText(cur) {
+  // Display: "Period ends: Month D, YYYY at 12:00 AM ET"
+  // We create a UTC date near the ET end date, then format in ET.
+  const approxUtc = new Date(Date.UTC(cur.endY, cur.endM - 1, cur.endD, 12, 0, 0));
+  const dateLabel = etMonthDayFormatter.format(approxUtc);
+  return `Period ends: ${dateLabel} at 12:00 AM ET`;
+}
+
+/* =========================================================
    API CALLS (Worker)
    ========================================================= */
 
 async function apiGet(path) {
-  setApiStatus(`API: GET ${path}…`, false);
-
   const resp = await fetch(`${API_BASE}${path}`, {
     method: "GET",
     mode: "cors",
@@ -605,43 +656,23 @@ async function apiGet(path) {
   const text = await resp.text();
   let json;
   try { json = JSON.parse(text); }
-  catch { setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true); throw new Error(`Non-JSON (HTTP ${resp.status})`); }
+  catch { throw new Error(`Non-JSON (HTTP ${resp.status})`); }
 
-  if (!resp.ok || json?.ok === false) {
-    setApiStatus(`API: error (HTTP ${resp.status})`, true);
-    throw new Error(json?.error || `HTTP ${resp.status}`);
-  }
-
-  setApiStatus(`API: OK`, false);
+  if (!resp.ok || json?.ok === false) throw new Error(json?.error || `HTTP ${resp.status}`);
   return json;
 }
 
 async function apiHealth() {
-  setApiStatus(`API: health…`, false);
-
-  const resp = await fetch(`${API_BASE}/api/health`, {
-    method: "GET",
-    mode: "cors",
-    cache: "no-store"
-  });
-
+  const resp = await fetch(`${API_BASE}/api/health`, { method: "GET", mode: "cors", cache: "no-store" });
   const text = await resp.text();
   let json;
   try { json = JSON.parse(text); }
-  catch { setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true); throw new Error(`Non-JSON (HTTP ${resp.status})`); }
-
-  if (!resp.ok || json?.ok === false) {
-    setApiStatus(`API: health failed`, true);
-    throw new Error(json?.error || `HTTP ${resp.status}`);
-  }
-
-  setApiStatus(`API: OK`, false);
+  catch { throw new Error(`Non-JSON (HTTP ${resp.status})`); }
+  if (!resp.ok || json?.ok === false) throw new Error(json?.error || `HTTP ${resp.status}`);
   return json;
 }
 
 async function apiPostJson(path, payload) {
-  setApiStatus(`API: POST ${path}…`, false);
-
   const resp = await fetch(`${API_BASE}${path}`, {
     method: "POST",
     mode: "cors",
@@ -656,14 +687,9 @@ async function apiPostJson(path, payload) {
   const text = await resp.text();
   let json;
   try { json = JSON.parse(text); }
-  catch { setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true); throw new Error(`Non-JSON (HTTP ${resp.status})`); }
+  catch { throw new Error(`Non-JSON (HTTP ${resp.status})`); }
 
-  if (!resp.ok || json?.ok === false) {
-    setApiStatus(`API: error (HTTP ${resp.status})`, true);
-    throw new Error(json?.error || `HTTP ${resp.status}`);
-  }
-
-  setApiStatus(`API: OK`, false);
+  if (!resp.ok || json?.ok === false) throw new Error(json?.error || `HTTP ${resp.status}`);
   return json;
 }
 
@@ -717,7 +743,7 @@ function getAllLedger() {
 }
 
 /* =========================================================
-   OUTBOX CLEANUP (legacy/malformed tx entries)
+   OUTBOX CLEANUP
    ========================================================= */
 
 async function cleanupLegacyOutbox() {
@@ -792,18 +818,15 @@ async function pruneLocalData(days) {
 }
 
 /* =========================================================
-   BUDGETS (locked per period)
-   - Changing Settings updates NEXT PERIOD budgets only.
-   - Current period budgets are locked and will not change.
+   BUDGETS (locked per Eastern semi-monthly period)
    ========================================================= */
 
 async function getCurrentPeriodBudgetsCents() {
-  const p = periodKey();
+  const cur = currentPeriodInfoET(new Date());
   const storedPeriod = await getMeta('budget_period');
 
-  // Initialize if needed
   if (!storedPeriod) {
-    await setMeta('budget_period', p);
+    await setMeta('budget_period', cur.key);
     await setMeta('budget_food_cents', centsFromDollars(DEFAULT_BUDGETS.food));
     await setMeta('budget_fun_cents',  centsFromDollars(DEFAULT_BUDGETS.fun));
     await setMeta('budget_gas_cents',  centsFromDollars(DEFAULT_BUDGETS.gas));
@@ -818,29 +841,26 @@ async function getCurrentPeriodBudgetsCents() {
 }
 
 async function rollBudgetPeriodIfNeeded() {
-  const nowPeriod = periodKey();
+  const nowKey = currentPeriodInfoET(new Date()).key;
   const storedPeriod = await getMeta('budget_period');
 
   if (!storedPeriod) {
     await getCurrentPeriodBudgetsCents();
     return;
   }
+  if (storedPeriod === nowKey) return;
 
-  if (storedPeriod === nowPeriod) return;
-
-  // Period changed: apply next budgets if present; else carry forward
   const nextFood = await getMeta('next_budget_food_cents');
   const nextFun  = await getMeta('next_budget_fun_cents');
   const nextGas  = await getMeta('next_budget_gas_cents');
 
-  const cur = await getCurrentPeriodBudgetsCents(); // previous locked budgets
+  const cur = await getCurrentPeriodBudgetsCents();
 
-  await setMeta('budget_period', nowPeriod);
+  await setMeta('budget_period', nowKey);
   await setMeta('budget_food_cents', Number(nextFood ?? cur.food));
   await setMeta('budget_fun_cents',  Number(nextFun  ?? cur.fun));
   await setMeta('budget_gas_cents',  Number(nextGas  ?? cur.gas));
 
-  // Clear next budgets once applied
   await setMeta('next_budget_food_cents', null);
   await setMeta('next_budget_fun_cents', null);
   await setMeta('next_budget_gas_cents', null);
@@ -871,25 +891,28 @@ function setMode(mode) {
   }
 }
 
-function renderPeriodEndsTip() {
-  if (!periodEndsTip) return;
-  periodEndsTip.textContent = `Current period ends: ${formatPeriodEndDate(new Date())}`;
-}
-
 /* =========================================================
-   SUMMARY + TOTALS
+   SUMMARY + PERIOD-TO-DATE TOTALS (Eastern semi-monthly)
    ========================================================= */
 
-function computeSpentForRangeCents(ledgerItems, startMs, endMs) {
+function computePeriodToDateSpentCents(ledgerItems) {
+  const cur = currentPeriodInfoET(new Date());
   const spent = { food: 0, fun: 0, gas: 0 };
 
   for (const e of ledgerItems) {
     const t = Date.parse(e?.occurred_at || '');
-    if (!Number.isFinite(t) || t < startMs || t >= endMs) continue;
+    if (!Number.isFinite(t)) continue;
+
+    // Determine ET period key for this entry from its timestamp
+    const ymd = getEtYmd(new Date(t));
+    const entryKey = periodKeyFromYmd(ymd.y, ymd.m, ymd.d);
+
+    if (entryKey !== cur.key) continue;
 
     const k = e.category_key;
     if (k in spent) spent[k] += Number(e.amount || 0);
   }
+
   return spent;
 }
 
@@ -905,11 +928,14 @@ function renderSummary(remainingCents) {
   foodRemainingEl.textContent = currency.format(dollarsFromCents(remainingCents.food));
   funRemainingEl.textContent  = currency.format(dollarsFromCents(remainingCents.fun));
   gasRemainingEl.textContent  = currency.format(dollarsFromCents(remainingCents.gas));
+
+  const cur = currentPeriodInfoET(new Date());
+  periodEndsText.textContent = formatPeriodEndText(cur);
 }
 
-function renderLastPeriodSpent(spentCents) {
-  const prev = previousPeriodDateRef();
-  mtdTitle.textContent = `Last period spent (${periodLabel(prev)})`;
+function renderPeriodToDate(spentCents) {
+  const cur = currentPeriodInfoET(new Date());
+  mtdTitle.textContent = `Period-to-date spent (${cur.label})`;
   mtdFoodEl.textContent = currency.format(dollarsFromCents(spentCents.food));
   mtdFunEl.textContent  = currency.format(dollarsFromCents(spentCents.fun));
   mtdGasEl.textContent  = currency.format(dollarsFromCents(spentCents.gas));
@@ -917,7 +943,6 @@ function renderLastPeriodSpent(spentCents) {
 
 async function loadSummary() {
   setNetStatus();
-  renderPeriodEndsTip();
 
   await rollBudgetPeriodIfNeeded();
 
@@ -929,19 +954,11 @@ async function loadSummary() {
   }
 
   const budgets = await getCurrentPeriodBudgetsCents();
-
-  // Current period remaining still computed from current period spent
-  const curBounds = periodBounds(new Date());
-  const curSpentCents = computeSpentForRangeCents(ledger, curBounds.startMs, curBounds.endMs);
-  const remainingCents = computeRemainingForPeriod(budgets, curSpentCents);
+  const spentCents = computePeriodToDateSpentCents(ledger);
+  const remainingCents = computeRemainingForPeriod(budgets, spentCents);
 
   renderSummary(remainingCents);
-
-  // Card now shows LAST period spent
-  const prev = previousPeriodDateRef();
-  const prevBounds = periodBounds(prev);
-  const lastPeriodSpent = computeSpentForRangeCents(ledger, prevBounds.startMs, prevBounds.endMs);
-  renderLastPeriodSpent(lastPeriodSpent);
+  renderPeriodToDate(spentCents);
 
   if (navigator.onLine) {
     try {
@@ -951,19 +968,11 @@ async function loadSummary() {
       await rollBudgetPeriodIfNeeded();
 
       const budgets2 = await getCurrentPeriodBudgetsCents();
-
-      const curBounds2 = periodBounds(new Date());
-      const curSpent2 = computeSpentForRangeCents(ledger, curBounds2.startMs, curBounds2.endMs);
-      const rem2 = computeRemainingForPeriod(budgets2, curSpent2);
+      const spent2 = computePeriodToDateSpentCents(ledger);
+      const rem2 = computeRemainingForPeriod(budgets2, spent2);
 
       renderSummary(rem2);
-
-      const prev2 = previousPeriodDateRef();
-      const prevBounds2 = periodBounds(prev2);
-      const last2 = computeSpentForRangeCents(ledger, prevBounds2.startMs, prevBounds2.endMs);
-      renderLastPeriodSpent(last2);
-
-      renderPeriodEndsTip();
+      renderPeriodToDate(spent2);
     } catch (e) {
       console.error(e);
     }
@@ -984,6 +993,8 @@ function enqueueOfflineBatch(batch) {
    ========================================================= */
 
 async function submitExpenses(foodDollars, funDollars, gasDollars) {
+  // We still store an absolute timestamp; Eastern is the standard for period assignment,
+  // not for how timestamps are persisted.
   const occurred_at = nowIso();
   const created_by = "pwa";
 
@@ -1106,7 +1117,7 @@ async function syncNow() {
 }
 
 /* =========================================================
-   SETTINGS MODAL (applies NEXT PERIOD)
+   SETTINGS MODAL (applies NEXT Eastern semi-monthly period)
    ========================================================= */
 
 function openSettings() {
@@ -1119,8 +1130,9 @@ function openSettings() {
     getMeta('next_budget_fun_cents'),
     getMeta('next_budget_gas_cents'),
   ]).then(([cur, nFood, nFun, nGas]) => {
+    const next = nextPeriodInfoET(new Date());
     settingsSubtitle.textContent =
-      `Budget changes apply starting the next period (${nextPeriodLabel()}) so they do not change the current period’s remaining amounts.`;
+      `Budget changes apply starting the next period (${next.label}) so they do not change the current period’s remaining amounts.`;
 
     const foodC = Number(nFood ?? cur.food);
     const funC  = Number(nFun  ?? cur.fun);
@@ -1161,9 +1173,7 @@ async function saveSettings() {
 
 settingsBtn.addEventListener('click', openSettings);
 settingsCancel.addEventListener('click', closeSettings);
-settingsBackdrop.addEventListener('click', (e) => {
-  if (e.target === settingsBackdrop) closeSettings();
-});
+settingsBackdrop.addEventListener('click', (e) => { if (e.target === settingsBackdrop) closeSettings(); });
 settingsSave.addEventListener('click', () => saveSettings().catch(console.error));
 
 modeExpenseBtn.addEventListener('click', () => setMode("expense"));
@@ -1214,24 +1224,18 @@ window.addEventListener('offline', () => {
   setNetStatus();
 });
 
-// Periodic sync while app open
 setInterval(() => {
   if (navigator.onLine) syncNow().then(loadSummary).catch(() => {});
 }, 25000);
 
 setMode("expense");
 setNetStatus();
-renderPeriodEndsTip();
 updateButtonState();
 
 (async function boot() {
-  try {
-    await syncNow();
-  } catch (e) {
-    console.error(e);
-  } finally {
-    await loadSummary();
-  }
+  try { await syncNow(); }
+  catch (e) { console.error(e); }
+  finally { await loadSummary(); }
 })();
 </script>
 </body>
