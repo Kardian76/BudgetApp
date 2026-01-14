@@ -1,15 +1,18 @@
 /* sw.js — Budget Tracker PWA */
 
-const CACHE_VERSION = '2026-01-10-2';
+const CACHE_VERSION = '2026-01-14-1'; // BUMP THIS when you change index.html/behavior
 const CACHE_NAME = `budget-tracker-${CACHE_VERSION}`;
 
 const CORE = [
   './',
   './index.html',
-  './manifest.webmanifest',
+  './manifest.webmanifest', // if you always serve manifest.webmanifest?v=..., this is still fine
   './Nova_192.png',
   './Nova_512.png'
 ];
+
+// Your Worker API base (explicit bypass; not cached)
+const API_ORIGIN = 'https://budgetapp-api.kardian.workers.dev';
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
@@ -30,8 +33,19 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
 
+  // 0) Explicitly bypass API requests (always network)
+  // (Your current cross-origin rule already does this; this prevents future regressions.)
+  try {
+    const url = new URL(req.url);
+    if (url.origin === API_ORIGIN) {
+      event.respondWith(fetch(req));
+      return;
+    }
+  } catch {
+    // ignore URL parse errors
+  }
+
   // 1) Never try to cache or handle non-GET requests (POST/PUT/etc.).
-  //    This prevents "Request method 'POST' is unsupported" from Cache.put().
   if (req.method !== 'GET') {
     event.respondWith(fetch(req));
     return;
@@ -43,7 +57,6 @@ self.addEventListener('fetch', (event) => {
       try {
         const fresh = await fetch(req);
         const cache = await caches.open(CACHE_NAME);
-        // Cache the app shell under a stable key
         cache.put('./', fresh.clone());
         return fresh;
       } catch {
@@ -73,8 +86,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4) For cross-origin GET requests (e.g., your Apps Script API, fonts, etc.):
-  //    do NOT cache, just pass through.
+  // 4) For cross-origin GET requests: do NOT cache, just pass through.
   event.respondWith(fetch(req));
 });
-
