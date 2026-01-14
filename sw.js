@@ -1,6 +1,6 @@
 /* sw.js — Budget Tracker PWA */
 
-const CACHE_VERSION = '2026-01-14-1'; // BUMP THIS when you change index.html/behavior
+const CACHE_VERSION = '2026-01-14-1'; // BUMP THIS when you change index.html/behavior then update "const SW_VERSION = "2026-01-14-1";" in index.html
 const CACHE_NAME = `budget-tracker-${CACHE_VERSION}`;
 
 const CORE = [
