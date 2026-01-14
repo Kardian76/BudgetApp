@@ -1,7 +1,7 @@
 {
-  "name": "Budget Tracker",
-  "short_name": "Budget",
-  "description": "Personal budget tracker for food and fun. Works offline and syncs when online.",
+  "name": "Purrfect Budget",
+  "short_name": "Purrfect Budget",
+  "description": "Personal budget tracker. Works offline and syncs when online.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
