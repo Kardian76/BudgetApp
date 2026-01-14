@@ -6,7 +6,7 @@ const CACHE_NAME = `budget-tracker-${CACHE_VERSION}`;
 const CORE = [
   './',
   './index.html',
-  './manifest.webmanifest', // if you always serve manifest.webmanifest?v=..., this is still fine
+  './manifest.webmanifest', 
   './Icon_192.png',
   './Icon_512.png'
 ];
