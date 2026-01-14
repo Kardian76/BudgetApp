@@ -22,7 +22,6 @@
 <link rel="apple-touch-icon" sizes="152x152" href="./Icon_192.png">
 <link rel="apple-touch-icon" sizes="120x120" href="./Icon_192.png">
 
-<!-- Optional: suppress favicon.ico 404 -->
 <link rel="icon" href="data:,">
 
 <style>
@@ -70,13 +69,14 @@ body {
            calc(1.25rem + var(--safe-left));
 }
 
-/* Header row: "Budget Tracker is" + status pill on same line */
+/* Header: title + status pill + settings button */
 .header-row {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.65rem;
   margin: 0 0 1rem 0;
+  flex-wrap: wrap;
 }
 
 h1 {
@@ -108,7 +108,6 @@ h1 {
   margin-bottom: 0.85rem;
   font-size: 1.05rem;
 }
-
 .summary-row:last-child { margin-bottom: 0; }
 .summary-row span { font-weight: 900; }
 
@@ -186,7 +185,7 @@ button:disabled {
   padding: 0.35rem 0.85rem;
   border-radius: 999px;
   border: 1px solid var(--border-color);
-  font-size: 0.95rem; /* slightly larger for readability next to title */
+  font-size: 0.95rem;
   background: #fff;
   font-weight: 800;
   white-space: nowrap;
@@ -196,6 +195,123 @@ button:disabled {
 .pill.offline { color: var(--warning); }
 .pill.syncing { color: var(--primary); }
 .pill.bad     { color: var(--danger); }
+
+/* Smaller settings button that fits the header */
+.icon-btn {
+  width: auto;
+  min-height: 40px;
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 900;
+  background: #fff;
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.06);
+}
+.icon-btn:hover { background: #f9fafb; }
+
+/* Expense/Refund toggle */
+.toggle {
+  display: flex;
+  gap: 0.6rem;
+  margin: 0 0 0.8rem 0;
+}
+.toggle button {
+  width: 50%;
+  min-height: 44px;
+  padding: 0.65rem 0.75rem;
+  font-size: 1rem;
+  border-radius: 0.85rem;
+  font-weight: 900;
+  border: 1px solid var(--border-color);
+  background: #fff;
+  color: var(--text-main);
+}
+.toggle button.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17,24,39,0.45);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 9999;
+}
+
+.modal {
+  width: min(560px, 100%);
+  background: #fff;
+  border-radius: 1.1rem;
+  border: 1px solid rgba(17,24,39,0.08);
+  box-shadow: 0 18px 42px rgba(0,0,0,0.22);
+  padding: 1.1rem;
+}
+
+.modal h3 {
+  margin: 0 0 0.6rem 0;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.modal .muted {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.35;
+  margin: 0 0 0.9rem 0;
+}
+
+.modal .row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+}
+
+.modal label {
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.modal input {
+  min-height: 44px;
+}
+
+.modal .actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+.modal .actions button {
+  min-height: 48px;
+}
+.modal .actions .secondary {
+  background: #fff;
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+}
+.modal .actions .secondary:hover { background: #f9fafb; }
+
+/* Month-to-date card layout */
+.mtd-title {
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 900;
+  margin: 0 0 0.85rem 0;
+}
+.small-note {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  margin-top: 0.65rem;
+}
 </style>
 </head>
 
@@ -204,6 +320,7 @@ button:disabled {
   <div class="header-row">
     <h1>Budget Tracker is</h1>
     <span class="pill" id="netStatusPill">Checking…</span>
+    <button class="icon-btn" id="settingsBtn" type="button">Settings</button>
   </div>
 
   <div class="card">
@@ -224,17 +341,76 @@ button:disabled {
   <div class="card expenses-card">
     <h2>Enter Expenses / Refunds</h2>
 
+    <!-- Android-friendly: no minus key needed -->
+    <div class="toggle" role="tablist" aria-label="Entry type">
+      <button type="button" id="modeExpenseBtn" class="active">Expense</button>
+      <button type="button" id="modeRefundBtn">Refund</button>
+    </div>
+
     <div class="form-group-vertical">
-      <input type="number" step="0.01" id="foodInput" placeholder="Food" inputmode="decimal">
-      <input type="number" step="0.01" id="funInput" placeholder="Fun" inputmode="decimal">
-      <input type="number" step="0.01" id="gasInput" placeholder="Gas" inputmode="decimal">
+      <!-- Use type="text" + inputmode so keyboards can vary; we enforce parsing -->
+      <input type="text" inputmode="decimal" id="foodInput" placeholder="Food" autocomplete="off">
+      <input type="text" inputmode="decimal" id="funInput" placeholder="Fun" autocomplete="off">
+      <input type="text" inputmode="decimal" id="gasInput" placeholder="Gas" autocomplete="off">
     </div>
 
     <button id="submitBtn" disabled>Submit</button>
     <div id="successMsg" class="success-message">Saved</div>
 
     <div class="help-text">
-      Tip: enter negative values for refunds or to add money back.
+      Use “Refund” to add money back without typing a minus sign.
+    </div>
+  </div>
+
+  <!-- Month-to-date totals (under fields card) -->
+  <div class="card">
+    <div class="mtd-title" id="mtdTitle">Month-to-date spent</div>
+
+    <div class="summary-row">
+      <div>Food</div>
+      <span id="mtdFood">$0.00</span>
+    </div>
+    <div class="summary-row">
+      <div>Fun</div>
+      <span id="mtdFun">$0.00</span>
+    </div>
+    <div class="summary-row">
+      <div>Gas</div>
+      <span id="mtdGas">$0.00</span>
+    </div>
+
+    <div class="small-note">
+      Refunds reduce “spent” totals automatically.
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-backdrop" id="settingsBackdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <h3 id="settingsTitle">Settings</h3>
+    <p class="muted" id="settingsSubtitle">
+      Budget changes apply starting next month so they do not change the current month’s remaining amounts.
+    </p>
+
+    <div class="row">
+      <label for="setFood">Food monthly budget (next month)</label>
+      <input id="setFood" type="text" inputmode="decimal" autocomplete="off">
+    </div>
+
+    <div class="row">
+      <label for="setFun">Fun monthly budget (next month)</label>
+      <input id="setFun" type="text" inputmode="decimal" autocomplete="off">
+    </div>
+
+    <div class="row">
+      <label for="setGas">Gas monthly budget (next month)</label>
+      <input id="setGas" type="text" inputmode="decimal" autocomplete="off">
+    </div>
+
+    <div class="actions">
+      <button class="secondary" type="button" id="settingsCancel">Cancel</button>
+      <button type="button" id="settingsSave">Save</button>
     </div>
   </div>
 </div>
@@ -249,13 +425,30 @@ const AUTH_TOKEN = "K7QvN2P9x0MZyJHcF4rW8E5U1R_AkDqB3aSXTGm6nVfLw-heCpd";
 const SW_VERSION = "2026-01-13-1";
 
 const DEBUG_LOGS = false;
+
+// Default budgets (used only if nothing stored yet)
 const DEFAULT_BUDGETS = { food: 500, fun: 300, gas: 200 };
+
+// Local pruning window (days)
+const PRUNE_DAYS = 60;
 
 /* =========================================================
    ELEMENTS / STATE
    ========================================================= */
 
 const netStatusPill = document.getElementById('netStatusPill');
+
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsBackdrop = document.getElementById('settingsBackdrop');
+const settingsCancel = document.getElementById('settingsCancel');
+const settingsSave = document.getElementById('settingsSave');
+const setFood = document.getElementById('setFood');
+const setFun = document.getElementById('setFun');
+const setGas = document.getElementById('setGas');
+const settingsSubtitle = document.getElementById('settingsSubtitle');
+
+const modeExpenseBtn = document.getElementById('modeExpenseBtn');
+const modeRefundBtn = document.getElementById('modeRefundBtn');
 
 const foodInput = document.getElementById('foodInput');
 const funInput = document.getElementById('funInput');
@@ -266,12 +459,18 @@ const foodRemainingEl = document.getElementById('foodRemaining');
 const funRemainingEl = document.getElementById('funRemaining');
 const gasRemainingEl = document.getElementById('gasRemaining');
 
+const mtdTitle = document.getElementById('mtdTitle');
+const mtdFoodEl = document.getElementById('mtdFood');
+const mtdFunEl = document.getElementById('mtdFun');
+const mtdGasEl = document.getElementById('mtdGas');
+
 const successMsg = document.getElementById('successMsg');
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
 let db = null;
 let isSyncing = false;
+let entryMode = "expense"; // or "refund"
 
 /* =========================================================
    PWA / SERVICE WORKER (silent)
@@ -289,8 +488,8 @@ let isSyncing = false;
 /* =========================================================
    INDEXEDDB SETUP
    - tx: offline queue items (each has {items:[...]} compatible with /api/expenses/batch)
-   - meta: stores { key:'cursor', value:number }
-   - ledger: local expenses for offline summary (append-only)
+   - meta: stores { key:'cursor'|'budget_month'|'budget_food_cents'...|'next_budget_*', value:any }
+   - ledger: local expenses for offline summary (append-only, pruned to last PRUNE_DAYS days)
    ========================================================= */
 
 (function initDB(){
@@ -303,23 +502,22 @@ let isSyncing = false;
   };
   req.onsuccess = async (e) => {
     db = e.target.result;
+
     await cleanupLegacyOutbox();
-    loadSummary().catch(console.error);
+    await pruneLocalData(PRUNE_DAYS);
+    await rollBudgetMonthIfNeeded(); // ensures current-month budgets are locked
+    await loadSummary();
   };
   req.onerror = () => console.error('IndexedDB error');
 })();
 
 /* =========================================================
-   STATUS HELPERS
+   HELPERS
    ========================================================= */
 
 function logInfo(...args) { if (DEBUG_LOGS) console.log(...args); }
 function logWarn(...args) { if (DEBUG_LOGS) console.warn(...args); }
-
-function setApiStatus(text, isBad) {
-  if (!DEBUG_LOGS) return;
-  if (isBad) logWarn(text); else logInfo(text);
-}
+function setApiStatus(text, isBad) { if (!DEBUG_LOGS) return; (isBad ? logWarn : logInfo)(text); }
 
 function setNetStatus(extraLabel) {
   if (isSyncing) {
@@ -335,6 +533,10 @@ function setNetStatus(extraLabel) {
 function centsFromDollars(d) { return Math.round(Number(d) * 100); }
 function dollarsFromCents(c) { return (Number(c) || 0) / 100; }
 function nowIso() { return new Date().toISOString(); }
+function monthKey(d = new Date()) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+function monthLabel(d = new Date()) {
+  return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+}
 
 function uuid() {
   if (crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -343,6 +545,20 @@ function uuid() {
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+}
+
+// Parse user-entered dollars from text. Returns number (can be NaN).
+function parseDollarsFromText(s) {
+  const t = String(s ?? '').trim();
+  if (!t) return 0;
+  // remove $ and spaces, allow comma thousands
+  const cleaned = t.replace(/\$/g,'').replace(/,/g,'');
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function clampNonNegative(n) {
+  return (Number.isFinite(n) && n >= 0) ? n : NaN;
 }
 
 /* =========================================================
@@ -362,10 +578,7 @@ async function apiGet(path) {
   const text = await resp.text();
   let json;
   try { json = JSON.parse(text); }
-  catch {
-    setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true);
-    throw new Error(`Non-JSON response (HTTP ${resp.status}): ${text.slice(0, 200)}`);
-  }
+  catch { setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true); throw new Error(`Non-JSON (HTTP ${resp.status})`); }
 
   if (!resp.ok || json?.ok === false) {
     setApiStatus(`API: error (HTTP ${resp.status})`, true);
@@ -388,10 +601,7 @@ async function apiHealth() {
   const text = await resp.text();
   let json;
   try { json = JSON.parse(text); }
-  catch {
-    setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true);
-    throw new Error(`Non-JSON response (HTTP ${resp.status}): ${text.slice(0, 200)}`);
-  }
+  catch { setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true); throw new Error(`Non-JSON (HTTP ${resp.status})`); }
 
   if (!resp.ok || json?.ok === false) {
     setApiStatus(`API: health failed`, true);
@@ -419,10 +629,7 @@ async function apiPostJson(path, payload) {
   const text = await resp.text();
   let json;
   try { json = JSON.parse(text); }
-  catch {
-    setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true);
-    throw new Error(`Non-JSON response (HTTP ${resp.status}): ${text.slice(0, 200)}`);
-  }
+  catch { setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true); throw new Error(`Non-JSON (HTTP ${resp.status})`); }
 
   if (!resp.ok || json?.ok === false) {
     setApiStatus(`API: error (HTTP ${resp.status})`, true);
@@ -434,15 +641,14 @@ async function apiPostJson(path, payload) {
 }
 
 /* =========================================================
-   LOCAL META (cursor)
+   META STORE
    ========================================================= */
 
 function getMeta(key) {
   return new Promise((resolve, reject) => {
     if (!db) return resolve(null);
     const tx = db.transaction('meta', 'readonly');
-    const store = tx.objectStore('meta');
-    const req = store.get(key);
+    const req = tx.objectStore('meta').get(key);
     req.onsuccess = () => resolve(req.result ? req.result.value : null);
     req.onerror = () => reject(req.error);
   });
@@ -459,7 +665,7 @@ function setMeta(key, value) {
 }
 
 /* =========================================================
-   LEDGER (local expenses)
+   LEDGER
    ========================================================= */
 
 function upsertLedgerItems(items) {
@@ -477,8 +683,7 @@ function getAllLedger() {
   return new Promise((resolve, reject) => {
     if (!db) return resolve([]);
     const tx = db.transaction('ledger', 'readonly');
-    const store = tx.objectStore('ledger');
-    const req = store.getAll();
+    const req = tx.objectStore('ledger').getAll();
     req.onsuccess = () => resolve(req.result || []);
     req.onerror = () => reject(req.error);
   });
@@ -502,13 +707,122 @@ async function cleanupLegacyOutbox() {
 
       const v = c.value;
       const isValid = v && Array.isArray(v.items);
-
       if (!isValid) store.delete(c.key);
 
       c.continue();
     };
     req.onerror = () => reject(req.error);
   });
+}
+
+/* =========================================================
+   PRUNING (delete local data older than N days)
+   ========================================================= */
+
+async function pruneLocalData(days) {
+  if (!db) return;
+
+  const cutoffMs = Date.now() - (days * 24 * 60 * 60 * 1000);
+
+  // Prune ledger (iterate + delete)
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction('ledger', 'readwrite');
+    const store = tx.objectStore('ledger');
+    const req = store.openCursor();
+
+    req.onsuccess = (e) => {
+      const c = e.target.result;
+      if (!c) return resolve();
+
+      const v = c.value;
+      const t = Date.parse(v?.occurred_at || '');
+      if (Number.isFinite(t) && t < cutoffMs) {
+        store.delete(c.key);
+      }
+      c.continue();
+    };
+    req.onerror = () => reject(req.error);
+  });
+
+  // Prune tx outbox entries that are very old (defensive; should normally be empty)
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction('tx', 'readwrite');
+    const store = tx.objectStore('tx');
+    const req = store.openCursor();
+
+    req.onsuccess = (e) => {
+      const c = e.target.result;
+      if (!c) return resolve();
+
+      const batch = c.value;
+      const first = batch?.items?.[0];
+      const t = Date.parse(first?.occurred_at || '');
+      if (Number.isFinite(t) && t < cutoffMs) {
+        store.delete(c.key);
+      }
+      c.continue();
+    };
+    req.onerror = () => reject(req.error);
+  });
+
+  // Record last prune (optional)
+  await setMeta('last_prune_iso', new Date().toISOString());
+}
+
+/* =========================================================
+   BUDGETS
+   - budgets are "locked" per month so changing settings does NOT alter current remaining.
+   - editing settings writes NEXT month's budgets.
+   ========================================================= */
+
+async function getCurrentMonthBudgetsCents() {
+  const m = monthKey();
+  const storedMonth = await getMeta('budget_month');
+
+  // If not initialized yet, initialize from defaults for this month
+  if (!storedMonth) {
+    await setMeta('budget_month', m);
+    await setMeta('budget_food_cents', centsFromDollars(DEFAULT_BUDGETS.food));
+    await setMeta('budget_fun_cents',  centsFromDollars(DEFAULT_BUDGETS.fun));
+    await setMeta('budget_gas_cents',  centsFromDollars(DEFAULT_BUDGETS.gas));
+  }
+
+  return {
+    month: await getMeta('budget_month'),
+    food: Number(await getMeta('budget_food_cents')) || centsFromDollars(DEFAULT_BUDGETS.food),
+    fun:  Number(await getMeta('budget_fun_cents'))  || centsFromDollars(DEFAULT_BUDGETS.fun),
+    gas:  Number(await getMeta('budget_gas_cents'))  || centsFromDollars(DEFAULT_BUDGETS.gas),
+  };
+}
+
+async function rollBudgetMonthIfNeeded() {
+  const nowMonth = monthKey();
+  const storedMonth = await getMeta('budget_month');
+
+  // First run initialization
+  if (!storedMonth) {
+    await getCurrentMonthBudgetsCents();
+    return;
+  }
+
+  if (storedMonth === nowMonth) return;
+
+  // Month changed: apply next budgets if present; else carry forward last budgets
+  const nextFood = await getMeta('next_budget_food_cents');
+  const nextFun  = await getMeta('next_budget_fun_cents');
+  const nextGas  = await getMeta('next_budget_gas_cents');
+
+  const cur = await getCurrentMonthBudgetsCents(); // gives last locked budgets (from previous month)
+
+  await setMeta('budget_month', nowMonth);
+  await setMeta('budget_food_cents', Number(nextFood ?? cur.food));
+  await setMeta('budget_fun_cents',  Number(nextFun  ?? cur.fun));
+  await setMeta('budget_gas_cents',  Number(nextGas  ?? cur.gas));
+
+  // Clear next budgets once applied
+  await setMeta('next_budget_food_cents', null);
+  await setMeta('next_budget_fun_cents', null);
+  await setMeta('next_budget_gas_cents', null);
 }
 
 /* =========================================================
@@ -525,54 +839,100 @@ function updateButtonState() {
   submitBtn.disabled = (!foodInput.value && !funInput.value && !gasInput.value);
 }
 
+function setMode(mode) {
+  entryMode = mode;
+  if (mode === "expense") {
+    modeExpenseBtn.classList.add('active');
+    modeRefundBtn.classList.remove('active');
+  } else {
+    modeRefundBtn.classList.add('active');
+    modeExpenseBtn.classList.remove('active');
+  }
+}
+
 /* =========================================================
-   CLIENT-SIDE SUMMARY (offline-first)
+   SUMMARY + MONTH-TO-DATE TOTALS
    ========================================================= */
 
-function computeSummaryFromLedger(ledgerItems) {
-  const spentCents = { food: 0, fun: 0, gas: 0 };
+function getMonthBounds(d = new Date()) {
+  const start = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+  const end = new Date(d.getFullYear(), d.getMonth() + 1, 1, 0, 0, 0, 0);
+  return { startMs: start.getTime(), endMs: end.getTime() };
+}
+
+function computeMonthToDateSpentCents(ledgerItems) {
+  const { startMs, endMs } = getMonthBounds(new Date());
+  const spent = { food: 0, fun: 0, gas: 0 };
 
   for (const e of ledgerItems) {
+    const t = Date.parse(e?.occurred_at || '');
+    if (!Number.isFinite(t) || t < startMs || t >= endMs) continue;
+
     const k = e.category_key;
-    if (k in spentCents) spentCents[k] += Number(e.amount || 0);
+    if (k in spent) spent[k] += Number(e.amount || 0);
   }
 
-  const remainingCents = {
-    food: centsFromDollars(DEFAULT_BUDGETS.food) - spentCents.food,
-    fun:  centsFromDollars(DEFAULT_BUDGETS.fun)  - spentCents.fun,
-    gas:  centsFromDollars(DEFAULT_BUDGETS.gas)  - spentCents.gas,
-  };
+  // spent is NET (refunds reduce it because they are negative)
+  return spent;
+}
 
+function computeRemainingForMonth(budgetsCents, spentCents) {
   return {
-    FoodRemaining: dollarsFromCents(remainingCents.food),
-    FunRemaining:  dollarsFromCents(remainingCents.fun),
-    GasRemaining:  dollarsFromCents(remainingCents.gas),
+    food: budgetsCents.food - spentCents.food,
+    fun:  budgetsCents.fun  - spentCents.fun,
+    gas:  budgetsCents.gas  - spentCents.gas,
   };
 }
 
-function renderSummary(summary) {
-  foodRemainingEl.textContent = currency.format(summary.FoodRemaining ?? 0);
-  funRemainingEl.textContent = currency.format(summary.FunRemaining ?? 0);
-  gasRemainingEl.textContent = currency.format(summary.GasRemaining ?? 0);
+function renderSummary(remainingCents) {
+  foodRemainingEl.textContent = currency.format(dollarsFromCents(remainingCents.food));
+  funRemainingEl.textContent  = currency.format(dollarsFromCents(remainingCents.fun));
+  gasRemainingEl.textContent  = currency.format(dollarsFromCents(remainingCents.gas));
+}
+
+function renderMonthToDate(spentCents) {
+  mtdTitle.textContent = `Month-to-date spent (${monthLabel(new Date())})`;
+  mtdFoodEl.textContent = currency.format(dollarsFromCents(spentCents.food));
+  mtdFunEl.textContent  = currency.format(dollarsFromCents(spentCents.fun));
+  mtdGasEl.textContent  = currency.format(dollarsFromCents(spentCents.gas));
 }
 
 async function loadSummary() {
   setNetStatus();
 
+  // Ensure month rollover is handled before computing remaining
+  await rollBudgetMonthIfNeeded();
+
   // Render from local ledger first
+  let ledger = [];
   try {
-    const ledger = await getAllLedger();
-    renderSummary(computeSummaryFromLedger(ledger));
+    ledger = await getAllLedger();
   } catch (e) {
     console.error(e);
   }
+
+  const budgets = await getCurrentMonthBudgetsCents();
+  const spentCents = computeMonthToDateSpentCents(ledger);
+  const remainingCents = computeRemainingForMonth(budgets, spentCents);
+
+  renderSummary(remainingCents);
+  renderMonthToDate(spentCents);
 
   // Then sync and re-render if online
   if (navigator.onLine) {
     try {
       await syncNow();
-      const ledger = await getAllLedger();
-      renderSummary(computeSummaryFromLedger(ledger));
+      ledger = await getAllLedger();
+
+      // Re-roll in case month changed while app was open
+      await rollBudgetMonthIfNeeded();
+
+      const budgets2 = await getCurrentMonthBudgetsCents();
+      const spent2 = computeMonthToDateSpentCents(ledger);
+      const rem2 = computeRemainingForMonth(budgets2, spent2);
+
+      renderSummary(rem2);
+      renderMonthToDate(spent2);
     } catch (e) {
       console.error(e);
     }
@@ -593,14 +953,17 @@ function enqueueOfflineBatch(batch) {
    ========================================================= */
 
 async function submitExpenses(foodDollars, funDollars, gasDollars) {
-  const items = [];
   const occurred_at = nowIso();
   const created_by = "pwa";
+
+  const sign = (entryMode === "refund") ? -1 : 1;
+
+  const items = [];
 
   if (foodDollars !== 0) items.push({
     client_id: uuid(),
     category_key: "food",
-    amount: centsFromDollars(foodDollars),
+    amount: sign * centsFromDollars(foodDollars),
     note: null,
     occurred_at,
     created_by
@@ -609,7 +972,7 @@ async function submitExpenses(foodDollars, funDollars, gasDollars) {
   if (funDollars !== 0) items.push({
     client_id: uuid(),
     category_key: "fun",
-    amount: centsFromDollars(funDollars),
+    amount: sign * centsFromDollars(funDollars),
     note: null,
     occurred_at,
     created_by
@@ -618,7 +981,7 @@ async function submitExpenses(foodDollars, funDollars, gasDollars) {
   if (gasDollars !== 0) items.push({
     client_id: uuid(),
     category_key: "gas",
-    amount: centsFromDollars(gasDollars),
+    amount: sign * centsFromDollars(gasDollars),
     note: null,
     occurred_at,
     created_by
@@ -626,9 +989,13 @@ async function submitExpenses(foodDollars, funDollars, gasDollars) {
 
   if (!items.length) return;
 
+  // Local ledger first
   await upsertLedgerItems(items);
+
+  // Outbox for delivery
   enqueueOfflineBatch({ items });
 
+  // Best-effort immediate sync
   if (navigator.onLine) {
     try {
       await syncNow();
@@ -705,6 +1072,9 @@ async function syncNow() {
     await apiHealth();
     await pushQueueOnce();
     await pullChanges();
+
+    // Prune after sync (keeps local DB bounded)
+    await pruneLocalData(PRUNE_DAYS);
   } finally {
     isSyncing = false;
     setNetStatus();
@@ -712,20 +1082,104 @@ async function syncNow() {
 }
 
 /* =========================================================
-   INIT + EVENT WIRING
+   SETTINGS MODAL
+   - edits NEXT MONTH budgets only (does not affect current remaining)
    ========================================================= */
+
+function openSettings() {
+  settingsBackdrop.style.display = 'flex';
+  settingsBackdrop.setAttribute('aria-hidden', 'false');
+
+  // Populate fields from existing "next" budgets if present, else current locked budgets
+  Promise.all([
+    getCurrentMonthBudgetsCents(),
+    getMeta('next_budget_food_cents'),
+    getMeta('next_budget_fun_cents'),
+    getMeta('next_budget_gas_cents'),
+  ]).then(([cur, nFood, nFun, nGas]) => {
+    const nextMonth = (() => {
+      const d = new Date();
+      d.setMonth(d.getMonth() + 1);
+      return monthLabel(d);
+    })();
+
+    settingsSubtitle.textContent =
+      `Budget changes apply starting ${nextMonth} so they do not change the current month’s remaining amounts.`;
+
+    const foodC = Number(nFood ?? cur.food);
+    const funC  = Number(nFun  ?? cur.fun);
+    const gasC  = Number(nGas  ?? cur.gas);
+
+    setFood.value = String(dollarsFromCents(foodC));
+    setFun.value  = String(dollarsFromCents(funC));
+    setGas.value  = String(dollarsFromCents(gasC));
+  });
+}
+
+function closeSettings() {
+  settingsBackdrop.style.display = 'none';
+  settingsBackdrop.setAttribute('aria-hidden', 'true');
+}
+
+async function saveSettings() {
+  const f = clampNonNegative(parseDollarsFromText(setFood.value));
+  const u = clampNonNegative(parseDollarsFromText(setFun.value));
+  const g = clampNonNegative(parseDollarsFromText(setGas.value));
+
+  if (!Number.isFinite(f) || !Number.isFinite(u) || !Number.isFinite(g)) {
+    showSuccess('Enter valid non-negative amounts');
+    return;
+  }
+
+  await setMeta('next_budget_food_cents', centsFromDollars(f));
+  await setMeta('next_budget_fun_cents',  centsFromDollars(u));
+  await setMeta('next_budget_gas_cents',  centsFromDollars(g));
+
+  closeSettings();
+  showSuccess('Saved (applies next month)');
+}
+
+/* =========================================================
+   EVENT WIRING
+   ========================================================= */
+
+settingsBtn.addEventListener('click', openSettings);
+settingsCancel.addEventListener('click', closeSettings);
+settingsBackdrop.addEventListener('click', (e) => {
+  if (e.target === settingsBackdrop) closeSettings();
+});
+
+settingsSave.addEventListener('click', () => saveSettings().catch(console.error));
+
+modeExpenseBtn.addEventListener('click', () => setMode("expense"));
+modeRefundBtn.addEventListener('click', () => setMode("refund"));
+
+function normalizeFieldTextInput(el) {
+  // Allow user to type "$", commas, etc; keep it as-is, parse on submit.
+  // But prevent multiple minus signs etc. (since we use toggle).
+  el.value = String(el.value).replace(/-/g, '');
+}
+
+foodInput.addEventListener('input', () => { normalizeFieldTextInput(foodInput); updateButtonState(); });
+funInput.addEventListener('input',  () => { normalizeFieldTextInput(funInput);  updateButtonState(); });
+gasInput.addEventListener('input',  () => { normalizeFieldTextInput(gasInput);  updateButtonState(); });
 
 submitBtn.addEventListener('click', async (e) => {
   e.preventDefault();
 
-  const food = Number(foodInput.value) || 0;
-  const fun  = Number(funInput.value) || 0;
-  const gas  = Number(gasInput.value) || 0;
+  const food = parseDollarsFromText(foodInput.value) || 0;
+  const fun  = parseDollarsFromText(funInput.value) || 0;
+  const gas  = parseDollarsFromText(gasInput.value) || 0;
 
   foodInput.value = '';
   funInput.value = '';
   gasInput.value = '';
   updateButtonState();
+
+  if ((!Number.isFinite(food) && food !== 0) || (!Number.isFinite(fun) && fun !== 0) || (!Number.isFinite(gas) && gas !== 0)) {
+    showSuccess('Invalid number');
+    return;
+  }
 
   if (food === 0 && fun === 0 && gas === 0) return;
 
@@ -736,10 +1190,6 @@ submitBtn.addEventListener('click', async (e) => {
     console.error(err);
   }
 });
-
-foodInput.addEventListener('input', updateButtonState);
-funInput.addEventListener('input', updateButtonState);
-gasInput.addEventListener('input', updateButtonState);
 
 window.addEventListener('online', () => {
   setNetStatus();
@@ -756,9 +1206,11 @@ setInterval(() => {
   if (navigator.onLine) syncNow().then(loadSummary).catch(() => {});
 }, 25000);
 
+setMode("expense");
 setNetStatus();
 updateButtonState();
 
+// Initial sync + render
 (async function boot() {
   try {
     await syncNow();
