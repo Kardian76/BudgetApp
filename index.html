@@ -279,6 +279,39 @@ img {
     <div class="status-row">
       <span class="pill" id="apiPill">API: checking…</span>
     </div>
+
+    <!-- DEBUG WIDGET -->
+    <div class="status-row" style="margin-top: 0.75rem;">
+      <details class="pill" id="debugBox" style="width: 100%; justify-content: center; padding: 0.65rem 0.9rem;">
+        <summary style="cursor: pointer; font-weight: 900;">Debug</summary>
+        <div style="margin-top: 0.75rem; width: 100%; font-size: 0.95rem; color: var(--text-main);">
+          <div style="display:flex; justify-content:space-between; gap:1rem; margin:0.35rem 0;">
+            <div>API Base</div><span id="dbgApiBase" style="font-weight:800;"></span>
+          </div>
+          <div style="display:flex; justify-content:space-between; gap:1rem; margin:0.35rem 0;">
+            <div>Online</div><span id="dbgOnline" style="font-weight:800;"></span>
+          </div>
+          <div style="display:flex; justify-content:space-between; gap:1rem; margin:0.35rem 0;">
+            <div>Cursor</div><span id="dbgCursor" style="font-weight:800;"></span>
+          </div>
+          <div style="display:flex; justify-content:space-between; gap:1rem; margin:0.35rem 0;">
+            <div>Outbox</div><span id="dbgOutbox" style="font-weight:800;"></span>
+          </div>
+          <div style="display:flex; justify-content:space-between; gap:1rem; margin:0.35rem 0;">
+            <div>Ledger</div><span id="dbgLedger" style="font-weight:800;"></span>
+          </div>
+          <div style="display:flex; justify-content:space-between; gap:1rem; margin:0.35rem 0;">
+            <div>Last Sync</div><span id="dbgLastSync" style="font-weight:800;"></span>
+          </div>
+          <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color);">
+            <div style="font-weight:900; margin-bottom: 0.35rem;">Last API Error</div>
+            <div id="dbgLastErr" style="color: var(--danger); font-weight:800; word-break: break-word;">(none)</div>
+          </div>
+        </div>
+      </details>
+    </div>
+    <!-- /DEBUG WIDGET -->
+
   </div>
 
   <div class="card">
@@ -391,10 +424,23 @@ const pendingEmptyEl = document.getElementById('pendingEmpty');
 
 const successMsg = document.getElementById('successMsg');
 
+/* DEBUG ELEMENTS */
+const dbgApiBaseEl = document.getElementById('dbgApiBase');
+const dbgOnlineEl = document.getElementById('dbgOnline');
+const dbgCursorEl = document.getElementById('dbgCursor');
+const dbgOutboxEl = document.getElementById('dbgOutbox');
+const dbgLedgerEl = document.getElementById('dbgLedger');
+const dbgLastSyncEl = document.getElementById('dbgLastSync');
+const dbgLastErrEl = document.getElementById('dbgLastErr');
+
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
 let db = null;
 let isSyncing = false;
+
+/* Debug state */
+let lastSyncIso = null;
+let lastApiError = null;
 
 // Local-only cache of categories (from /api/state)
 let categories = [
@@ -442,7 +488,12 @@ let categories = [
     if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'key' });
     if (!d.objectStoreNames.contains('ledger')) d.createObjectStore('ledger', { keyPath: 'client_id' });
   };
-  req.onsuccess = e => { db = e.target.result; loadPending(); loadSummary().catch(console.error); };
+  req.onsuccess = e => {
+    db = e.target.result;
+    loadPending();
+    refreshDebug().catch(() => {});
+    loadSummary().catch(console.error);
+  };
   req.onerror = () => console.error('IndexedDB error');
 })();
 
@@ -467,7 +518,6 @@ function setNetStatus(extraLabel) {
 }
 
 function centsFromDollars(d) {
-  // Handles negatives; rounds to nearest cent
   return Math.round(Number(d) * 100);
 }
 
@@ -481,7 +531,6 @@ function nowIso() {
 
 function uuid() {
   if (crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
-  // Fallback (non-cryptographic; adequate for dedupe in small app)
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -490,18 +539,70 @@ function uuid() {
 }
 
 /* =========================================================
+   DEBUG HELPERS
+   ========================================================= */
+
+function setLastApiError(err) {
+  lastApiError = err ? String(err.message || err) : null;
+  if (dbgLastErrEl) dbgLastErrEl.textContent = lastApiError || '(none)';
+}
+
+function setLastSyncNow() {
+  lastSyncIso = new Date().toISOString();
+  if (dbgLastSyncEl) dbgLastSyncEl.textContent = lastSyncIso;
+}
+
+function countStore(storeName) {
+  return new Promise((resolve) => {
+    if (!db) return resolve(0);
+    const tx = db.transaction(storeName, 'readonly');
+    const store = tx.objectStore(storeName);
+
+    if (typeof store.count === 'function') {
+      const req = store.count();
+      req.onsuccess = () => resolve(req.result || 0);
+      req.onerror = () => resolve(0);
+    } else {
+      const req = store.getAll();
+      req.onsuccess = () => resolve((req.result || []).length);
+      req.onerror = () => resolve(0);
+    }
+  });
+}
+
+async function refreshDebug() {
+  try {
+    if (dbgApiBaseEl) dbgApiBaseEl.textContent = API_BASE;
+    if (dbgOnlineEl) dbgOnlineEl.textContent = navigator.onLine ? 'true' : 'false';
+
+    const cursor = Number((await getMeta('cursor')) || 0);
+    if (dbgCursorEl) dbgCursorEl.textContent = String(cursor);
+
+    const outboxCount = await countStore('tx');
+    if (dbgOutboxEl) dbgOutboxEl.textContent = String(outboxCount);
+
+    const ledgerCount = await countStore('ledger');
+    if (dbgLedgerEl) dbgLedgerEl.textContent = String(ledgerCount);
+
+    if (dbgLastSyncEl) dbgLastSyncEl.textContent = lastSyncIso || '(not yet)';
+    if (dbgLastErrEl) dbgLastErrEl.textContent = lastApiError || '(none)';
+  } catch {
+    // debug must never break the app
+  }
+}
+
+/* =========================================================
    API CALLS (Worker)
    ========================================================= */
 
 async function apiGet(path) {
   setApiStatus(`API: GET ${path}…`, false);
+
   const resp = await fetch(`${API_BASE}${path}`, {
     method: "GET",
     mode: "cors",
     cache: "no-store",
-    headers: {
-      "Authorization": `Bearer ${AUTH_TOKEN}`
-    }
+    headers: { "Authorization": `Bearer ${AUTH_TOKEN}` }
   });
 
   const text = await resp.text();
@@ -509,39 +610,48 @@ async function apiGet(path) {
   try { json = JSON.parse(text); }
   catch {
     setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true);
+    setLastApiError(`Non-JSON (HTTP ${resp.status})`);
     throw new Error(`Non-JSON response (HTTP ${resp.status}): ${text.slice(0, 200)}`);
   }
 
   if (!resp.ok || json?.ok === false) {
     setApiStatus(`API: error (HTTP ${resp.status})`, true);
+    setLastApiError(json?.error || `HTTP ${resp.status}`);
     throw new Error(json?.error || `HTTP ${resp.status}`);
   }
 
   setApiStatus(`API: OK`, false);
+  setLastApiError(null);
   return json;
 }
 
 async function apiHealth() {
-  // no auth required, but we can still call with auth; your worker allows /api/health without auth
   setApiStatus(`API: health…`, false);
   const resp = await fetch(`${API_BASE}/api/health`, { method: "GET", mode: "cors", cache: "no-store" });
+
   const text = await resp.text();
   let json;
   try { json = JSON.parse(text); }
   catch {
     setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true);
+    setLastApiError(`Non-JSON (HTTP ${resp.status})`);
     throw new Error(`Non-JSON response (HTTP ${resp.status}): ${text.slice(0, 200)}`);
   }
+
   if (!resp.ok || json?.ok === false) {
     setApiStatus(`API: health failed`, true);
+    setLastApiError(json?.error || `HTTP ${resp.status}`);
     throw new Error(json?.error || `HTTP ${resp.status}`);
   }
+
   setApiStatus(`API: OK`, false);
+  setLastApiError(null);
   return json;
 }
 
 async function apiPostJson(path, payload) {
   setApiStatus(`API: POST ${path}…`, false);
+
   const resp = await fetch(`${API_BASE}${path}`, {
     method: "POST",
     mode: "cors",
@@ -558,15 +668,18 @@ async function apiPostJson(path, payload) {
   try { json = JSON.parse(text); }
   catch {
     setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true);
+    setLastApiError(`Non-JSON (HTTP ${resp.status})`);
     throw new Error(`Non-JSON response (HTTP ${resp.status}): ${text.slice(0, 200)}`);
   }
 
   if (!resp.ok || json?.ok === false) {
     setApiStatus(`API: error (HTTP ${resp.status})`, true);
+    setLastApiError(json?.error || `HTTP ${resp.status}`);
     throw new Error(json?.error || `HTTP ${resp.status}`);
   }
 
   setApiStatus(`API: OK`, false);
+  setLastApiError(null);
   return json;
 }
 
@@ -640,8 +753,6 @@ function updateButtonState() {
    ========================================================= */
 
 function computeSummaryFromLedger(ledgerItems) {
-  // Remaining = default - sum(spend) per category.
-  // amount stored in cents; positive = spend; negative = refund/credit.
   const spentCents = { food: 0, fun: 0, gas: 0 };
 
   for (const e of ledgerItems) {
@@ -655,8 +766,6 @@ function computeSummaryFromLedger(ledgerItems) {
     gas:  centsFromDollars(DEFAULT_BUDGETS.gas)  - spentCents.gas,
   };
 
-  // "Last Budget Period" is not yet defined in your backend.
-  // For now: show 0s (we can implement month boundaries in next step).
   return {
     FoodRemaining: dollarsFromCents(remainingCents.food),
     FunRemaining:  dollarsFromCents(remainingCents.fun),
@@ -689,7 +798,7 @@ function renderSummary(summary) {
 async function loadSummary() {
   setNetStatus();
 
-  // Always render from local ledger first (offline-first)
+  // Always render from local ledger first
   try {
     const ledger = await getAllLedger();
     renderSummary(computeSummaryFromLedger(ledger));
@@ -707,6 +816,8 @@ async function loadSummary() {
       console.error(e);
     }
   }
+
+  refreshDebug().catch(() => {});
 }
 
 /* =========================================================
@@ -756,6 +867,7 @@ function enqueueOfflineBatch(batch) {
   if (!db) return;
   db.transaction('tx','readwrite').objectStore('tx').add(batch);
   loadPending();
+  refreshDebug().catch(() => {}); // EXTRA DEBUG ADDITION
 }
 
 /* =========================================================
@@ -767,7 +879,6 @@ async function submitExpenses(foodDollars, funDollars, gasDollars) {
   const occurred_at = nowIso();
   const created_by = "pwa";
 
-  // Only create expense items for non-zero entries
   if (foodDollars !== 0) items.push({
     client_id: uuid(),
     category_key: "food",
@@ -797,10 +908,10 @@ async function submitExpenses(foodDollars, funDollars, gasDollars) {
 
   if (!items.length) return;
 
-  // Always write to local ledger immediately (offline-first)
+  // Write to local ledger immediately
   await upsertLedgerItems(items);
 
-  // Put it in outbox for guaranteed delivery
+  // Put in outbox for guaranteed delivery
   const batch = { items };
   enqueueOfflineBatch(batch);
 
@@ -816,21 +927,17 @@ async function submitExpenses(foodDollars, funDollars, gasDollars) {
   } else {
     showSuccess('Saved offline (will sync)');
   }
+
+  refreshDebug().catch(() => {});
 }
 
 /* =========================================================
    SYNC ENGINE
-   - Push tx queue to /api/expenses/batch
-   - Pull /api/changes?since=cursor and merge into local ledger
    ========================================================= */
 
 async function loadState() {
-  // Also updates categories cache (not strictly required yet)
   const state = await apiGet('/api/state');
   categories = state.categories || categories;
-  if (typeof state.cursor === "number") {
-    // server cursor is informational; we still track local cursor for pull
-  }
   return state;
 }
 
@@ -840,7 +947,6 @@ async function pushQueueOnce() {
   const tx = db.transaction('tx', 'readwrite');
   const store = tx.objectStore('tx');
 
-  // Process sequentially (simple + reliable)
   return new Promise((resolve, reject) => {
     const req = store.openCursor();
     req.onsuccess = async (e) => {
@@ -851,7 +957,8 @@ async function pushQueueOnce() {
 
       try {
         await apiPostJson('/api/expenses/batch', batch);
-        store.delete(cursor.key); // remove from outbox on success
+        store.delete(cursor.key);
+        refreshDebug().catch(() => {}); // EXTRA DEBUG ADDITION (after successful deletion)
         cursor.continue();
       } catch (err) {
         reject(err);
@@ -865,12 +972,10 @@ async function pullChanges() {
   const since = Number((await getMeta('cursor')) || 0);
   const res = await apiGet(`/api/changes?since=${encodeURIComponent(String(since))}`);
 
-  // Merge expenses into local ledger (idempotent by client_id keyPath)
   if (Array.isArray(res.expenses) && res.expenses.length) {
     await upsertLedgerItems(res.expenses);
   }
 
-  // Advance cursor to server cursor
   if (typeof res.cursor === "number") {
     await setMeta('cursor', res.cursor);
   }
@@ -883,25 +988,22 @@ async function syncNow() {
 
   isSyncing = true;
   setNetStatus('Syncing…');
+  refreshDebug().catch(() => {});
 
   try {
-    // (Optional) confirm API reachable
     await apiHealth();
-
-    // Load categories (useful later)
     await loadState();
-
-    // Push local queued items
     await pushQueueOnce();
-
-    // Pull remote changes
     await pullChanges();
 
+    setLastSyncNow();
     loadPending();
     setNetStatus();
+    await refreshDebug();
   } finally {
     isSyncing = false;
     setNetStatus();
+    refreshDebug().catch(() => {});
   }
 }
 
@@ -928,6 +1030,7 @@ submitBtn.addEventListener('click', async (e) => {
     await loadSummary();
   } catch (err) {
     console.error(err);
+    setLastApiError(err);
   }
 });
 
@@ -937,22 +1040,26 @@ gasInput.addEventListener('input', updateButtonState);
 
 window.addEventListener('online', () => {
   setNetStatus();
-  syncNow().catch(console.error);
+  refreshDebug().catch(() => {});
+  syncNow().catch(err => { console.error(err); setLastApiError(err); });
 });
 
 window.addEventListener('offline', () => {
   isSyncing = false;
   setNetStatus();
+  refreshDebug().catch(() => {});
 });
 
 // Periodic sync while app open (lightweight)
 setInterval(() => {
   if (navigator.onLine) syncNow().catch(() => {});
+  refreshDebug().catch(() => {});
 }, 25000);
 
 setNetStatus();
 updateButtonState();
 setApiStatus("API: ready", false);
+refreshDebug().catch(() => {});
 
 // Initial sync + render
 (async function boot() {
@@ -960,8 +1067,10 @@ setApiStatus("API: ready", false);
     await syncNow();
   } catch (e) {
     console.error(e);
+    setLastApiError(e);
   } finally {
     await loadSummary();
+    refreshDebug().catch(() => {});
   }
 })();
 </script>
