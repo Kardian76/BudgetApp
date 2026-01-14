@@ -5,20 +5,25 @@
 <title>Budget Tracker</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<!-- PWA -->
 <meta name="theme-color" content="#2563eb">
+<link rel="manifest" href="./manifest.webmanifest?v=2026-01-13-1">
 
-<!-- PWA manifest (same-origin with the page) -->
-<link rel="manifest" href="./manifest.webmanifest?v=2026-01-10-1">
+<!-- iOS + legacy Android -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Budget">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 
-<!-- iOS home screen icon(s) -->
+<!-- iOS home screen icons -->
 <link rel="apple-touch-icon" sizes="180x180" href="./Nova_192.png">
 <link rel="apple-touch-icon" sizes="167x167" href="./Nova_192.png">
 <link rel="apple-touch-icon" sizes="152x152" href="./Nova_192.png">
 <link rel="apple-touch-icon" sizes="120x120" href="./Nova_192.png">
 
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Budget">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<!-- Optional: suppress favicon.ico 404 -->
+<link rel="icon" href="data:,">
 
 <style>
 :root {
@@ -31,6 +36,7 @@
   --border-color: #e5e7eb;
   --success: #16a34a;
   --warning: #b45309;
+  --danger: #b91c1c;
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
@@ -39,18 +45,22 @@
 
   --tap-min: 54px;
 }
+
 * { box-sizing: border-box; }
+
 html {
   font-size: 22px;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--bg-color);
   color: var(--text-main);
 }
+
 .container {
   width: 100%;
   padding: calc(1.5rem + var(--safe-top))
@@ -58,6 +68,7 @@ body {
            calc(1.75rem + var(--safe-bottom))
            calc(1.5rem + var(--safe-left));
 }
+
 h1 {
   text-align: center;
   margin: 0 0 0.5rem 0;
@@ -65,6 +76,7 @@ h1 {
   font-weight: 800;
   letter-spacing: -0.015em;
 }
+
 .subtitle {
   text-align: center;
   color: var(--text-muted);
@@ -72,6 +84,7 @@ h1 {
   margin: 0 0 2rem 0;
   line-height: 1.35;
 }
+
 .card {
   background: var(--card-bg);
   border-radius: 1.1rem;
@@ -80,6 +93,7 @@ h1 {
   box-shadow: 0 12px 24px rgba(0,0,0,0.06);
   border: 1px solid rgba(17,24,39,0.05);
 }
+
 .summary-row {
   display: flex;
   justify-content: space-between;
@@ -87,6 +101,7 @@ h1 {
   margin-bottom: 1rem;
   font-size: 1.2rem;
 }
+
 .summary-row:last-child { margin-bottom: 0; }
 .summary-row span { font-weight: 900; }
 
@@ -97,12 +112,14 @@ h2 {
   font-weight: 900;
   letter-spacing: -0.01em;
 }
+
 .form-group-vertical {
   display: flex;
   flex-direction: column;
   gap: 1rem;
   margin-bottom: 1.25rem;
 }
+
 input {
   width: 100%;
   min-height: var(--tap-min);
@@ -113,11 +130,13 @@ input {
   text-align: center;
   background: #fff;
 }
+
 input:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.18);
 }
+
 button {
   width: 100%;
   min-height: var(--tap-min);
@@ -130,8 +149,13 @@ button {
   color: #ffffff;
   cursor: pointer;
 }
+
 button:hover:not(:disabled) { background-color: var(--primary-hover); }
-button:disabled { background-color: #9ca3af; cursor: not-allowed; }
+
+button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
 
 .success-message {
   text-align: center;
@@ -140,6 +164,7 @@ button:disabled { background-color: #9ca3af; cursor: not-allowed; }
   margin-top: 1rem;
   display: none;
 }
+
 .help-text {
   text-align: center;
   margin-top: 0.85rem;
@@ -147,11 +172,13 @@ button:disabled { background-color: #9ca3af; cursor: not-allowed; }
   color: var(--text-muted);
   line-height: 1.35;
 }
+
 .status-row {
   display: flex;
   justify-content: center;
-  margin-top: 1.25rem;
+  margin-top: 1.0rem;
 }
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -161,49 +188,66 @@ button:disabled { background-color: #9ca3af; cursor: not-allowed; }
   font-size: 0.95rem;
   background: #fff;
 }
-.pill.online { color: var(--success); }
+
+.pill.online  { color: var(--success); }
 .pill.offline { color: var(--warning); }
 .pill.syncing { color: var(--primary); }
-.pill.bad { color: #b91c1c; }
+.pill.bad     { color: var(--danger); }
 
 .pending-list {
   margin: 1rem 0 0 0;
   padding-left: 1.25rem;
   font-size: 1.05rem;
 }
+
 .pending-list li { margin: 0.5rem 0; }
+
 .pending-empty {
   margin-top: 0.75rem;
   text-align: center;
   color: var(--text-muted);
   font-size: 1rem;
 }
+
 .last-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1rem;
 }
+
 .last-box {
   border: 1px solid var(--border-color);
   border-radius: 0.85rem;
   padding: 1rem;
   background: #fff;
 }
+
 .last-title {
   font-weight: 900;
   margin-bottom: 0.75rem;
   font-size: 1.1rem;
   text-align: center;
 }
+
 .last-row {
   display: flex;
   justify-content: space-between;
   font-size: 1.05rem;
   margin: 0.35rem 0;
 }
+
 .last-row span { font-weight: 800; }
-.center { text-align: center; margin-top: 1.5rem; }
-img { max-width: 130px; height: auto; opacity: 0.92; }
+
+.center {
+  text-align: center;
+  margin-top: 1.5rem;
+}
+
+img {
+  max-width: 130px;
+  height: auto;
+  opacity: 0.92;
+}
 </style>
 </head>
 
@@ -225,13 +269,17 @@ img { max-width: 130px; height: auto; opacity: 0.92; }
     <div class="status-row">
       <span class="pill" id="netStatusPill">Checking…</span>
     </div>
-    <div class="status-row" style="margin-top:0.75rem;">
+    <div class="status-row">
       <span class="pill" id="pwaPill">PWA: checking…</span>
+    </div>
+    <div class="status-row">
+      <span class="pill" id="apiPill">API: checking…</span>
     </div>
   </div>
 
   <div class="card">
     <h2>Enter Expenses / Refunds</h2>
+
     <div class="form-group-vertical">
       <input type="number" step="0.01" id="foodInput" placeholder="Food" inputmode="decimal">
       <input type="number" step="0.01" id="funInput" placeholder="Fun" inputmode="decimal">
@@ -250,14 +298,22 @@ img { max-width: 130px; height: auto; opacity: 0.92; }
     <div class="last-grid">
       <div class="last-box">
         <div class="last-title">Food</div>
-        <div class="last-row"><div>Spent</div><span id="lastFoodSpent">$0.00</span></div>
-        <div class="last-row"><div>Leftover</div><span id="lastFoodLeftover">$0.00</span></div>
+        <div class="last-row">
+          <div>Spent</div><span id="lastFoodSpent">$0.00</span>
+        </div>
+        <div class="last-row">
+          <div>Leftover</div><span id="lastFoodLeftover">$0.00</span>
+        </div>
       </div>
 
       <div class="last-box">
         <div class="last-title">Fun</div>
-        <div class="last-row"><div>Spent</div><span id="lastFunSpent">$0.00</span></div>
-        <div class="last-row"><div>Leftover</div><span id="lastFunLeftover">$0.00</span></div>
+        <div class="last-row">
+          <div>Spent</div><span id="lastFunSpent">$0.00</span>
+        </div>
+        <div class="last-row">
+          <div>Leftover</div><span id="lastFunLeftover">$0.00</span>
+        </div>
       </div>
     </div>
   </div>
@@ -274,18 +330,26 @@ img { max-width: 130px; height: auto; opacity: 0.92; }
 </div>
 
 <script>
-/**
- * IMPORTANT:
- * Replace API_URL with your Apps Script Web App /exec URL after you deploy it.
- * It must be the "Anyone" accessible deployment if you want client-side fetch without auth friction.
- */
+/* =========================================================
+   CONFIG
+   ========================================================= */
+
+// Cloudflare Worker proxy URL (MUST be the Worker, not Apps Script)
 const API_URL = "https://budget-app.kardian.workers.dev/";
 
-// If you enable an API key in Code.gs (recommended), set it here too.
-const API_KEY = ""; // e.g. "your-long-random-string"
+// Optional: if you set API_KEY in Apps Script properties, set it here too.
+const API_KEY = "";
 
-const pwaPill = document.getElementById('pwaPill');
+// Cache-busting version for SW registration
+const SW_VERSION = "2026-01-13-1";
+
+/* =========================================================
+   ELEMENTS / STATE
+   ========================================================= */
+
 const netStatusPill = document.getElementById('netStatusPill');
+const pwaPill = document.getElementById('pwaPill');
+const apiPill = document.getElementById('apiPill');
 
 const foodInput = document.getElementById('foodInput');
 const funInput = document.getElementById('funInput');
@@ -309,28 +373,34 @@ const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: '
 let db = null;
 let isSyncing = false;
 
-/* ========== PWA / Service Worker ========== */
+/* =========================================================
+   PWA / SERVICE WORKER
+   ========================================================= */
+
 (async function initPwa() {
   try {
     if (!('serviceWorker' in navigator)) {
-      pwaPill.textContent = 'PWA: service worker unsupported';
+      pwaPill.textContent = 'PWA: unsupported';
       pwaPill.className = 'pill bad';
       return;
     }
 
-    const reg = await navigator.serviceWorker.register('./sw.js?v=2026-01-10-1');
+    const reg = await navigator.serviceWorker.register(`./sw.js?v=${encodeURIComponent(SW_VERSION)}`);
     const state = reg.active ? 'active' : (reg.installing ? 'installing' : 'registered');
 
     pwaPill.textContent = `PWA: ${state}`;
     pwaPill.className = 'pill online';
   } catch (e) {
     console.error(e);
-    pwaPill.textContent = `PWA: SW failed`;
+    pwaPill.textContent = 'PWA: SW failed';
     pwaPill.className = 'pill bad';
   }
 })();
 
-/* ========== IndexedDB setup ========== */
+/* =========================================================
+   INDEXEDDB SETUP
+   ========================================================= */
+
 (function initDB(){
   const req = indexedDB.open('budgetDB', 1);
   req.onupgradeneeded = e => {
@@ -341,7 +411,15 @@ let isSyncing = false;
   req.onerror = () => console.error('IndexedDB error');
 })();
 
-/* ========== Network status pill ========== */
+/* =========================================================
+   STATUS HELPERS
+   ========================================================= */
+
+function setApiStatus(text, isBad) {
+  apiPill.textContent = text;
+  apiPill.className = `pill ${isBad ? 'bad' : 'online'}`;
+}
+
 function setNetStatus(extraLabel) {
   if (isSyncing) {
     netStatusPill.textContent = extraLabel || 'Syncing…';
@@ -353,40 +431,52 @@ function setNetStatus(extraLabel) {
   netStatusPill.className = `pill ${online ? 'online' : 'offline'}`;
 }
 
-/* ========== API helper (avoid preflight) ==========
-   Apps Script web apps do not support OPTIONS preflight well; keep request "simple":
-   - method: POST
-   - Content-Type: text/plain (not application/json)
-   - no custom headers unless you accept potential preflight risk
-   CORS basics: :contentReference[oaicite:1]{index=1}
-*/
+/* =========================================================
+   API CALLER (via Cloudflare Worker)
+   ========================================================= */
+
 async function callApi(action, data) {
-  const payload = {
-    action,
-    key: API_KEY || undefined,
-    data: data || {}
-  };
+  const payload = { action, data: data || {} };
+
+  setApiStatus(`API: calling ${action}…`, false);
 
   const resp = await fetch(API_URL, {
-    method: 'POST',
-    mode: 'cors',
-    redirect: 'follow',
+    method: "POST",
+    mode: "cors",
+    cache: "no-store",
     headers: {
-      'Content-Type': 'text/plain;charset=utf-8'
+      "Content-Type": "application/json",
+      ...(API_KEY ? { "X-Api-Key": API_KEY } : {})
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    redirect: "follow"
   });
 
-  // If Apps Script errors, it may return HTML; this makes debugging easier.
   const text = await resp.text();
+
+  let json;
   try {
-    return JSON.parse(text);
+    json = JSON.parse(text);
   } catch {
-    throw new Error(`API response not JSON (HTTP ${resp.status}). Body starts: ${text.slice(0, 120)}`);
+    setApiStatus(`API: non-JSON (HTTP ${resp.status})`, true);
+    throw new Error(`Non-JSON response (HTTP ${resp.status}). Body starts: ${text.slice(0, 200)}`);
   }
+
+  console.log(`API ${action} response:`, json);
+
+  if (json && json.ok === false) {
+    setApiStatus(`API: error (${json.error || 'unknown'})`, true);
+    throw new Error(json.error || "API error");
+  }
+
+  setApiStatus(`API: OK (HTTP ${resp.status})`, false);
+  return json;
 }
 
-/* ========== UI helpers ========== */
+/* =========================================================
+   UI HELPERS
+   ========================================================= */
+
 function showSuccess(text) {
   successMsg.textContent = text || 'Saved';
   successMsg.style.display = 'block';
@@ -397,10 +487,14 @@ function updateButtonState() {
   submitBtn.disabled = (!foodInput.value && !funInput.value);
 }
 
-/* ========== Summary cache ========== */
+/* =========================================================
+   SUMMARY CACHE
+   ========================================================= */
+
 function cacheSummary(summary) {
   localStorage.setItem('cachedFoodRemaining', String(summary.FoodRemaining ?? 0));
   localStorage.setItem('cachedFunRemaining', String(summary.FunRemaining ?? 0));
+
   localStorage.setItem('cachedLastFoodSpent', String(summary.LastPeriodFoodSpent ?? 0));
   localStorage.setItem('cachedLastFoodLeftover', String(summary.LastPeriodFoodLeftover ?? 0));
   localStorage.setItem('cachedLastFunSpent', String(summary.LastPeriodFunSpent ?? 0));
@@ -411,6 +505,7 @@ function loadCachedSummary() {
   return {
     FoodRemaining: Number(localStorage.getItem('cachedFoodRemaining') || 0),
     FunRemaining: Number(localStorage.getItem('cachedFunRemaining') || 0),
+
     LastPeriodFoodSpent: Number(localStorage.getItem('cachedLastFoodSpent') || 0),
     LastPeriodFoodLeftover: Number(localStorage.getItem('cachedLastFoodLeftover') || 0),
     LastPeriodFunSpent: Number(localStorage.getItem('cachedLastFunSpent') || 0),
@@ -421,8 +516,10 @@ function loadCachedSummary() {
 function renderSummary(summary) {
   foodRemainingEl.textContent = currency.format(summary.FoodRemaining ?? 0);
   funRemainingEl.textContent = currency.format(summary.FunRemaining ?? 0);
+
   lastFoodSpentEl.textContent = currency.format(summary.LastPeriodFoodSpent ?? 0);
   lastFoodLeftoverEl.textContent = currency.format(summary.LastPeriodFoodLeftover ?? 0);
+
   lastFunSpentEl.textContent = currency.format(summary.LastPeriodFunSpent ?? 0);
   lastFunLeftoverEl.textContent = currency.format(summary.LastPeriodFunLeftover ?? 0);
 }
@@ -432,16 +529,27 @@ async function loadSummary() {
 
   if (!navigator.onLine) {
     renderSummary(loadCachedSummary());
+    setApiStatus("API: offline (cached)", false);
     return;
   }
 
-  const summary = await callApi('getSummary', {});
-  renderSummary(summary);
-  cacheSummary(summary);
-  setNetStatus();
+  try {
+    const summary = await callApi('getSummary', {});
+    renderSummary(summary);
+    cacheSummary(summary);
+  } catch (err) {
+    console.error(err);
+    renderSummary(loadCachedSummary());
+    setApiStatus("API: failed (cached)", true);
+  } finally {
+    setNetStatus();
+  }
 }
 
-/* ========== Pending list (IndexedDB) ========== */
+/* =========================================================
+   PENDING LIST (IndexedDB)
+   ========================================================= */
+
 function loadPending() {
   if (!db) return;
 
@@ -482,11 +590,15 @@ function enqueueOfflineTx(payload) {
   loadPending();
 }
 
-/* ========== Submit handling ========== */
+/* =========================================================
+   SUBMIT HANDLING
+   ========================================================= */
+
 function optimisticOfflineAdjust(food, fun) {
   const cached = loadCachedSummary();
   cached.FoodRemaining = Number(cached.FoodRemaining || 0) - food;
   cached.FunRemaining  = Number(cached.FunRemaining || 0) - fun;
+
   renderSummary(cached);
   cacheSummary(cached);
 }
@@ -523,7 +635,6 @@ submitBtn.addEventListener('click', async (e) => {
       await submitOnline(payload);
     } catch (err) {
       console.error(err);
-      // If API fails while "online", fall back to queue to avoid losing entry
       enqueueOfflineTx(payload);
       optimisticOfflineAdjust(food, fun);
       showSuccess('Saved offline (API error)');
@@ -537,7 +648,10 @@ submitBtn.addEventListener('click', async (e) => {
   }
 });
 
-/* ========== Sync queue ========== */
+/* =========================================================
+   SYNC QUEUE
+   ========================================================= */
+
 function syncOfflineQueue() {
   if (!db || !navigator.onLine) return;
 
@@ -584,14 +698,17 @@ window.addEventListener('offline', () => {
   setNetStatus();
 });
 
-/* Init */
+/* =========================================================
+   INIT
+   ========================================================= */
+
 foodInput.addEventListener('input', updateButtonState);
 funInput.addEventListener('input', updateButtonState);
 
 setNetStatus();
 updateButtonState();
+setApiStatus("API: ready", false);
 loadSummary().catch(console.error);
 </script>
 </body>
 </html>
-
