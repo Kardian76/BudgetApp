@@ -70,18 +70,21 @@ body {
            calc(1.25rem + var(--safe-left));
 }
 
+/* Header row: "Budget Tracker is" + status pill on same line */
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  margin: 0 0 1rem 0;
+}
+
 h1 {
-  text-align: center;
-  margin: 0 0 0.75rem 0;
+  margin: 0;
   font-size: 1.9rem;
   font-weight: 900;
   letter-spacing: -0.015em;
-}
-
-.top-status {
-  display: flex;
-  justify-content: center;
-  margin: 0 0 1rem 0;
+  text-align: center;
 }
 
 .card {
@@ -126,8 +129,7 @@ h2 {
 
 input {
   width: 100%;
-  /* More compact while readable */
-  min-height: 44px;
+  min-height: 44px; /* compact but readable */
   padding: 0.6rem 0.9rem;
   font-size: 1.02rem;
   border-radius: 0.85rem;
@@ -184,8 +186,10 @@ button:disabled {
   padding: 0.35rem 0.85rem;
   border-radius: 999px;
   border: 1px solid var(--border-color);
-  font-size: 0.9rem;
+  font-size: 0.95rem; /* slightly larger for readability next to title */
   background: #fff;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .pill.online  { color: var(--success); }
@@ -197,10 +201,8 @@ button:disabled {
 
 <body>
 <div class="container">
-  <h1>Budget Tracker</h1>
-
-  <!-- MOVED STATUS PILL HERE -->
-  <div class="top-status">
+  <div class="header-row">
+    <h1>Budget Tracker is</h1>
     <span class="pill" id="netStatusPill">Checking…</span>
   </div>
 
@@ -659,7 +661,6 @@ async function pushQueueOnce() {
 
       const batch = c.value;
 
-      // Malformed? delete and continue
       if (!batch || !Array.isArray(batch.items) || batch.items.length === 0) {
         store.delete(c.key);
         c.continue();
@@ -758,7 +759,6 @@ setInterval(() => {
 setNetStatus();
 updateButtonState();
 
-// Initial sync + render
 (async function boot() {
   try {
     await syncNow();
