@@ -10,84 +10,100 @@
 <meta name="theme-color" content="#2563eb">
 <link rel="manifest" href="./manifest.webmanifest">
 
+<!-- iOS + legacy Android -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Purrfect Budget">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 
 <link rel="apple-touch-icon" sizes="180x180" href="./Icon_192.png">
+<link rel="apple-touch-icon" sizes="167x167" href="./Icon_192.png">
+<link rel="apple-touch-icon" sizes="152x152" href="./Icon_192.png">
+<link rel="apple-touch-icon" sizes="120x120" href="./Icon_192.png">
 <link rel="icon" href="data:,">
 
 <style>
 :root {
-  --bg: #f4f6f9;
-  --card: #ffffff;
-  --accent: #eef2ff;
+  --bg-color: #f4f6f9;
+  --card-bg: #ffffff;
+  --card-accent: #eef2ff;
   --primary: #2563eb;
-  --border: #e5e7eb;
-  --text: #111827;
-  --muted: #6b7280;
+  --primary-hover: #1d4ed8;
+  --text-main: #111827;
+  --text-muted: #6b7280;
+  --border-color: #e5e7eb;
   --success: #16a34a;
-  --tap: 54px;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  --tap-min: 54px;
 }
 
 * { box-sizing: border-box; }
 
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  background-color: var(--bg-color);
+  color: var(--text-main);
 }
 
 .container {
-  padding: 1.25rem;
-}
-
-.header-row {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: .6rem;
-  margin-bottom: 1rem;
-}
-
-.header-label {
-  font-weight: 800;
-  color: var(--muted);
+  width: 100%;
+  padding: calc(1.25rem + var(--safe-top))
+           calc(1.25rem + var(--safe-right))
+           calc(1.5rem + var(--safe-bottom))
+           calc(1.25rem + var(--safe-left));
 }
 
 .card {
-  background: var(--card);
+  background: var(--card-bg);
   border-radius: 1.1rem;
   padding: 1.25rem;
   margin-bottom: 1.25rem;
-  box-shadow: 0 12px 24px rgba(0,0,0,.06);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.06);
+  border: 1px solid rgba(17,24,39,0.05);
 }
 
 .card.expenses-card {
-  background: var(--accent);
+  background: var(--card-accent);
+  border: 1px solid rgba(37, 99, 235, 0.18);
 }
 
+/* Period ends at bottom of balance card */
 .period-end {
-  margin-top: .9rem;
+  margin: 0.85rem 0 0 0;
   text-align: center;
-  color: var(--muted);
-  font-size: .92rem;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.35;
 }
 
-/* =======================
-   BALANCE GRID
-======================= */
+/* Balance Remaining table (3 equal columns) */
 .balance-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: .65rem .9rem;
+  column-gap: 0.9rem;
+  row-gap: 0.55rem;
+  align-items: baseline;
 }
 
 .balance-head {
+  color: var(--text-muted);
   font-weight: 900;
-  color: var(--muted);
-  border-bottom: 1px solid var(--border);
-  padding-bottom: .35rem;
+  font-size: 0.92rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid rgba(17,24,39,0.08);
+  margin-bottom: 0.65rem;
 }
 
 .balance-head.col1,
@@ -104,27 +120,99 @@ body {
   white-space: nowrap;
 }
 
-/* =======================
-   EXPENSE ENTRY GRID
-======================= */
 h2 {
   text-align: center;
+  font-size: 1.15rem;
+  margin: 0 0 1rem 0;
   font-weight: 900;
-  margin-bottom: 1rem;
+  letter-spacing: -0.01em;
 }
 
+input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.6rem 0.9rem;
+  font-size: 1.02rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--border-color);
+  text-align: center;
+  background: #fff;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.18);
+}
+
+button {
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 0.95rem 1rem;
+  font-size: 1.1rem;
+  font-weight: 900;
+  border-radius: 0.9rem;
+  border: none;
+  background-color: var(--primary);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) { background-color: var(--primary-hover); }
+
+button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* FIX: add spacing above Submit so it isn't tight to last Amount field */
+.card.expenses-card #submitBtn {
+  margin-top: 1.2rem;
+}
+
+.success-message {
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--success);
+  margin-top: 0.9rem;
+  display: none;
+}
+
+/* iOS/Android friendly switch */
+.switch{ position:relative; display:inline-block; width:46px; height:28px; }
+.switch input{ opacity:0; width:0; height:0; }
+.slider{
+  position:absolute; cursor:pointer; inset:0;
+  background:#e5e7eb; border-radius:999px;
+  transition: .2s;
+  border:1px solid var(--border-color);
+}
+.slider:before{
+  position:absolute; content:"";
+  height:22px; width:22px; left:3px; top:2px;
+  background:white; border-radius:999px;
+  transition:.2s;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.10);
+}
+.switch input:checked + .slider{ background: rgba(37,99,235,0.25); }
+.switch input:checked + .slider:before{ transform: translateX(18px); }
+
+/* Expenses entry table (3 columns) */
 .expenses-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: .9rem;
+  grid-template-columns: 1fr 1fr 1fr; /* equal spacing */
+  column-gap: 0.9rem;
+  row-gap: 0.9rem;
   align-items: center;
 }
 
 .expenses-head {
+  color: var(--text-muted);
   font-weight: 900;
-  color: var(--muted);
-  border-bottom: 1px solid var(--border);
-  padding-bottom: .35rem;
+  font-size: 0.92rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid rgba(17,24,39,0.08);
+  margin-bottom: 0.15rem;
 }
 
 .expenses-head.col1,
@@ -133,221 +221,1153 @@ h2 {
 .expenses-head.col2,
 .expenses-head.col3 { text-align: center; }
 
-/* CRITICAL FIX: Center refund toggle */
-.expenses-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* FIX: makes the switch align perfectly in the center column */
+.expenses-center{
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 
-.expenses-item {
-  font-weight: 900;
+.expenses-item { font-weight: 900; }
+
+/* Footer buttons */
+.footer-actions {
+  margin-top: 0.25rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
 }
 
-input.amount-input {
-  width: 100%;
-  min-height: 44px;
-  border-radius: .85rem;
-  border: 1px solid var(--border);
-  font-size: 1.05rem;
-  text-align: center;
-}
-
-/* =======================
-   SWITCH
-======================= */
-.switch {
-  position: relative;
-  width: 46px;
-  height: 28px;
-}
-.switch input { display: none; }
-.slider {
-  position: absolute;
-  inset: 0;
-  background: #e5e7eb;
-  border-radius: 999px;
-}
-.slider:before {
-  content: "";
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  top: 3px;
-  left: 3px;
-  background: #fff;
-  border-radius: 999px;
-  transition: .2s;
-}
-.switch input:checked + .slider {
-  background: rgba(37,99,235,.25);
-}
-.switch input:checked + .slider:before {
-  transform: translateX(18px);
-}
-
-/* =======================
-   BUTTONS
-======================= */
-button {
-  width: 100%;
-  min-height: var(--tap);
-  border-radius: .9rem;
-  border: none;
-  font-size: 1.1rem;
-  font-weight: 900;
-  background: var(--primary);
-  color: #fff;
-}
-
-button:disabled {
-  background: #9ca3af;
-}
-
-/* FIX: spacing from amount fields */
-.card.expenses-card #submitBtn {
-  margin-top: 1.2rem;
-}
-
-.success-message {
-  text-align: center;
-  margin-top: .75rem;
-  color: var(--success);
-  display: none;
-}
-
-/* =======================
-   SETTINGS BUTTON
-======================= */
 .footer-actions button {
   background: #fff;
-  color: var(--text);
-  border: 1px solid var(--border);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.08);
 }
+.footer-actions button:hover { background: #f9fafb; }
 
-/* =======================
-   MODAL
-======================= */
+/* Modals */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.4);
+  background: rgba(17,24,39,0.45);
   display: none;
   align-items: center;
   justify-content: center;
+  padding: 1rem;
+  z-index: 9999;
 }
 
 .modal {
+  width: min(560px, 100%);
   background: #fff;
-  padding: 1.1rem;
   border-radius: 1.1rem;
-  width: min(520px, 100%);
+  border: 1px solid rgba(17,24,39,0.08);
+  box-shadow: 0 18px 42px rgba(0,0,0,0.22);
+  padding: 1.1rem;
 }
 
 .modal h3 {
-  text-align: center;
+  margin: 0 0 0.6rem 0;
+  font-size: 1.2rem;
   font-weight: 900;
+  text-align: center;
+}
+
+.modal .muted {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.35;
+  margin: 0 0 0.9rem 0;
+  text-align: center;
 }
 
 .modal .row {
-  margin-bottom: .8rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.modal label {
+  font-weight: 900;
+  font-size: 0.95rem;
+  text-align: center;
 }
 
 .modal input {
-  width: 100%;
   min-height: 44px;
-  text-align: center;
 }
 
 .modal .actions {
   display: flex;
-  gap: .75rem;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
 }
-.modal .secondary {
+.modal .actions button {
+  min-height: 48px;
+}
+.modal .actions .secondary {
   background: #fff;
-  color: var(--text);
-  border: 1px solid var(--border);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
 }
+.modal .actions .secondary:hover { background: #f9fafb; }
+
+/* Simple table inside history modal */
+.history-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: .6rem .9rem;
+  align-items: baseline;
+  margin-top: .25rem;
+}
+.history-head{
+  font-weight:900;
+  color: var(--text-muted);
+  border-bottom: 1px solid rgba(17,24,39,0.10);
+  padding-bottom:.35rem;
+}
+.history-left{ text-align:left; font-weight:900; }
+.history-center{ text-align:center; font-weight:900; white-space:nowrap; }
 </style>
 </head>
 
 <body>
 <div class="container">
 
-  <div class="header-row">
-    <div class="header-label">Server Status:</div>
-    <span class="pill online">Online</span>
-  </div>
-
-  <!-- BALANCE CARD -->
+  <!-- Balance Remaining card -->
   <div class="card">
-    <div class="balance-grid">
+    <div class="balance-grid" aria-label="Budget summary">
       <div class="balance-head col1">Budget Item</div>
       <div class="balance-head col2">Remaining</div>
       <div class="balance-head col3">Spent</div>
 
       <div class="balance-item">Food</div>
-      <div class="balance-val">$414.01</div>
-      <div class="balance-val">$85.99</div>
+      <div class="balance-val" id="foodRemaining">$0.00</div>
+      <div class="balance-val" id="foodSpent">$0.00</div>
 
       <div class="balance-item">Fun</div>
-      <div class="balance-val">$300.00</div>
-      <div class="balance-val">$0.00</div>
+      <div class="balance-val" id="funRemaining">$0.00</div>
+      <div class="balance-val" id="funSpent">$0.00</div>
 
       <div class="balance-item">Gas</div>
-      <div class="balance-val">$200.00</div>
-      <div class="balance-val">$0.00</div>
+      <div class="balance-val" id="gasRemaining">$0.00</div>
+      <div class="balance-val" id="gasSpent">$0.00</div>
     </div>
 
-    <div class="period-end">
-      Period ends: January 15, 2026 at 12:00 AM ET
-    </div>
+    <div class="period-end" id="periodEndsText">Period ends: —</div>
   </div>
 
-  <!-- EXPENSE ENTRY -->
+  <!-- Enter Expenses / Refunds -->
   <div class="card expenses-card">
     <h2>Enter Expenses / Refunds</h2>
 
-    <div class="expenses-grid">
+    <div class="expenses-grid" aria-label="Expense entry">
       <div class="expenses-head col1">Budget Item</div>
       <div class="expenses-head col2">Refund?</div>
       <div class="expenses-head col3">Amount</div>
 
       <div class="expenses-item">Food</div>
       <div class="expenses-center">
-        <label class="switch">
-          <input type="checkbox">
+        <label class="switch" aria-label="Food refund toggle">
+          <input type="checkbox" id="foodRefundToggle" aria-label="Food refund">
           <span class="slider"></span>
         </label>
       </div>
-      <input class="amount-input" type="text" inputmode="decimal">
+      <div>
+        <input type="text" inputmode="decimal" id="foodInput" autocomplete="off" aria-label="Food amount">
+      </div>
 
       <div class="expenses-item">Fun</div>
       <div class="expenses-center">
-        <label class="switch">
-          <input type="checkbox">
+        <label class="switch" aria-label="Fun refund toggle">
+          <input type="checkbox" id="funRefundToggle" aria-label="Fun refund">
           <span class="slider"></span>
         </label>
       </div>
-      <input class="amount-input" type="text" inputmode="decimal">
+      <div>
+        <input type="text" inputmode="decimal" id="funInput" autocomplete="off" aria-label="Fun amount">
+      </div>
 
       <div class="expenses-item">Gas</div>
       <div class="expenses-center">
-        <label class="switch">
-          <input type="checkbox">
+        <label class="switch" aria-label="Gas refund toggle">
+          <input type="checkbox" id="gasRefundToggle" aria-label="Gas refund">
           <span class="slider"></span>
         </label>
       </div>
-      <input class="amount-input" type="text" inputmode="decimal">
+      <div>
+        <input type="text" inputmode="decimal" id="gasInput" autocomplete="off" aria-label="Gas amount">
+      </div>
     </div>
 
     <button id="submitBtn" disabled>Submit</button>
-    <div class="success-message">Saved</div>
+    <div id="successMsg" class="success-message">Saved</div>
   </div>
 
+  <!-- Footer actions: History (left) + Settings (right) -->
   <div class="footer-actions">
-    <button>Settings</button>
+    <button id="historyBtn" type="button">History</button>
+    <button id="settingsBtn" type="button">Settings</button>
   </div>
 </div>
+
+<!-- OFFLINE NOTIFICATION MODAL -->
+<div class="modal-backdrop" id="offlineBackdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="offlineTitle">
+    <h3 id="offlineTitle">Offline</h3>
+    <p class="muted">
+      You can still enter amounts while offline. When your internet connection is restored,
+      please refresh the app to sync the latest data.
+    </p>
+    <div class="actions">
+      <button type="button" id="offlineOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY MODAL -->
+<div class="modal-backdrop" id="historyBackdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="historyTitle">
+    <h3 id="historyTitle">Last Period</h3>
+    <p class="muted" id="historySubtitle">—</p>
+
+    <div class="history-grid" aria-label="Last period summary">
+      <div class="history-head history-left">Budget Item</div>
+      <div class="history-head history-center">Spent</div>
+      <div class="history-head history-center">Rolled Over</div>
+
+      <div class="history-left">Food</div>
+      <div class="history-center" id="histFoodSpent">$0.00</div>
+      <div class="history-center" id="histFoodRollover">$0.00</div>
+
+      <div class="history-left">Fun</div>
+      <div class="history-center" id="histFunSpent">$0.00</div>
+      <div class="history-center" id="histFunRollover">$0.00</div>
+
+      <div class="history-left">Gas</div>
+      <div class="history-center" id="histGasSpent">$0.00</div>
+      <div class="history-center" id="histGasRollover">$0.00</div>
+    </div>
+
+    <div class="actions">
+      <button class="secondary" type="button" id="historyClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-backdrop" id="settingsBackdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <h3 id="settingsTitle">Settings</h3>
+    <p class="muted" id="settingsSubtitle">Changes take effect on: —</p>
+
+    <div class="row">
+      <label for="setFood">Food</label>
+      <input id="setFood" type="text" inputmode="decimal" autocomplete="off">
+    </div>
+
+    <div class="row">
+      <label for="setFun">Fun</label>
+      <input id="setFun" type="text" inputmode="decimal" autocomplete="off">
+    </div>
+
+    <div class="row">
+      <label for="setGas">Gas</label>
+      <input id="setGas" type="text" inputmode="decimal" autocomplete="off">
+    </div>
+
+    <div class="actions">
+      <button class="secondary" type="button" id="settingsCancel">Cancel</button>
+      <button type="button" id="settingsSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   CONFIG
+   ========================================================= */
+const API_BASE = "https://budgetapp-api.kardian.workers.dev";
+const AUTH_TOKEN = "K7QvN2P9x0MZyJHcF4rW8E5U1R_AkDqB3aSXTGm6nVfLw-heCpd";
+const SW_VERSION = "2026-01-14-1";
+
+const DEFAULT_BUDGETS = { food: 500, fun: 300, gas: 200 };
+const PRUNE_DAYS = 60;
+const STANDARD_TZ = "America/New_York";
+
+/* =========================================================
+   ELEMENTS / STATE
+   ========================================================= */
+const periodEndsText = document.getElementById('periodEndsText');
+
+const historyBtn = document.getElementById('historyBtn');
+const settingsBtn = document.getElementById('settingsBtn');
+
+const settingsBackdrop = document.getElementById('settingsBackdrop');
+const settingsCancel = document.getElementById('settingsCancel');
+const settingsSave = document.getElementById('settingsSave');
+const setFood = document.getElementById('setFood');
+const setFun = document.getElementById('setFun');
+const setGas = document.getElementById('setGas');
+const settingsSubtitle = document.getElementById('settingsSubtitle');
+
+const offlineBackdrop = document.getElementById('offlineBackdrop');
+const offlineOk = document.getElementById('offlineOk');
+
+const historyBackdrop = document.getElementById('historyBackdrop');
+const historyClose = document.getElementById('historyClose');
+const historySubtitle = document.getElementById('historySubtitle');
+
+const histFoodSpent = document.getElementById('histFoodSpent');
+const histFunSpent  = document.getElementById('histFunSpent');
+const histGasSpent  = document.getElementById('histGasSpent');
+const histFoodRollover = document.getElementById('histFoodRollover');
+const histFunRollover  = document.getElementById('histFunRollover');
+const histGasRollover  = document.getElementById('histGasRollover');
+
+const foodRefundToggle = document.getElementById('foodRefundToggle');
+const funRefundToggle  = document.getElementById('funRefundToggle');
+const gasRefundToggle  = document.getElementById('gasRefundToggle');
+
+const foodInput = document.getElementById('foodInput');
+const funInput = document.getElementById('funInput');
+const gasInput = document.getElementById('gasInput');
+const submitBtn = document.getElementById('submitBtn');
+
+const foodRemainingEl = document.getElementById('foodRemaining');
+const funRemainingEl = document.getElementById('funRemaining');
+const gasRemainingEl = document.getElementById('gasRemaining');
+
+const foodSpentEl = document.getElementById('foodSpent');
+const funSpentEl = document.getElementById('funSpent');
+const gasSpentEl = document.getElementById('gasSpent');
+
+const successMsg = document.getElementById('successMsg');
+
+const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+
+let db = null;
+let isSyncing = false;
+
+/* =========================================================
+   PWA / SERVICE WORKER (silent)
+   ========================================================= */
+(async function initPwa() {
+  try {
+    if (!('serviceWorker' in navigator)) return;
+    await navigator.serviceWorker.register(`./sw.js?v=${encodeURIComponent(SW_VERSION)}`);
+  } catch (e) {
+    console.error('SW registration failed', e);
+  }
+})();
+
+/* =========================================================
+   INDEXEDDB SETUP
+   ========================================================= */
+(function initDB(){
+  const req = indexedDB.open('budgetDB', 3);
+  req.onupgradeneeded = e => {
+    const d = e.target.result;
+    if (!d.objectStoreNames.contains('tx')) d.createObjectStore('tx', { autoIncrement: true });
+    if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'key' });
+    if (!d.objectStoreNames.contains('ledger')) d.createObjectStore('ledger', { keyPath: 'client_id' });
+  };
+  req.onsuccess = async (e) => {
+    db = e.target.result;
+
+    await cleanupLegacyOutbox();
+    await pruneLocalData(PRUNE_DAYS);
+    await rollBudgetPeriodIfNeeded();
+    await loadSummary();
+  };
+  req.onerror = () => console.error('IndexedDB error');
+})();
+
+/* =========================================================
+   OFFLINE MODAL LOGIC (replaces Server Status UI)
+   ========================================================= */
+function openOfflineNotice() {
+  offlineBackdrop.style.display = 'flex';
+  offlineBackdrop.setAttribute('aria-hidden', 'false');
+}
+function closeOfflineNotice() {
+  offlineBackdrop.style.display = 'none';
+  offlineBackdrop.setAttribute('aria-hidden', 'true');
+}
+function maybeShowOfflineNotice() {
+  if (!navigator.onLine) openOfflineNotice();
+  else closeOfflineNotice();
+}
+
+offlineOk.addEventListener('click', closeOfflineNotice);
+offlineBackdrop.addEventListener('click', (e) => { if (e.target === offlineBackdrop) closeOfflineNotice(); });
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+function centsFromDollars(d) { return Math.round(Number(d) * 100); }
+function dollarsFromCents(c) { return (Number(c) || 0) / 100; }
+function nowIso() { return new Date().toISOString(); }
+function pad2(n) { return String(n).padStart(2,'0'); }
+
+function uuid() {
+  if (crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+function parseDollarsFromText(s) {
+  const t = String(s ?? '').trim();
+  if (!t) return 0;
+  const cleaned = t.replace(/\$/g,'').replace(/,/g,'');
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function clampNonNegative(n) {
+  return (Number.isFinite(n) && n >= 0) ? n : NaN;
+}
+
+/* =========================================================
+   EASTERN TIME PERIOD LOGIC
+   ========================================================= */
+const etPartsFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: STANDARD_TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+});
+
+const etMonthYearFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: STANDARD_TZ,
+  month: 'long',
+  year: 'numeric'
+});
+
+const etMonthDayFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: STANDARD_TZ,
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric'
+});
+
+function getEtYmd(dateObj) {
+  const parts = etPartsFormatter.formatToParts(dateObj);
+  const map = Object.fromEntries(parts.filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
+  return { y: Number(map.year), m: Number(map.month), d: Number(map.day) };
+}
+
+function lastDayOfMonth(y, m1to12) {
+  return new Date(Date.UTC(y, m1to12, 0)).getUTCDate();
+}
+
+function periodKeyFromYmd(y, m, d) {
+  const half = (d <= 14) ? 1 : 2;
+  return `${y}-${pad2(m)}-${half}`;
+}
+
+function currentPeriodInfoET(now = new Date()) {
+  const { y, m, d } = getEtYmd(now);
+  const half = (d <= 14) ? 1 : 2;
+  const last = lastDayOfMonth(y, m);
+
+  const monthYear = etMonthYearFormatter.format(now);
+
+  const label = (half === 1)
+    ? `${monthYear} (1–14, ET)`
+    : `${monthYear} (15–${last}, ET)`;
+
+  let endY = y, endM = m, endD;
+  if (half === 1) {
+    endD = 15;
+  } else {
+    endD = 1;
+    if (m === 12) { endM = 1; endY = y + 1; }
+    else { endM = m + 1; }
+  }
+
+  return { y, m, d, half, last, key: `${y}-${pad2(m)}-${half}`, label, endY, endM, endD };
+}
+
+function prevPeriodKeyFromCurrent(cur) {
+  // If current is half=2, previous is same month half=1.
+  // If current is half=1, previous is prior month half=2.
+  if (cur.half === 2) return `${cur.y}-${pad2(cur.m)}-1`;
+
+  let py = cur.y, pm = cur.m - 1;
+  if (pm === 0) { pm = 12; py = cur.y - 1; }
+  return `${py}-${pad2(pm)}-2`;
+}
+
+function formatPeriodEndText(cur) {
+  const approxUtc = new Date(Date.UTC(cur.endY, cur.endM - 1, cur.endD, 12, 0, 0));
+  const dateLabel = etMonthDayFormatter.format(approxUtc);
+  return `Period ends: ${dateLabel} at 12:00 AM ET`;
+}
+
+function nextPeriodInfoET(now = new Date()) {
+  const cur = currentPeriodInfoET(now);
+  let ny = cur.y, nm = cur.m, nd;
+  if (cur.half === 1) {
+    nd = 15;
+  } else {
+    nd = 1;
+    if (cur.m === 12) { nm = 1; ny = cur.y + 1; }
+    else { nm = cur.m + 1; }
+  }
+  const approxUtc = new Date(Date.UTC(ny, nm - 1, nd, 12, 0, 0));
+  return currentPeriodInfoET(approxUtc);
+}
+
+function formatEffectiveDateOnly(curNext) {
+  const startDay = (curNext.half === 1) ? 1 : 15;
+  const approxStartUtc = new Date(Date.UTC(curNext.y, curNext.m - 1, startDay, 12, 0, 0));
+  return etMonthDayFormatter.format(approxStartUtc);
+}
+
+/* =========================================================
+   API CALLS (Worker)
+   ========================================================= */
+async function apiGet(path) {
+  const resp = await fetch(`${API_BASE}${path}`, {
+    method: "GET",
+    mode: "cors",
+    cache: "no-store",
+    headers: { "Authorization": `Bearer ${AUTH_TOKEN}` }
+  });
+
+  const text = await resp.text();
+  let json;
+  try { json = JSON.parse(text); }
+  catch { throw new Error(`Non-JSON (HTTP ${resp.status})`); }
+
+  if (!resp.ok || json?.ok === false) throw new Error(json?.error || `HTTP ${resp.status}`);
+  return json;
+}
+
+async function apiHealth() {
+  const resp = await fetch(`${API_BASE}/api/health`, { method: "GET", mode: "cors", cache: "no-store" });
+  const text = await resp.text();
+  let json;
+  try { json = JSON.parse(text); }
+  catch { throw new Error(`Non-JSON (HTTP ${resp.status})`); }
+  if (!resp.ok || json?.ok === false) throw new Error(json?.error || `HTTP ${resp.status}`);
+  return json;
+}
+
+async function apiPostJson(path, payload) {
+  const resp = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    mode: "cors",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${AUTH_TOKEN}`
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await resp.text();
+  let json;
+  try { json = JSON.parse(text); }
+  catch { throw new Error(`Non-JSON (HTTP ${resp.status})`); }
+
+  if (!resp.ok || json?.ok === false) throw new Error(json?.error || `HTTP ${resp.status}`);
+  return json;
+}
+
+/* =========================================================
+   META STORE
+   ========================================================= */
+function getMeta(key) {
+  return new Promise((resolve, reject) => {
+    if (!db) return resolve(null);
+    const tx = db.transaction('meta', 'readonly');
+    const req = tx.objectStore('meta').get(key);
+    req.onsuccess = () => resolve(req.result ? req.result.value : null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function setMeta(key, value) {
+  return new Promise((resolve, reject) => {
+    if (!db) return resolve();
+    const tx = db.transaction('meta', 'readwrite');
+    tx.objectStore('meta').put({ key, value });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/* =========================================================
+   LEDGER
+   ========================================================= */
+function upsertLedgerItems(items) {
+  return new Promise((resolve, reject) => {
+    if (!db) return resolve();
+    const tx = db.transaction('ledger', 'readwrite');
+    const store = tx.objectStore('ledger');
+    for (const it of items) store.put(it);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function getAllLedger() {
+  return new Promise((resolve, reject) => {
+    if (!db) return resolve([]);
+    const tx = db.transaction('ledger', 'readonly');
+    const req = tx.objectStore('ledger').getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/* =========================================================
+   OUTBOX CLEANUP
+   ========================================================= */
+async function cleanupLegacyOutbox() {
+  if (!db) return;
+
+  const tx = db.transaction('tx', 'readwrite');
+  const store = tx.objectStore('tx');
+
+  return new Promise((resolve, reject) => {
+    const req = store.openCursor();
+    req.onsuccess = (e) => {
+      const c = e.target.result;
+      if (!c) return resolve();
+
+      const v = c.value;
+      const isValid = v && Array.isArray(v.items);
+      if (!isValid) store.delete(c.key);
+
+      c.continue();
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/* =========================================================
+   PRUNING (local)
+   ========================================================= */
+async function pruneLocalData(days) {
+  if (!db) return;
+
+  const cutoffMs = Date.now() - (days * 24 * 60 * 60 * 1000);
+
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction('ledger', 'readwrite');
+    const store = tx.objectStore('ledger');
+    const req = store.openCursor();
+
+    req.onsuccess = (e) => {
+      const c = e.target.result;
+      if (!c) return resolve();
+
+      const v = c.value;
+      const t = Date.parse(v?.occurred_at || '');
+      if (Number.isFinite(t) && t < cutoffMs) store.delete(c.key);
+
+      c.continue();
+    };
+    req.onerror = () => reject(req.error);
+  });
+
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction('tx', 'readwrite');
+    const store = tx.objectStore('tx');
+    const req = store.openCursor();
+
+    req.onsuccess = (e) => {
+      const c = e.target.result;
+      if (!c) return resolve();
+
+      const batch = c.value;
+      const first = batch?.items?.[0];
+      const t = Date.parse(first?.occurred_at || '');
+      if (Number.isFinite(t) && t < cutoffMs) store.delete(c.key);
+
+      c.continue();
+    };
+    req.onerror = () => reject(req.error);
+  });
+
+  await setMeta('last_prune_iso', new Date().toISOString());
+}
+
+/* =========================================================
+   BUDGETS (locked per ET semi-monthly period)
+   Also: Persist last-period "spent" and "rollover" for History modal
+   ========================================================= */
+async function getCurrentPeriodBudgetsCents() {
+  const cur = currentPeriodInfoET(new Date());
+  const storedPeriod = await getMeta('budget_period');
+
+  if (!storedPeriod) {
+    await setMeta('budget_period', cur.key);
+    await setMeta('budget_food_cents', centsFromDollars(DEFAULT_BUDGETS.food));
+    await setMeta('budget_fun_cents',  centsFromDollars(DEFAULT_BUDGETS.fun));
+    await setMeta('budget_gas_cents',  centsFromDollars(DEFAULT_BUDGETS.gas));
+  }
+
+  return {
+    period: await getMeta('budget_period'),
+    food: Number(await getMeta('budget_food_cents')) || centsFromDollars(DEFAULT_BUDGETS.food),
+    fun:  Number(await getMeta('budget_fun_cents'))  || centsFromDollars(DEFAULT_BUDGETS.fun),
+    gas:  Number(await getMeta('budget_gas_cents'))  || centsFromDollars(DEFAULT_BUDGETS.gas),
+  };
+}
+
+function computeSpentForPeriodKey(ledgerItems, periodKey) {
+  const spent = { food: 0, fun: 0, gas: 0 };
+
+  for (const e of ledgerItems) {
+    const t = Date.parse(e?.occurred_at || '');
+    if (!Number.isFinite(t)) continue;
+
+    const ymd = getEtYmd(new Date(t));
+    const entryKey = periodKeyFromYmd(ymd.y, ymd.m, ymd.d);
+
+    if (entryKey !== periodKey) continue;
+
+    const k = e.category_key;
+    if (k in spent) spent[k] += Number(e.amount || 0);
+  }
+
+  return spent;
+}
+
+async function rollBudgetPeriodIfNeeded() {
+  const nowKey = currentPeriodInfoET(new Date()).key;
+  const storedPeriod = await getMeta('budget_period');
+
+  if (!storedPeriod) {
+    await getCurrentPeriodBudgetsCents();
+    return;
+  }
+  if (storedPeriod === nowKey) return;
+
+  // Capture last-period summary BEFORE switching.
+  try {
+    const ledger = await getAllLedger();
+    const lastBudgets = {
+      food: Number(await getMeta('budget_food_cents')) || centsFromDollars(DEFAULT_BUDGETS.food),
+      fun:  Number(await getMeta('budget_fun_cents'))  || centsFromDollars(DEFAULT_BUDGETS.fun),
+      gas:  Number(await getMeta('budget_gas_cents'))  || centsFromDollars(DEFAULT_BUDGETS.gas),
+    };
+    const spentLast = computeSpentForPeriodKey(ledger, storedPeriod);
+
+    await setMeta('prev_period_key', storedPeriod);
+    await setMeta('prev_spent_food_cents', spentLast.food);
+    await setMeta('prev_spent_fun_cents',  spentLast.fun);
+    await setMeta('prev_spent_gas_cents',  spentLast.gas);
+
+    await setMeta('prev_roll_food_cents', lastBudgets.food - spentLast.food);
+    await setMeta('prev_roll_fun_cents',  lastBudgets.fun  - spentLast.fun);
+    await setMeta('prev_roll_gas_cents',  lastBudgets.gas  - spentLast.gas);
+  } catch (e) {
+    console.error('Failed to store previous period summary', e);
+  }
+
+  // Apply "next period" budgets if set, else keep current as default carry-forward.
+  const nextFood = await getMeta('next_budget_food_cents');
+  const nextFun  = await getMeta('next_budget_fun_cents');
+  const nextGas  = await getMeta('next_budget_gas_cents');
+
+  const cur = await getCurrentPeriodBudgetsCents();
+
+  await setMeta('budget_period', nowKey);
+  await setMeta('budget_food_cents', Number(nextFood ?? cur.food));
+  await setMeta('budget_fun_cents',  Number(nextFun  ?? cur.fun));
+  await setMeta('budget_gas_cents',  Number(nextGas  ?? cur.gas));
+
+  await setMeta('next_budget_food_cents', null);
+  await setMeta('next_budget_fun_cents', null);
+  await setMeta('next_budget_gas_cents', null);
+}
+
+/* =========================================================
+   UI HELPERS
+   ========================================================= */
+function showSuccess(text) {
+  successMsg.textContent = text || 'Saved';
+  successMsg.style.display = 'block';
+  setTimeout(() => { successMsg.style.display = 'none'; }, 2000);
+}
+
+/* FIX: Submit button enabling (listens to ALL amount fields) */
+function updateButtonState() {
+  const hasAny =
+    (String(foodInput.value || '').trim() !== '') ||
+    (String(funInput.value || '').trim() !== '') ||
+    (String(gasInput.value || '').trim() !== '');
+  submitBtn.disabled = !hasAny;
+}
+
+/* =========================================================
+   SUMMARY (Remaining + Spent) for CURRENT period
+   ========================================================= */
+function computeRemainingForPeriod(budgetsCents, spentCents) {
+  return {
+    food: budgetsCents.food - spentCents.food,
+    fun:  budgetsCents.fun  - spentCents.fun,
+    gas:  budgetsCents.gas  - spentCents.gas,
+  };
+}
+
+function renderSummary(remainingCents, spentCents) {
+  const cur = currentPeriodInfoET(new Date());
+  periodEndsText.textContent = formatPeriodEndText(cur);
+
+  foodRemainingEl.textContent = currency.format(dollarsFromCents(remainingCents.food));
+  funRemainingEl.textContent  = currency.format(dollarsFromCents(remainingCents.fun));
+  gasRemainingEl.textContent  = currency.format(dollarsFromCents(remainingCents.gas));
+
+  foodSpentEl.textContent = currency.format(dollarsFromCents(spentCents.food));
+  funSpentEl.textContent  = currency.format(dollarsFromCents(spentCents.fun));
+  gasSpentEl.textContent  = currency.format(dollarsFromCents(spentCents.gas));
+}
+
+async function loadSummary() {
+  maybeShowOfflineNotice();
+  await rollBudgetPeriodIfNeeded();
+
+  let ledger = [];
+  try { ledger = await getAllLedger(); }
+  catch (e) { console.error(e); }
+
+  const budgets = await getCurrentPeriodBudgetsCents();
+  const cur = currentPeriodInfoET(new Date());
+  const spentCents = computeSpentForPeriodKey(ledger, cur.key);
+  const remainingCents = computeRemainingForPeriod(budgets, spentCents);
+
+  renderSummary(remainingCents, spentCents);
+
+  if (navigator.onLine) {
+    try {
+      await syncNow();
+      ledger = await getAllLedger();
+
+      await rollBudgetPeriodIfNeeded();
+
+      const budgets2 = await getCurrentPeriodBudgetsCents();
+      const cur2 = currentPeriodInfoET(new Date());
+      const spent2 = computeSpentForPeriodKey(ledger, cur2.key);
+      const rem2 = computeRemainingForPeriod(budgets2, spent2);
+
+      renderSummary(rem2, spent2);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+}
+
+/* =========================================================
+   OUTBOX
+   ========================================================= */
+function enqueueOfflineBatch(batch) {
+  if (!db) return;
+  db.transaction('tx','readwrite').objectStore('tx').add(batch);
+}
+
+/* =========================================================
+   SUBMIT HANDLING (per-item refund toggle)
+   ========================================================= */
+async function submitEntries(foodDollars, funDollars, gasDollars, foodIsRefund, funIsRefund, gasIsRefund) {
+  const occurred_at = nowIso();
+  const created_by = "pwa";
+
+  const items = [];
+
+  if (foodDollars !== 0) items.push({
+    client_id: uuid(),
+    category_key: "food",
+    amount: (foodIsRefund ? -1 : 1) * centsFromDollars(foodDollars),
+    note: null,
+    occurred_at,
+    created_by
+  });
+
+  if (funDollars !== 0) items.push({
+    client_id: uuid(),
+    category_key: "fun",
+    amount: (funIsRefund ? -1 : 1) * centsFromDollars(funDollars),
+    note: null,
+    occurred_at,
+    created_by
+  });
+
+  if (gasDollars !== 0) items.push({
+    client_id: uuid(),
+    category_key: "gas",
+    amount: (gasIsRefund ? -1 : 1) * centsFromDollars(gasDollars),
+    note: null,
+    occurred_at,
+    created_by
+  });
+
+  if (!items.length) return;
+
+  await upsertLedgerItems(items);
+  enqueueOfflineBatch({ items });
+
+  if (navigator.onLine) {
+    try {
+      await syncNow();
+      showSuccess('Saved');
+    } catch (e) {
+      console.error(e);
+      showSuccess('Saved (sync pending)');
+    }
+  } else {
+    showSuccess('Saved (offline)');
+    maybeShowOfflineNotice();
+  }
+}
+
+/* =========================================================
+   SYNC ENGINE
+   ========================================================= */
+async function pushQueueOnce() {
+  if (!db) return;
+
+  const tx = db.transaction('tx', 'readwrite');
+  const store = tx.objectStore('tx');
+
+  return new Promise((resolve, reject) => {
+    const req = store.openCursor();
+
+    req.onsuccess = async (e) => {
+      const c = e.target.result;
+      if (!c) return resolve();
+
+      const batch = c.value;
+
+      if (!batch || !Array.isArray(batch.items) || batch.items.length === 0) {
+        store.delete(c.key);
+        c.continue();
+        return;
+      }
+
+      try {
+        await apiPostJson('/api/expenses/batch', batch);
+        store.delete(c.key);
+        c.continue();
+      } catch (err) {
+        reject(err);
+      }
+    };
+
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function pullChanges() {
+  const since = Number((await getMeta('cursor')) || 0);
+  const res = await apiGet(`/api/changes?since=${encodeURIComponent(String(since))}`);
+
+  if (Array.isArray(res.expenses) && res.expenses.length) {
+    await upsertLedgerItems(res.expenses);
+  }
+
+  if (typeof res.cursor === "number") {
+    await setMeta('cursor', res.cursor);
+  }
+
+  return res;
+}
+
+async function syncNow() {
+  if (!navigator.onLine) return;
+
+  isSyncing = true;
+
+  try {
+    await apiHealth();
+    await pushQueueOnce();
+    await pullChanges();
+    await pruneLocalData(PRUNE_DAYS);
+  } finally {
+    isSyncing = false;
+  }
+}
+
+/* =========================================================
+   SETTINGS MODAL
+   ========================================================= */
+function moneyStringFromCents(cents) {
+  return `$${dollarsFromCents(cents).toFixed(2)}`;
+}
+
+function openSettings() {
+  settingsBackdrop.style.display = 'flex';
+  settingsBackdrop.setAttribute('aria-hidden', 'false');
+
+  Promise.all([
+    getCurrentPeriodBudgetsCents(),
+    getMeta('next_budget_food_cents'),
+    getMeta('next_budget_fun_cents'),
+    getMeta('next_budget_gas_cents'),
+  ]).then(([cur, nFood, nFun, nGas]) => {
+    const next = nextPeriodInfoET(new Date());
+    const effectiveDate = formatEffectiveDateOnly(next);
+    settingsSubtitle.textContent = `Changes take effect on: ${effectiveDate} (12:00 AM ET)`;
+
+    const foodC = Number(nFood ?? cur.food);
+    const funC  = Number(nFun  ?? cur.fun);
+    const gasC  = Number(nGas  ?? cur.gas);
+
+    setFood.value = moneyStringFromCents(foodC);
+    setFun.value  = moneyStringFromCents(funC);
+    setGas.value  = moneyStringFromCents(gasC);
+  });
+}
+
+function closeSettings() {
+  settingsBackdrop.style.display = 'none';
+  settingsBackdrop.setAttribute('aria-hidden', 'true');
+}
+
+async function saveSettings() {
+  const f = clampNonNegative(parseDollarsFromText(setFood.value));
+  const u = clampNonNegative(parseDollarsFromText(setFun.value));
+  const g = clampNonNegative(parseDollarsFromText(setGas.value));
+
+  if (!Number.isFinite(f) || !Number.isFinite(u) || !Number.isFinite(g)) {
+    showSuccess('Enter valid non-negative amounts');
+    return;
+  }
+
+  await setMeta('next_budget_food_cents', centsFromDollars(f));
+  await setMeta('next_budget_fun_cents',  centsFromDollars(u));
+  await setMeta('next_budget_gas_cents',  centsFromDollars(g));
+
+  closeSettings();
+  showSuccess('Saved (effective next period)');
+}
+
+/* =========================================================
+   HISTORY MODAL (Last period spent + rollover)
+   ========================================================= */
+function openHistory() {
+  historyBackdrop.style.display = 'flex';
+  historyBackdrop.setAttribute('aria-hidden', 'false');
+  renderHistory().catch(console.error);
+}
+function closeHistory() {
+  historyBackdrop.style.display = 'none';
+  historyBackdrop.setAttribute('aria-hidden', 'true');
+}
+
+async function renderHistory() {
+  const cur = currentPeriodInfoET(new Date());
+  const fallbackPrevKey = prevPeriodKeyFromCurrent(cur);
+  const prevKey = (await getMeta('prev_period_key')) || fallbackPrevKey;
+
+  const sFood = Number(await getMeta('prev_spent_food_cents')) || 0;
+  const sFun  = Number(await getMeta('prev_spent_fun_cents'))  || 0;
+  const sGas  = Number(await getMeta('prev_spent_gas_cents'))  || 0;
+
+  const rFood = Number(await getMeta('prev_roll_food_cents')) || 0;
+  const rFun  = Number(await getMeta('prev_roll_fun_cents'))  || 0;
+  const rGas  = Number(await getMeta('prev_roll_gas_cents'))  || 0;
+
+  historySubtitle.textContent = `Period: ${prevKey} (ET)`;
+
+  histFoodSpent.textContent = currency.format(dollarsFromCents(sFood));
+  histFunSpent.textContent  = currency.format(dollarsFromCents(sFun));
+  histGasSpent.textContent  = currency.format(dollarsFromCents(sGas));
+
+  histFoodRollover.textContent = currency.format(dollarsFromCents(rFood));
+  histFunRollover.textContent  = currency.format(dollarsFromCents(rFun));
+  histGasRollover.textContent  = currency.format(dollarsFromCents(rGas));
+}
+
+/* =========================================================
+   EVENT WIRING
+   ========================================================= */
+settingsBtn.addEventListener('click', openSettings);
+settingsCancel.addEventListener('click', closeSettings);
+settingsBackdrop.addEventListener('click', (e) => { if (e.target === settingsBackdrop) closeSettings(); });
+settingsSave.addEventListener('click', () => saveSettings().catch(console.error));
+
+historyBtn.addEventListener('click', openHistory);
+historyClose.addEventListener('click', closeHistory);
+historyBackdrop.addEventListener('click', (e) => { if (e.target === historyBackdrop) closeHistory(); });
+
+foodInput.addEventListener('input', updateButtonState);
+funInput.addEventListener('input',  updateButtonState);
+gasInput.addEventListener('input',  updateButtonState);
+
+/* ALSO update when user clears via autofill/X */
+foodInput.addEventListener('change', updateButtonState);
+funInput.addEventListener('change',  updateButtonState);
+gasInput.addEventListener('change',  updateButtonState);
+
+submitBtn.addEventListener('click', async (e) => {
+  e.preventDefault();
+
+  const food = parseDollarsFromText(foodInput.value) || 0;
+  const fun  = parseDollarsFromText(funInput.value) || 0;
+  const gas  = parseDollarsFromText(gasInput.value) || 0;
+
+  const foodIsRefund = !!foodRefundToggle.checked;
+  const funIsRefund  = !!funRefundToggle.checked;
+  const gasIsRefund  = !!gasRefundToggle.checked;
+
+  // Clear inputs + reset toggles
+  foodInput.value = '';
+  funInput.value = '';
+  gasInput.value = '';
+  foodRefundToggle.checked = false;
+  funRefundToggle.checked = false;
+  gasRefundToggle.checked = false;
+  updateButtonState();
+
+  if ((!Number.isFinite(food) && food !== 0) || (!Number.isFinite(fun) && fun !== 0) || (!Number.isFinite(gas) && gas !== 0)) {
+    showSuccess('Invalid number');
+    return;
+  }
+
+  if (food === 0 && fun === 0 && gas === 0) return;
+
+  try {
+    await submitEntries(food, fun, gas, foodIsRefund, funIsRefund, gasIsRefund);
+    await loadSummary();
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+window.addEventListener('online', () => {
+  maybeShowOfflineNotice();
+  syncNow().then(loadSummary).catch(console.error);
+});
+
+window.addEventListener('offline', () => {
+  isSyncing = false;
+  maybeShowOfflineNotice();
+});
+
+setInterval(() => {
+  if (navigator.onLine) syncNow().then(loadSummary).catch(() => {});
+}, 25000);
+
+/* INIT */
+updateButtonState();
+maybeShowOfflineNotice();
+
+(async function boot() {
+  try { await syncNow(); }
+  catch (e) { console.error(e); }
+  finally { await loadSummary(); }
+})();
+</script>
 </body>
 </html>
