@@ -117,11 +117,12 @@ body {
   line-height: 1.35;
 }
 
-/* Balance Remaining table (3 columns) */
+/* Balance Remaining table (3 equal columns) */
 .balance-grid {
   display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 0.55rem 1rem;
+  grid-template-columns: 1fr 1fr 1fr; /* equal spacing */
+  column-gap: 0.9rem;
+  row-gap: 0.55rem;
   align-items: baseline;
 }
 
@@ -134,12 +135,24 @@ body {
   margin-bottom: 0.65rem;
 }
 
+/* Column 1 left-justified */
+.balance-head.col1,
+.balance-item {
+  text-align: left;
+}
+
+/* Columns 2 & 3 centered */
+.balance-head.col2,
+.balance-head.col3,
+.balance-val {
+  text-align: center;
+}
+
 .balance-item {
   font-weight: 800;
 }
 
 .balance-val {
-  text-align: right;
   font-weight: 900; /* Remaining + Spent are bold */
   white-space: nowrap;
 }
@@ -352,12 +365,12 @@ button:disabled {
     <span class="pill" id="netStatusPill">Checking…</span>
   </div>
 
-  <!-- Balance Remaining card (3 columns) -->
+  <!-- Balance Remaining card (3 equal columns) -->
   <div class="card">
     <div class="balance-grid" aria-label="Budget summary">
-      <div class="balance-head"></div>
-      <div class="balance-head" style="text-align:right;">Remaining</div>
-      <div class="balance-head" style="text-align:right;">Spent</div>
+      <div class="balance-head col1">Budget Item</div>
+      <div class="balance-head col2">Remaining</div>
+      <div class="balance-head col3">Spent</div>
 
       <div class="balance-item">Food</div>
       <div class="balance-val" id="foodRemaining">$0.00</div>
@@ -495,7 +508,6 @@ const foodRemainingEl = document.getElementById('foodRemaining');
 const funRemainingEl = document.getElementById('funRemaining');
 const gasRemainingEl = document.getElementById('gasRemaining');
 
-/* NEW: spent columns for the summary card */
 const foodSpentEl = document.getElementById('foodSpent');
 const funSpentEl = document.getElementById('funSpent');
 const gasSpentEl = document.getElementById('gasSpent');
@@ -961,7 +973,6 @@ function renderSummary(remainingCents, spentCents) {
   funRemainingEl.textContent  = currency.format(dollarsFromCents(remainingCents.fun));
   gasRemainingEl.textContent  = currency.format(dollarsFromCents(remainingCents.gas));
 
-  /* NEW: render spent column */
   foodSpentEl.textContent = currency.format(dollarsFromCents(spentCents.food));
   funSpentEl.textContent  = currency.format(dollarsFromCents(spentCents.fun));
   gasSpentEl.textContent  = currency.format(dollarsFromCents(spentCents.gas));
