@@ -327,6 +327,20 @@ button:disabled {
 }
 .history-left{ text-align:left; font-weight:900; }
 .history-center{ text-align:center; font-weight:900; white-space:nowrap; }
+
+/* Reset SQL block */
+.sqlbox{
+  width:100%;
+  border:1px solid var(--border-color);
+  border-radius:.85rem;
+  background:#f9fafb;
+  padding:.85rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size:.9rem;
+  line-height:1.35;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
 </style>
 </head>
 
@@ -340,17 +354,18 @@ button:disabled {
       <div class="balance-head col2">Remaining</div>
       <div class="balance-head col3">Spent</div>
 
+      <!-- Order: Groceries, Gas, Kids, Date Nights -->
       <div class="balance-item">Groceries</div>
       <div class="balance-val" id="groceriesRemaining">$0.00</div>
       <div class="balance-val" id="groceriesSpent">$0.00</div>
 
-      <div class="balance-item">Kids</div>
-      <div class="balance-val" id="kidsRemaining">$0.00</div>
-      <div class="balance-val" id="kidsSpent">$0.00</div>
-
       <div class="balance-item">Gas</div>
       <div class="balance-val" id="gasRemaining">$0.00</div>
       <div class="balance-val" id="gasSpent">$0.00</div>
+
+      <div class="balance-item">Kids</div>
+      <div class="balance-val" id="kidsRemaining">$0.00</div>
+      <div class="balance-val" id="kidsSpent">$0.00</div>
 
       <div class="balance-item">Date Nights</div>
       <div class="balance-val" id="dateNightsRemaining">$0.00</div>
@@ -369,6 +384,7 @@ button:disabled {
       <div class="expenses-head col2">Refund?</div>
       <div class="expenses-head col3">Amount</div>
 
+      <!-- Order: Groceries, Gas, Kids, Date Nights -->
       <div class="expenses-item">Groceries</div>
       <div class="expenses-center">
         <label class="switch" aria-label="Groceries refund toggle">
@@ -380,17 +396,6 @@ button:disabled {
         <input type="text" inputmode="decimal" id="groceriesInput" autocomplete="off" aria-label="Groceries amount">
       </div>
 
-      <div class="expenses-item">Kids</div>
-      <div class="expenses-center">
-        <label class="switch" aria-label="Kids refund toggle">
-          <input type="checkbox" id="kidsRefundToggle" aria-label="Kids refund">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div>
-        <input type="text" inputmode="decimal" id="kidsInput" autocomplete="off" aria-label="Kids amount">
-      </div>
-
       <div class="expenses-item">Gas</div>
       <div class="expenses-center">
         <label class="switch" aria-label="Gas refund toggle">
@@ -400,6 +405,17 @@ button:disabled {
       </div>
       <div>
         <input type="text" inputmode="decimal" id="gasInput" autocomplete="off" aria-label="Gas amount">
+      </div>
+
+      <div class="expenses-item">Kids</div>
+      <div class="expenses-center">
+        <label class="switch" aria-label="Kids refund toggle">
+          <input type="checkbox" id="kidsRefundToggle" aria-label="Kids refund">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div>
+        <input type="text" inputmode="decimal" id="kidsInput" autocomplete="off" aria-label="Kids amount">
       </div>
 
       <div class="expenses-item">Date Nights</div>
@@ -450,17 +466,18 @@ button:disabled {
       <div class="history-head history-center">Spent</div>
       <div class="history-head history-center">Rolled Over</div>
 
+      <!-- Order: Groceries, Gas, Kids, Date Nights -->
       <div class="history-left">Groceries</div>
       <div class="history-center" id="histGroceriesSpent">$0.00</div>
       <div class="history-center" id="histGroceriesRollover">$0.00</div>
 
-      <div class="history-left">Kids</div>
-      <div class="history-center" id="histKidsSpent">$0.00</div>
-      <div class="history-center" id="histKidsRollover">$0.00</div>
-
       <div class="history-left">Gas</div>
       <div class="history-center" id="histGasSpent">$0.00</div>
       <div class="history-center" id="histGasRollover">$0.00</div>
+
+      <div class="history-left">Kids</div>
+      <div class="history-center" id="histKidsSpent">$0.00</div>
+      <div class="history-center" id="histKidsRollover">$0.00</div>
 
       <div class="history-left">Date Nights</div>
       <div class="history-center" id="histDateNightsSpent">$0.00</div>
@@ -477,18 +494,12 @@ button:disabled {
 <div class="modal-backdrop" id="settingsBackdrop" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <h3 id="settingsTitle">Settings</h3>
-    <p class="muted" id="settingsSubtitle">
-      Changes take effect on: —
-    </p>
+    <p class="muted" id="settingsSubtitle">Changes take effect on: —</p>
 
+    <!-- Order: Groceries, Gas, Kids, Date Nights -->
     <div class="row">
       <label for="setGroceries">Groceries</label>
       <input id="setGroceries" type="text" inputmode="decimal" autocomplete="off">
-    </div>
-
-    <div class="row">
-      <label for="setKids">Kids</label>
-      <input id="setKids" type="text" inputmode="decimal" autocomplete="off">
     </div>
 
     <div class="row">
@@ -497,13 +508,50 @@ button:disabled {
     </div>
 
     <div class="row">
+      <label for="setKids">Kids</label>
+      <input id="setKids" type="text" inputmode="decimal" autocomplete="off">
+    </div>
+
+    <div class="row">
       <label for="setDateNights">Date Nights</label>
       <input id="setDateNights" type="text" inputmode="decimal" autocomplete="off">
     </div>
 
     <div class="actions">
+      <button class="secondary" type="button" id="resetBtn">Reset</button>
       <button class="secondary" type="button" id="settingsCancel">Cancel</button>
       <button type="button" id="settingsSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESET MODAL -->
+<div class="modal-backdrop" id="resetBackdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="resetTitle">
+    <h3 id="resetTitle">Reset / Start Over</h3>
+    <p class="muted">
+      To start completely from scratch for both users, you must clear the server (D1) and each device’s local data.
+    </p>
+
+    <div class="row">
+      <label>Server reset (Cloudflare D1 Console)</label>
+      <div class="sqlbox" id="resetSqlBox">DELETE FROM expenses;
+DELETE FROM changes;
+DELETE FROM sqlite_sequence WHERE name IN ('expenses','changes');</div>
+      <div class="actions" style="margin-top:.65rem;">
+        <button class="secondary" type="button" id="copySqlBtn">Copy SQL</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <label>Local reset (this device)</label>
+      <p class="muted" style="margin-top:0;">
+        Clears this device’s IndexedDB and offline cache, then reloads the app.
+      </p>
+      <div class="actions">
+        <button type="button" id="clearLocalBtn">Clear Local Data</button>
+        <button class="secondary" type="button" id="resetClose">Close</button>
+      </div>
     </div>
   </div>
 </div>
@@ -517,15 +565,10 @@ const AUTH_TOKEN = "K7QvN2P9x0MZyJHcF4rW8E5U1R_AkDqB3aSXTGm6nVfLw-heCpd";
 const SW_VERSION = "2026-01-14-1";
 
 // Keys match D1 categories.key exactly
-const CATEGORY_ORDER = ["groceries", "kids", "gas", "date_nights"];
-const CATEGORY_LABEL = {
-  groceries: "Groceries",
-  kids: "Kids",
-  gas: "Gas",
-  date_nights: "Date Nights"
-};
+// REQUIRED ORDER: Groceries, Gas, Kids, Date Nights
+const CATEGORY_ORDER = ["groceries", "gas", "kids", "date_nights"];
 
-const DEFAULT_BUDGETS = { groceries: 500, kids: 300, gas: 200, date_nights: 100 };
+const DEFAULT_BUDGETS = { groceries: 500, gas: 200, kids: 300, date_nights: 100 };
 const PRUNE_DAYS = 60;
 const STANDARD_TZ = "America/New_York";
 
@@ -541,9 +584,16 @@ const settingsSave = document.getElementById('settingsSave');
 const settingsSubtitle = document.getElementById('settingsSubtitle');
 
 const setGroceries = document.getElementById('setGroceries');
-const setKids = document.getElementById('setKids');
 const setGas = document.getElementById('setGas');
+const setKids = document.getElementById('setKids');
 const setDateNights = document.getElementById('setDateNights');
+
+const resetBtn = document.getElementById('resetBtn');
+const resetBackdrop = document.getElementById('resetBackdrop');
+const resetClose = document.getElementById('resetClose');
+const clearLocalBtn = document.getElementById('clearLocalBtn');
+const copySqlBtn = document.getElementById('copySqlBtn');
+const resetSqlBox = document.getElementById('resetSqlBox');
 
 const offlineBackdrop = document.getElementById('offlineBackdrop');
 const offlineOk = document.getElementById('offlineOk');
@@ -554,7 +604,6 @@ const historyClose = document.getElementById('historyClose');
 const historySubtitle = document.getElementById('historySubtitle');
 
 const successMsg = document.getElementById('successMsg');
-
 const submitBtn = document.getElementById('submitBtn');
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -568,13 +617,13 @@ const balanceEls = {
     remaining: document.getElementById('groceriesRemaining'),
     spent: document.getElementById('groceriesSpent')
   },
-  kids: {
-    remaining: document.getElementById('kidsRemaining'),
-    spent: document.getElementById('kidsSpent')
-  },
   gas: {
     remaining: document.getElementById('gasRemaining'),
     spent: document.getElementById('gasSpent')
+  },
+  kids: {
+    remaining: document.getElementById('kidsRemaining'),
+    spent: document.getElementById('kidsSpent')
   },
   date_nights: {
     remaining: document.getElementById('dateNightsRemaining'),
@@ -588,13 +637,13 @@ const entryEls = {
     input: document.getElementById('groceriesInput'),
     refund: document.getElementById('groceriesRefundToggle')
   },
-  kids: {
-    input: document.getElementById('kidsInput'),
-    refund: document.getElementById('kidsRefundToggle')
-  },
   gas: {
     input: document.getElementById('gasInput'),
     refund: document.getElementById('gasRefundToggle')
+  },
+  kids: {
+    input: document.getElementById('kidsInput'),
+    refund: document.getElementById('kidsRefundToggle')
   },
   date_nights: {
     input: document.getElementById('dateNightsInput'),
@@ -608,13 +657,13 @@ const histEls = {
     spent: document.getElementById('histGroceriesSpent'),
     rollover: document.getElementById('histGroceriesRollover')
   },
-  kids: {
-    spent: document.getElementById('histKidsSpent'),
-    rollover: document.getElementById('histKidsRollover')
-  },
   gas: {
     spent: document.getElementById('histGasSpent'),
     rollover: document.getElementById('histGasRollover')
+  },
+  kids: {
+    spent: document.getElementById('histKidsSpent'),
+    rollover: document.getElementById('histKidsRollover')
   },
   date_nights: {
     spent: document.getElementById('histDateNightsSpent'),
@@ -623,7 +672,7 @@ const histEls = {
 };
 
 /* =========================================================
-   PWA / SERVICE WORKER
+   PWA / SERVICE WORKER (silent)
    ========================================================= */
 (async function initPwa() {
   try {
@@ -1244,21 +1293,21 @@ function openSettings() {
   Promise.all([
     getCurrentPeriodBudgetsCents(),
     ...CATEGORY_ORDER.map(k => getMeta(metaKeyNextBudget(k))),
-  ]).then(([cur, nGroceries, nKids, nGas, nDateNights]) => {
+  ]).then(([cur, nGroceries, nGas, nKids, nDateNights]) => {
     const next = nextPeriodInfoET(new Date());
     const effectiveDate = formatEffectiveDateOnly(next);
     settingsSubtitle.textContent = `Changes take effect on: ${effectiveDate} (12:00 AM ET)`;
 
     const mapNext = {
       groceries: nGroceries,
-      kids: nKids,
       gas: nGas,
+      kids: nKids,
       date_nights: nDateNights
     };
 
     setGroceries.value = moneyStringFromCents(Number(mapNext.groceries ?? cur.groceries));
-    setKids.value      = moneyStringFromCents(Number(mapNext.kids ?? cur.kids));
     setGas.value       = moneyStringFromCents(Number(mapNext.gas ?? cur.gas));
+    setKids.value      = moneyStringFromCents(Number(mapNext.kids ?? cur.kids));
     setDateNights.value= moneyStringFromCents(Number(mapNext.date_nights ?? cur.date_nights));
   });
 }
@@ -1271,8 +1320,8 @@ function closeSettings() {
 async function saveSettings() {
   const values = {
     groceries: clampNonNegative(parseDollarsFromText(setGroceries.value)),
-    kids: clampNonNegative(parseDollarsFromText(setKids.value)),
     gas: clampNonNegative(parseDollarsFromText(setGas.value)),
+    kids: clampNonNegative(parseDollarsFromText(setKids.value)),
     date_nights: clampNonNegative(parseDollarsFromText(setDateNights.value)),
   };
 
@@ -1316,6 +1365,59 @@ async function renderHistory() {
 }
 
 /* =========================================================
+   RESET MODAL
+   ========================================================= */
+function openReset() {
+  resetBackdrop.style.display = 'flex';
+  resetBackdrop.setAttribute('aria-hidden', 'false');
+}
+function closeReset() {
+  resetBackdrop.style.display = 'none';
+  resetBackdrop.setAttribute('aria-hidden', 'true');
+}
+
+async function resetAppLocal() {
+  try {
+    // Clear SW caches
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (e) {
+    console.error('Cache delete failed', e);
+  }
+
+  // Delete IndexedDB (budgetDB)
+  await new Promise((resolve) => {
+    const req = indexedDB.deleteDatabase('budgetDB');
+    req.onsuccess = () => resolve();
+    req.onerror = () => resolve();
+    req.onblocked = () => resolve();
+  });
+
+  location.reload();
+}
+
+async function copyResetSql() {
+  const sql = resetSqlBox.textContent || '';
+  try {
+    await navigator.clipboard.writeText(sql);
+    showSuccess('SQL copied');
+  } catch {
+    // Fallback for older iOS WebViews
+    const ta = document.createElement('textarea');
+    ta.value = sql;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); showSuccess('SQL copied'); }
+    catch { showSuccess('Copy failed'); }
+    finally { document.body.removeChild(ta); }
+  }
+}
+
+/* =========================================================
    EVENT WIRING
    ========================================================= */
 settingsBtn.addEventListener('click', openSettings);
@@ -1326,6 +1428,12 @@ settingsSave.addEventListener('click', () => saveSettings().catch(console.error)
 historyBtn.addEventListener('click', openHistory);
 historyClose.addEventListener('click', closeHistory);
 historyBackdrop.addEventListener('click', (e) => { if (e.target === historyBackdrop) closeHistory(); });
+
+resetBtn.addEventListener('click', openReset);
+resetClose.addEventListener('click', closeReset);
+resetBackdrop.addEventListener('click', (e) => { if (e.target === resetBackdrop) closeReset(); });
+clearLocalBtn.addEventListener('click', () => resetAppLocal().catch(console.error));
+copySqlBtn.addEventListener('click', () => copyResetSql().catch(console.error));
 
 for (const k of CATEGORY_ORDER) {
   entryEls[k].input.addEventListener('input', updateButtonState);
@@ -1367,8 +1475,6 @@ submitBtn.addEventListener('click', async (e) => {
 });
 
 window.addEventListener('online', () => {
-  // Per your requirement, we do not auto-hide the offline modal based on online;
-  // user is told to refresh. We still sync in case they choose not to refresh.
   syncNow().then(loadSummary).catch(console.error);
 });
 
