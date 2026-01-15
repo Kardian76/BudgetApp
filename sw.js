@@ -1,91 +1,97 @@
-/* sw.js — Budget Tracker PWA */
+/* sw.js — Purrfect Budget
+   Goals:
+   - Always pick up new releases quickly
+   - Cache the app shell for offline launch
+   - Avoid caching API responses (keeps data correctness simple)
+*/
 
-const CACHE_VERSION = '2026-01-14-1'; // BUMP THIS when you change index.html/behavior then update "const SW_VERSION = "2026-01-14-1";" in index.html
-const CACHE_NAME = `budget-tracker-${CACHE_VERSION}`;
+const SW_VERSION = "2026-01-14-1";
+const CACHE_NAME = `purrfect-budget-shell-${SW_VERSION}`;
 
-const CORE = [
-  './',
-  './index.html',
-  './manifest.webmanifest', 
-  './Icon_192.png',
-  './Icon_512.png'
+// Adjust if your file names differ
+const APP_SHELL = [
+  "./",
+  "./index.html",
+  "./manifest.webmanifest",
+  "./Icon_192.png",
+  "./Icon_512.png",
 ];
 
-// Your Worker API base (explicit bypass; not cached)
-const API_ORIGIN = 'https://budgetapp-api.kardian.workers.dev';
-
-self.addEventListener('install', (event) => {
+// Install: pre-cache the app shell and activate immediately
+self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
-    await cache.addAll(CORE);
+    await cache.addAll(APP_SHELL.map(u => new Request(u, { cache: "reload" })));
     await self.skipWaiting();
   })());
 });
 
-self.addEventListener('activate', (event) => {
+// Activate: remove old caches and take control of pages immediately
+self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
+    await Promise.all(
+      keys
+        .filter(k => k.startsWith("purrfect-budget-shell-") && k !== CACHE_NAME)
+        .map(k => caches.delete(k))
+    );
     await self.clients.claim();
   })());
 });
 
-self.addEventListener('fetch', (event) => {
+// Optional: allow page code to request an immediate SW activation
+self.addEventListener("message", (event) => {
+  if (event?.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+// Fetch strategy:
+// - Navigation requests: network-first, fallback to cached index.html (offline app launch)
+// - Same-origin static assets: cache-first
+// - Cross-origin (e.g., your API): network-only (do not cache)
+self.addEventListener("fetch", (event) => {
   const req = event.request;
 
-  // 0) Explicitly bypass API requests (always network)
-  // (Your current cross-origin rule already does this; this prevents future regressions.)
-  try {
-    const url = new URL(req.url);
-    if (url.origin === API_ORIGIN) {
-      event.respondWith(fetch(req));
-      return;
-    }
-  } catch {
-    // ignore URL parse errors
-  }
+  // Only handle GET
+  if (req.method !== "GET") return;
 
-  // 1) Never try to cache or handle non-GET requests (POST/PUT/etc.).
-  if (req.method !== 'GET') {
-    event.respondWith(fetch(req));
-    return;
-  }
+  const url = new URL(req.url);
+  const sameOrigin = url.origin === self.location.origin;
 
-  // 2) For navigation requests: network-first, fallback to cached shell
-  if (req.mode === 'navigate') {
+  // Cross-origin requests (API, CDN, etc.) -> do not cache
+  if (!sameOrigin) return;
+
+  // Navigation (SPA / app shell)
+  if (req.mode === "navigate") {
     event.respondWith((async () => {
       try {
-        const fresh = await fetch(req);
+        // Network first to pick up new deployments quickly
+        const fresh = await fetch(req, { cache: "no-store" });
+        // Update cached index.html opportunistically
         const cache = await caches.open(CACHE_NAME);
-        cache.put('./', fresh.clone());
+        cache.put("./index.html", fresh.clone());
         return fresh;
       } catch {
         const cache = await caches.open(CACHE_NAME);
-        return (await cache.match('./')) || (await cache.match('./index.html'));
+        const cached = await cache.match("./index.html");
+        return cached || new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain" } });
       }
     })());
     return;
   }
 
-  // 3) For same-origin static assets: cache-first
-  const url = new URL(req.url);
-  const isSameOrigin = url.origin === self.location.origin;
+  // Static assets: cache-first
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(req);
+    if (cached) return cached;
 
-  if (isSameOrigin) {
-    event.respondWith((async () => {
-      const cached = await caches.match(req);
-      if (cached) return cached;
-
-      const fresh = await fetch(req);
-      if (fresh && fresh.ok) {
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(req, fresh.clone());
-      }
-      return fresh;
-    })());
-    return;
-  }
-
-  // 4) For cross-origin GET requests: do NOT cache, just pass through.
-  event.respondWith(fetch(req));
+    const fresh = await fetch(req);
+    // Cache successful, basic responses only
+    if (fresh && fresh.ok && fresh.type === "basic") {
+      cache.put(req, fresh.clone());
+    }
+    return fresh;
+  })());
 });
