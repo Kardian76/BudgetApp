@@ -6,11 +6,9 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
-<!-- PWA -->
 <meta name="theme-color" content="#2563eb">
 <link rel="manifest" href="./manifest.webmanifest">
 
-<!-- iOS + legacy Android -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Purrfect Budget">
@@ -20,6 +18,7 @@
 <link rel="apple-touch-icon" sizes="167x167" href="./Icon_192.png">
 <link rel="apple-touch-icon" sizes="152x152" href="./Icon_192.png">
 <link rel="apple-touch-icon" sizes="120x120" href="./Icon_192.png">
+
 <link rel="icon" href="data:,">
 
 <style>
@@ -79,7 +78,6 @@ body {
   border: 1px solid rgba(37, 99, 235, 0.18);
 }
 
-/* Period ends at bottom of balance card */
 .period-end {
   margin: 0.85rem 0 0 0;
   text-align: center;
@@ -165,7 +163,7 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* FIX: add spacing above Submit so it isn't tight to last Amount field */
+/* Space above Submit */
 .card.expenses-card #submitBtn {
   margin-top: 1.2rem;
 }
@@ -200,7 +198,7 @@ button:disabled {
 /* Expenses entry table (3 columns) */
 .expenses-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr; /* equal spacing */
+  grid-template-columns: 1fr 1fr 1fr;
   column-gap: 0.9rem;
   row-gap: 0.9rem;
   align-items: center;
@@ -221,7 +219,6 @@ button:disabled {
 .expenses-head.col2,
 .expenses-head.col3 { text-align: center; }
 
-/* FIX: makes the switch align perfectly in the center column */
 .expenses-center{
   display:flex;
   align-items:center;
@@ -314,7 +311,7 @@ button:disabled {
 }
 .modal .actions .secondary:hover { background: #f9fafb; }
 
-/* Simple table inside history modal */
+/* History grid (3 columns) */
 .history-grid{
   display:grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -343,17 +340,21 @@ button:disabled {
       <div class="balance-head col2">Remaining</div>
       <div class="balance-head col3">Spent</div>
 
-      <div class="balance-item">Food</div>
-      <div class="balance-val" id="foodRemaining">$0.00</div>
-      <div class="balance-val" id="foodSpent">$0.00</div>
+      <div class="balance-item">Groceries</div>
+      <div class="balance-val" id="groceriesRemaining">$0.00</div>
+      <div class="balance-val" id="groceriesSpent">$0.00</div>
 
-      <div class="balance-item">Fun</div>
-      <div class="balance-val" id="funRemaining">$0.00</div>
-      <div class="balance-val" id="funSpent">$0.00</div>
+      <div class="balance-item">Kids</div>
+      <div class="balance-val" id="kidsRemaining">$0.00</div>
+      <div class="balance-val" id="kidsSpent">$0.00</div>
 
       <div class="balance-item">Gas</div>
       <div class="balance-val" id="gasRemaining">$0.00</div>
       <div class="balance-val" id="gasSpent">$0.00</div>
+
+      <div class="balance-item">Date Nights</div>
+      <div class="balance-val" id="dateNightsRemaining">$0.00</div>
+      <div class="balance-val" id="dateNightsSpent">$0.00</div>
     </div>
 
     <div class="period-end" id="periodEndsText">Period ends: —</div>
@@ -368,26 +369,26 @@ button:disabled {
       <div class="expenses-head col2">Refund?</div>
       <div class="expenses-head col3">Amount</div>
 
-      <div class="expenses-item">Food</div>
+      <div class="expenses-item">Groceries</div>
       <div class="expenses-center">
-        <label class="switch" aria-label="Food refund toggle">
-          <input type="checkbox" id="foodRefundToggle" aria-label="Food refund">
+        <label class="switch" aria-label="Groceries refund toggle">
+          <input type="checkbox" id="groceriesRefundToggle" aria-label="Groceries refund">
           <span class="slider"></span>
         </label>
       </div>
       <div>
-        <input type="text" inputmode="decimal" id="foodInput" autocomplete="off" aria-label="Food amount">
+        <input type="text" inputmode="decimal" id="groceriesInput" autocomplete="off" aria-label="Groceries amount">
       </div>
 
-      <div class="expenses-item">Fun</div>
+      <div class="expenses-item">Kids</div>
       <div class="expenses-center">
-        <label class="switch" aria-label="Fun refund toggle">
-          <input type="checkbox" id="funRefundToggle" aria-label="Fun refund">
+        <label class="switch" aria-label="Kids refund toggle">
+          <input type="checkbox" id="kidsRefundToggle" aria-label="Kids refund">
           <span class="slider"></span>
         </label>
       </div>
       <div>
-        <input type="text" inputmode="decimal" id="funInput" autocomplete="off" aria-label="Fun amount">
+        <input type="text" inputmode="decimal" id="kidsInput" autocomplete="off" aria-label="Kids amount">
       </div>
 
       <div class="expenses-item">Gas</div>
@@ -400,13 +401,24 @@ button:disabled {
       <div>
         <input type="text" inputmode="decimal" id="gasInput" autocomplete="off" aria-label="Gas amount">
       </div>
+
+      <div class="expenses-item">Date Nights</div>
+      <div class="expenses-center">
+        <label class="switch" aria-label="Date Nights refund toggle">
+          <input type="checkbox" id="dateNightsRefundToggle" aria-label="Date Nights refund">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div>
+        <input type="text" inputmode="decimal" id="dateNightsInput" autocomplete="off" aria-label="Date Nights amount">
+      </div>
     </div>
 
     <button id="submitBtn" disabled>Submit</button>
     <div id="successMsg" class="success-message">Saved</div>
   </div>
 
-  <!-- Footer actions: History (left) + Settings (right) -->
+  <!-- Footer actions -->
   <div class="footer-actions">
     <button id="historyBtn" type="button">History</button>
     <button id="settingsBtn" type="button">Settings</button>
@@ -438,17 +450,21 @@ button:disabled {
       <div class="history-head history-center">Spent</div>
       <div class="history-head history-center">Rolled Over</div>
 
-      <div class="history-left">Food</div>
-      <div class="history-center" id="histFoodSpent">$0.00</div>
-      <div class="history-center" id="histFoodRollover">$0.00</div>
+      <div class="history-left">Groceries</div>
+      <div class="history-center" id="histGroceriesSpent">$0.00</div>
+      <div class="history-center" id="histGroceriesRollover">$0.00</div>
 
-      <div class="history-left">Fun</div>
-      <div class="history-center" id="histFunSpent">$0.00</div>
-      <div class="history-center" id="histFunRollover">$0.00</div>
+      <div class="history-left">Kids</div>
+      <div class="history-center" id="histKidsSpent">$0.00</div>
+      <div class="history-center" id="histKidsRollover">$0.00</div>
 
       <div class="history-left">Gas</div>
       <div class="history-center" id="histGasSpent">$0.00</div>
       <div class="history-center" id="histGasRollover">$0.00</div>
+
+      <div class="history-left">Date Nights</div>
+      <div class="history-center" id="histDateNightsSpent">$0.00</div>
+      <div class="history-center" id="histDateNightsRollover">$0.00</div>
     </div>
 
     <div class="actions">
@@ -461,21 +477,28 @@ button:disabled {
 <div class="modal-backdrop" id="settingsBackdrop" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <h3 id="settingsTitle">Settings</h3>
-    <p class="muted" id="settingsSubtitle">Changes take effect on: —</p>
+    <p class="muted" id="settingsSubtitle">
+      Changes take effect on: —
+    </p>
 
     <div class="row">
-      <label for="setFood">Food</label>
-      <input id="setFood" type="text" inputmode="decimal" autocomplete="off">
+      <label for="setGroceries">Groceries</label>
+      <input id="setGroceries" type="text" inputmode="decimal" autocomplete="off">
     </div>
 
     <div class="row">
-      <label for="setFun">Fun</label>
-      <input id="setFun" type="text" inputmode="decimal" autocomplete="off">
+      <label for="setKids">Kids</label>
+      <input id="setKids" type="text" inputmode="decimal" autocomplete="off">
     </div>
 
     <div class="row">
       <label for="setGas">Gas</label>
       <input id="setGas" type="text" inputmode="decimal" autocomplete="off">
+    </div>
+
+    <div class="row">
+      <label for="setDateNights">Date Nights</label>
+      <input id="setDateNights" type="text" inputmode="decimal" autocomplete="off">
     </div>
 
     <div class="actions">
@@ -493,7 +516,16 @@ const API_BASE = "https://budgetapp-api.kardian.workers.dev";
 const AUTH_TOKEN = "K7QvN2P9x0MZyJHcF4rW8E5U1R_AkDqB3aSXTGm6nVfLw-heCpd";
 const SW_VERSION = "2026-01-14-1";
 
-const DEFAULT_BUDGETS = { food: 500, fun: 300, gas: 200 };
+// Keys match D1 categories.key exactly
+const CATEGORY_ORDER = ["groceries", "kids", "gas", "date_nights"];
+const CATEGORY_LABEL = {
+  groceries: "Groceries",
+  kids: "Kids",
+  gas: "Gas",
+  date_nights: "Date Nights"
+};
+
+const DEFAULT_BUDGETS = { groceries: 500, kids: 300, gas: 200, date_nights: 100 };
 const PRUNE_DAYS = 60;
 const STANDARD_TZ = "America/New_York";
 
@@ -502,57 +534,96 @@ const STANDARD_TZ = "America/New_York";
    ========================================================= */
 const periodEndsText = document.getElementById('periodEndsText');
 
-const historyBtn = document.getElementById('historyBtn');
 const settingsBtn = document.getElementById('settingsBtn');
-
 const settingsBackdrop = document.getElementById('settingsBackdrop');
 const settingsCancel = document.getElementById('settingsCancel');
 const settingsSave = document.getElementById('settingsSave');
-const setFood = document.getElementById('setFood');
-const setFun = document.getElementById('setFun');
-const setGas = document.getElementById('setGas');
 const settingsSubtitle = document.getElementById('settingsSubtitle');
+
+const setGroceries = document.getElementById('setGroceries');
+const setKids = document.getElementById('setKids');
+const setGas = document.getElementById('setGas');
+const setDateNights = document.getElementById('setDateNights');
 
 const offlineBackdrop = document.getElementById('offlineBackdrop');
 const offlineOk = document.getElementById('offlineOk');
 
+const historyBtn = document.getElementById('historyBtn');
 const historyBackdrop = document.getElementById('historyBackdrop');
 const historyClose = document.getElementById('historyClose');
 const historySubtitle = document.getElementById('historySubtitle');
 
-const histFoodSpent = document.getElementById('histFoodSpent');
-const histFunSpent  = document.getElementById('histFunSpent');
-const histGasSpent  = document.getElementById('histGasSpent');
-const histFoodRollover = document.getElementById('histFoodRollover');
-const histFunRollover  = document.getElementById('histFunRollover');
-const histGasRollover  = document.getElementById('histGasRollover');
-
-const foodRefundToggle = document.getElementById('foodRefundToggle');
-const funRefundToggle  = document.getElementById('funRefundToggle');
-const gasRefundToggle  = document.getElementById('gasRefundToggle');
-
-const foodInput = document.getElementById('foodInput');
-const funInput = document.getElementById('funInput');
-const gasInput = document.getElementById('gasInput');
-const submitBtn = document.getElementById('submitBtn');
-
-const foodRemainingEl = document.getElementById('foodRemaining');
-const funRemainingEl = document.getElementById('funRemaining');
-const gasRemainingEl = document.getElementById('gasRemaining');
-
-const foodSpentEl = document.getElementById('foodSpent');
-const funSpentEl = document.getElementById('funSpent');
-const gasSpentEl = document.getElementById('gasSpent');
-
 const successMsg = document.getElementById('successMsg');
+
+const submitBtn = document.getElementById('submitBtn');
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
 let db = null;
 let isSyncing = false;
 
+/* ---- Balance elements ---- */
+const balanceEls = {
+  groceries: {
+    remaining: document.getElementById('groceriesRemaining'),
+    spent: document.getElementById('groceriesSpent')
+  },
+  kids: {
+    remaining: document.getElementById('kidsRemaining'),
+    spent: document.getElementById('kidsSpent')
+  },
+  gas: {
+    remaining: document.getElementById('gasRemaining'),
+    spent: document.getElementById('gasSpent')
+  },
+  date_nights: {
+    remaining: document.getElementById('dateNightsRemaining'),
+    spent: document.getElementById('dateNightsSpent')
+  }
+};
+
+/* ---- Entry inputs/toggles ---- */
+const entryEls = {
+  groceries: {
+    input: document.getElementById('groceriesInput'),
+    refund: document.getElementById('groceriesRefundToggle')
+  },
+  kids: {
+    input: document.getElementById('kidsInput'),
+    refund: document.getElementById('kidsRefundToggle')
+  },
+  gas: {
+    input: document.getElementById('gasInput'),
+    refund: document.getElementById('gasRefundToggle')
+  },
+  date_nights: {
+    input: document.getElementById('dateNightsInput'),
+    refund: document.getElementById('dateNightsRefundToggle')
+  }
+};
+
+/* ---- History elements ---- */
+const histEls = {
+  groceries: {
+    spent: document.getElementById('histGroceriesSpent'),
+    rollover: document.getElementById('histGroceriesRollover')
+  },
+  kids: {
+    spent: document.getElementById('histKidsSpent'),
+    rollover: document.getElementById('histKidsRollover')
+  },
+  gas: {
+    spent: document.getElementById('histGasSpent'),
+    rollover: document.getElementById('histGasRollover')
+  },
+  date_nights: {
+    spent: document.getElementById('histDateNightsSpent'),
+    rollover: document.getElementById('histDateNightsRollover')
+  }
+};
+
 /* =========================================================
-   PWA / SERVICE WORKER (silent)
+   PWA / SERVICE WORKER
    ========================================================= */
 (async function initPwa() {
   try {
@@ -564,10 +635,28 @@ let isSyncing = false;
 })();
 
 /* =========================================================
+   OFFLINE MODAL (replaces top status UI)
+   ========================================================= */
+function openOfflineNotice() {
+  offlineBackdrop.style.display = 'flex';
+  offlineBackdrop.setAttribute('aria-hidden', 'false');
+}
+function closeOfflineNotice() {
+  offlineBackdrop.style.display = 'none';
+  offlineBackdrop.setAttribute('aria-hidden', 'true');
+}
+function maybeShowOfflineNotice() {
+  if (!navigator.onLine) openOfflineNotice();
+}
+
+offlineOk.addEventListener('click', closeOfflineNotice);
+offlineBackdrop.addEventListener('click', (e) => { if (e.target === offlineBackdrop) closeOfflineNotice(); });
+
+/* =========================================================
    INDEXEDDB SETUP
    ========================================================= */
 (function initDB(){
-  const req = indexedDB.open('budgetDB', 3);
+  const req = indexedDB.open('budgetDB', 4);
   req.onupgradeneeded = e => {
     const d = e.target.result;
     if (!d.objectStoreNames.contains('tx')) d.createObjectStore('tx', { autoIncrement: true });
@@ -584,25 +673,6 @@ let isSyncing = false;
   };
   req.onerror = () => console.error('IndexedDB error');
 })();
-
-/* =========================================================
-   OFFLINE MODAL LOGIC (replaces Server Status UI)
-   ========================================================= */
-function openOfflineNotice() {
-  offlineBackdrop.style.display = 'flex';
-  offlineBackdrop.setAttribute('aria-hidden', 'false');
-}
-function closeOfflineNotice() {
-  offlineBackdrop.style.display = 'none';
-  offlineBackdrop.setAttribute('aria-hidden', 'true');
-}
-function maybeShowOfflineNotice() {
-  if (!navigator.onLine) openOfflineNotice();
-  else closeOfflineNotice();
-}
-
-offlineOk.addEventListener('click', closeOfflineNotice);
-offlineBackdrop.addEventListener('click', (e) => { if (e.target === offlineBackdrop) closeOfflineNotice(); });
 
 /* =========================================================
    HELPERS
@@ -633,8 +703,20 @@ function clampNonNegative(n) {
   return (Number.isFinite(n) && n >= 0) ? n : NaN;
 }
 
+function showSuccess(text) {
+  successMsg.textContent = text || 'Saved';
+  successMsg.style.display = 'block';
+  setTimeout(() => { successMsg.style.display = 'none'; }, 2000);
+}
+
+/* FIX: Submit enabling checks all Amount fields */
+function updateButtonState() {
+  const hasAny = CATEGORY_ORDER.some(k => String(entryEls[k].input.value || '').trim() !== '');
+  submitBtn.disabled = !hasAny;
+}
+
 /* =========================================================
-   EASTERN TIME PERIOD LOGIC
+   EASTERN TIME PERIOD LOGIC (semi-monthly)
    ========================================================= */
 const etPartsFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: STANDARD_TZ,
@@ -694,22 +776,6 @@ function currentPeriodInfoET(now = new Date()) {
   return { y, m, d, half, last, key: `${y}-${pad2(m)}-${half}`, label, endY, endM, endD };
 }
 
-function prevPeriodKeyFromCurrent(cur) {
-  // If current is half=2, previous is same month half=1.
-  // If current is half=1, previous is prior month half=2.
-  if (cur.half === 2) return `${cur.y}-${pad2(cur.m)}-1`;
-
-  let py = cur.y, pm = cur.m - 1;
-  if (pm === 0) { pm = 12; py = cur.y - 1; }
-  return `${py}-${pad2(pm)}-2`;
-}
-
-function formatPeriodEndText(cur) {
-  const approxUtc = new Date(Date.UTC(cur.endY, cur.endM - 1, cur.endD, 12, 0, 0));
-  const dateLabel = etMonthDayFormatter.format(approxUtc);
-  return `Period ends: ${dateLabel} at 12:00 AM ET`;
-}
-
 function nextPeriodInfoET(now = new Date()) {
   const cur = currentPeriodInfoET(now);
   let ny = cur.y, nm = cur.m, nd;
@@ -724,6 +790,12 @@ function nextPeriodInfoET(now = new Date()) {
   return currentPeriodInfoET(approxUtc);
 }
 
+function formatPeriodEndText(cur) {
+  const approxUtc = new Date(Date.UTC(cur.endY, cur.endM - 1, cur.endD, 12, 0, 0));
+  const dateLabel = etMonthDayFormatter.format(approxUtc);
+  return `Period ends: ${dateLabel} at 12:00 AM ET`;
+}
+
 function formatEffectiveDateOnly(curNext) {
   const startDay = (curNext.half === 1) ? 1 : 15;
   const approxStartUtc = new Date(Date.UTC(curNext.y, curNext.m - 1, startDay, 12, 0, 0));
@@ -731,7 +803,7 @@ function formatEffectiveDateOnly(curNext) {
 }
 
 /* =========================================================
-   API CALLS (Worker)
+   API CALLS
    ========================================================= */
 async function apiGet(path) {
   const resp = await fetch(`${API_BASE}${path}`, {
@@ -903,29 +975,32 @@ async function pruneLocalData(days) {
 
 /* =========================================================
    BUDGETS (locked per ET semi-monthly period)
-   Also: Persist last-period "spent" and "rollover" for History modal
    ========================================================= */
+function metaKeyBudget(k) { return `budget_${k}_cents`; }
+function metaKeyNextBudget(k) { return `next_budget_${k}_cents`; }
+
 async function getCurrentPeriodBudgetsCents() {
   const cur = currentPeriodInfoET(new Date());
   const storedPeriod = await getMeta('budget_period');
 
   if (!storedPeriod) {
     await setMeta('budget_period', cur.key);
-    await setMeta('budget_food_cents', centsFromDollars(DEFAULT_BUDGETS.food));
-    await setMeta('budget_fun_cents',  centsFromDollars(DEFAULT_BUDGETS.fun));
-    await setMeta('budget_gas_cents',  centsFromDollars(DEFAULT_BUDGETS.gas));
+    for (const k of CATEGORY_ORDER) {
+      await setMeta(metaKeyBudget(k), centsFromDollars(DEFAULT_BUDGETS[k]));
+    }
   }
 
-  return {
-    period: await getMeta('budget_period'),
-    food: Number(await getMeta('budget_food_cents')) || centsFromDollars(DEFAULT_BUDGETS.food),
-    fun:  Number(await getMeta('budget_fun_cents'))  || centsFromDollars(DEFAULT_BUDGETS.fun),
-    gas:  Number(await getMeta('budget_gas_cents'))  || centsFromDollars(DEFAULT_BUDGETS.gas),
-  };
+  const result = { period: await getMeta('budget_period') };
+  for (const k of CATEGORY_ORDER) {
+    const v = Number(await getMeta(metaKeyBudget(k)));
+    result[k] = Number.isFinite(v) && v !== 0 ? v : centsFromDollars(DEFAULT_BUDGETS[k]);
+  }
+  return result;
 }
 
 function computeSpentForPeriodKey(ledgerItems, periodKey) {
-  const spent = { food: 0, fun: 0, gas: 0 };
+  const spent = {};
+  for (const k of CATEGORY_ORDER) spent[k] = 0;
 
   for (const e of ledgerItems) {
     const t = Date.parse(e?.occurred_at || '');
@@ -933,7 +1008,6 @@ function computeSpentForPeriodKey(ledgerItems, periodKey) {
 
     const ymd = getEtYmd(new Date(t));
     const entryKey = periodKeyFromYmd(ymd.y, ymd.m, ymd.d);
-
     if (entryKey !== periodKey) continue;
 
     const k = e.category_key;
@@ -941,6 +1015,12 @@ function computeSpentForPeriodKey(ledgerItems, periodKey) {
   }
 
   return spent;
+}
+
+function computeRemainingForPeriod(budgetsCents, spentCents) {
+  const rem = {};
+  for (const k of CATEGORY_ORDER) rem[k] = budgetsCents[k] - spentCents[k];
+  return rem;
 }
 
 async function rollBudgetPeriodIfNeeded() {
@@ -953,87 +1033,51 @@ async function rollBudgetPeriodIfNeeded() {
   }
   if (storedPeriod === nowKey) return;
 
-  // Capture last-period summary BEFORE switching.
+  // Store previous period summary for History modal
   try {
     const ledger = await getAllLedger();
-    const lastBudgets = {
-      food: Number(await getMeta('budget_food_cents')) || centsFromDollars(DEFAULT_BUDGETS.food),
-      fun:  Number(await getMeta('budget_fun_cents'))  || centsFromDollars(DEFAULT_BUDGETS.fun),
-      gas:  Number(await getMeta('budget_gas_cents'))  || centsFromDollars(DEFAULT_BUDGETS.gas),
-    };
+    const lastBudgets = {};
+    for (const k of CATEGORY_ORDER) {
+      lastBudgets[k] = Number(await getMeta(metaKeyBudget(k))) || centsFromDollars(DEFAULT_BUDGETS[k]);
+    }
     const spentLast = computeSpentForPeriodKey(ledger, storedPeriod);
 
     await setMeta('prev_period_key', storedPeriod);
-    await setMeta('prev_spent_food_cents', spentLast.food);
-    await setMeta('prev_spent_fun_cents',  spentLast.fun);
-    await setMeta('prev_spent_gas_cents',  spentLast.gas);
-
-    await setMeta('prev_roll_food_cents', lastBudgets.food - spentLast.food);
-    await setMeta('prev_roll_fun_cents',  lastBudgets.fun  - spentLast.fun);
-    await setMeta('prev_roll_gas_cents',  lastBudgets.gas  - spentLast.gas);
+    for (const k of CATEGORY_ORDER) {
+      await setMeta(`prev_spent_${k}_cents`, spentLast[k]);
+      await setMeta(`prev_roll_${k}_cents`, lastBudgets[k] - spentLast[k]);
+    }
   } catch (e) {
     console.error('Failed to store previous period summary', e);
   }
 
-  // Apply "next period" budgets if set, else keep current as default carry-forward.
-  const nextFood = await getMeta('next_budget_food_cents');
-  const nextFun  = await getMeta('next_budget_fun_cents');
-  const nextGas  = await getMeta('next_budget_gas_cents');
-
-  const cur = await getCurrentPeriodBudgetsCents();
-
+  // Roll budgets forward (use next_* if set, else keep current values)
   await setMeta('budget_period', nowKey);
-  await setMeta('budget_food_cents', Number(nextFood ?? cur.food));
-  await setMeta('budget_fun_cents',  Number(nextFun  ?? cur.fun));
-  await setMeta('budget_gas_cents',  Number(nextGas  ?? cur.gas));
 
-  await setMeta('next_budget_food_cents', null);
-  await setMeta('next_budget_fun_cents', null);
-  await setMeta('next_budget_gas_cents', null);
+  for (const k of CATEGORY_ORDER) {
+    const nextVal = await getMeta(metaKeyNextBudget(k));
+    const curVal = Number(await getMeta(metaKeyBudget(k))) || centsFromDollars(DEFAULT_BUDGETS[k]);
+    await setMeta(metaKeyBudget(k), Number(nextVal ?? curVal));
+    await setMeta(metaKeyNextBudget(k), null);
+  }
 }
 
 /* =========================================================
-   UI HELPERS
+   UI RENDERING
    ========================================================= */
-function showSuccess(text) {
-  successMsg.textContent = text || 'Saved';
-  successMsg.style.display = 'block';
-  setTimeout(() => { successMsg.style.display = 'none'; }, 2000);
-}
-
-/* FIX: Submit button enabling (listens to ALL amount fields) */
-function updateButtonState() {
-  const hasAny =
-    (String(foodInput.value || '').trim() !== '') ||
-    (String(funInput.value || '').trim() !== '') ||
-    (String(gasInput.value || '').trim() !== '');
-  submitBtn.disabled = !hasAny;
-}
-
-/* =========================================================
-   SUMMARY (Remaining + Spent) for CURRENT period
-   ========================================================= */
-function computeRemainingForPeriod(budgetsCents, spentCents) {
-  return {
-    food: budgetsCents.food - spentCents.food,
-    fun:  budgetsCents.fun  - spentCents.fun,
-    gas:  budgetsCents.gas  - spentCents.gas,
-  };
-}
-
 function renderSummary(remainingCents, spentCents) {
   const cur = currentPeriodInfoET(new Date());
   periodEndsText.textContent = formatPeriodEndText(cur);
 
-  foodRemainingEl.textContent = currency.format(dollarsFromCents(remainingCents.food));
-  funRemainingEl.textContent  = currency.format(dollarsFromCents(remainingCents.fun));
-  gasRemainingEl.textContent  = currency.format(dollarsFromCents(remainingCents.gas));
-
-  foodSpentEl.textContent = currency.format(dollarsFromCents(spentCents.food));
-  funSpentEl.textContent  = currency.format(dollarsFromCents(spentCents.fun));
-  gasSpentEl.textContent  = currency.format(dollarsFromCents(spentCents.gas));
+  for (const k of CATEGORY_ORDER) {
+    balanceEls[k].remaining.textContent = currency.format(dollarsFromCents(remainingCents[k]));
+    balanceEls[k].spent.textContent = currency.format(dollarsFromCents(spentCents[k]));
+  }
 }
 
+/* =========================================================
+   LOAD SUMMARY + SYNC
+   ========================================================= */
 async function loadSummary() {
   maybeShowOfflineNotice();
   await rollBudgetPeriodIfNeeded();
@@ -1077,40 +1121,28 @@ function enqueueOfflineBatch(batch) {
 }
 
 /* =========================================================
-   SUBMIT HANDLING (per-item refund toggle)
+   SUBMIT HANDLING
    ========================================================= */
-async function submitEntries(foodDollars, funDollars, gasDollars, foodIsRefund, funIsRefund, gasIsRefund) {
+async function submitEntries(entries) {
   const occurred_at = nowIso();
   const created_by = "pwa";
-
   const items = [];
 
-  if (foodDollars !== 0) items.push({
-    client_id: uuid(),
-    category_key: "food",
-    amount: (foodIsRefund ? -1 : 1) * centsFromDollars(foodDollars),
-    note: null,
-    occurred_at,
-    created_by
-  });
+  for (const e of entries) {
+    const dollars = e.dollars;
+    if (!dollars) continue;
 
-  if (funDollars !== 0) items.push({
-    client_id: uuid(),
-    category_key: "fun",
-    amount: (funIsRefund ? -1 : 1) * centsFromDollars(funDollars),
-    note: null,
-    occurred_at,
-    created_by
-  });
+    const sign = e.isRefund ? -1 : 1;
 
-  if (gasDollars !== 0) items.push({
-    client_id: uuid(),
-    category_key: "gas",
-    amount: (gasIsRefund ? -1 : 1) * centsFromDollars(gasDollars),
-    note: null,
-    occurred_at,
-    created_by
-  });
+    items.push({
+      client_id: uuid(),
+      category_key: e.key,
+      amount: sign * centsFromDollars(dollars),
+      note: null,
+      occurred_at,
+      created_by
+    });
+  }
 
   if (!items.length) return;
 
@@ -1211,21 +1243,23 @@ function openSettings() {
 
   Promise.all([
     getCurrentPeriodBudgetsCents(),
-    getMeta('next_budget_food_cents'),
-    getMeta('next_budget_fun_cents'),
-    getMeta('next_budget_gas_cents'),
-  ]).then(([cur, nFood, nFun, nGas]) => {
+    ...CATEGORY_ORDER.map(k => getMeta(metaKeyNextBudget(k))),
+  ]).then(([cur, nGroceries, nKids, nGas, nDateNights]) => {
     const next = nextPeriodInfoET(new Date());
     const effectiveDate = formatEffectiveDateOnly(next);
     settingsSubtitle.textContent = `Changes take effect on: ${effectiveDate} (12:00 AM ET)`;
 
-    const foodC = Number(nFood ?? cur.food);
-    const funC  = Number(nFun  ?? cur.fun);
-    const gasC  = Number(nGas  ?? cur.gas);
+    const mapNext = {
+      groceries: nGroceries,
+      kids: nKids,
+      gas: nGas,
+      date_nights: nDateNights
+    };
 
-    setFood.value = moneyStringFromCents(foodC);
-    setFun.value  = moneyStringFromCents(funC);
-    setGas.value  = moneyStringFromCents(gasC);
+    setGroceries.value = moneyStringFromCents(Number(mapNext.groceries ?? cur.groceries));
+    setKids.value      = moneyStringFromCents(Number(mapNext.kids ?? cur.kids));
+    setGas.value       = moneyStringFromCents(Number(mapNext.gas ?? cur.gas));
+    setDateNights.value= moneyStringFromCents(Number(mapNext.date_nights ?? cur.date_nights));
   });
 }
 
@@ -1235,58 +1269,50 @@ function closeSettings() {
 }
 
 async function saveSettings() {
-  const f = clampNonNegative(parseDollarsFromText(setFood.value));
-  const u = clampNonNegative(parseDollarsFromText(setFun.value));
-  const g = clampNonNegative(parseDollarsFromText(setGas.value));
+  const values = {
+    groceries: clampNonNegative(parseDollarsFromText(setGroceries.value)),
+    kids: clampNonNegative(parseDollarsFromText(setKids.value)),
+    gas: clampNonNegative(parseDollarsFromText(setGas.value)),
+    date_nights: clampNonNegative(parseDollarsFromText(setDateNights.value)),
+  };
 
-  if (!Number.isFinite(f) || !Number.isFinite(u) || !Number.isFinite(g)) {
+  if (!Object.values(values).every(v => Number.isFinite(v))) {
     showSuccess('Enter valid non-negative amounts');
     return;
   }
 
-  await setMeta('next_budget_food_cents', centsFromDollars(f));
-  await setMeta('next_budget_fun_cents',  centsFromDollars(u));
-  await setMeta('next_budget_gas_cents',  centsFromDollars(g));
+  for (const k of CATEGORY_ORDER) {
+    await setMeta(metaKeyNextBudget(k), centsFromDollars(values[k]));
+  }
 
   closeSettings();
   showSuccess('Saved (effective next period)');
 }
 
 /* =========================================================
-   HISTORY MODAL (Last period spent + rollover)
+   HISTORY MODAL
    ========================================================= */
 function openHistory() {
   historyBackdrop.style.display = 'flex';
   historyBackdrop.setAttribute('aria-hidden', 'false');
   renderHistory().catch(console.error);
 }
+
 function closeHistory() {
   historyBackdrop.style.display = 'none';
   historyBackdrop.setAttribute('aria-hidden', 'true');
 }
 
 async function renderHistory() {
-  const cur = currentPeriodInfoET(new Date());
-  const fallbackPrevKey = prevPeriodKeyFromCurrent(cur);
-  const prevKey = (await getMeta('prev_period_key')) || fallbackPrevKey;
-
-  const sFood = Number(await getMeta('prev_spent_food_cents')) || 0;
-  const sFun  = Number(await getMeta('prev_spent_fun_cents'))  || 0;
-  const sGas  = Number(await getMeta('prev_spent_gas_cents'))  || 0;
-
-  const rFood = Number(await getMeta('prev_roll_food_cents')) || 0;
-  const rFun  = Number(await getMeta('prev_roll_fun_cents'))  || 0;
-  const rGas  = Number(await getMeta('prev_roll_gas_cents'))  || 0;
-
+  const prevKey = (await getMeta('prev_period_key')) || '—';
   historySubtitle.textContent = `Period: ${prevKey} (ET)`;
 
-  histFoodSpent.textContent = currency.format(dollarsFromCents(sFood));
-  histFunSpent.textContent  = currency.format(dollarsFromCents(sFun));
-  histGasSpent.textContent  = currency.format(dollarsFromCents(sGas));
-
-  histFoodRollover.textContent = currency.format(dollarsFromCents(rFood));
-  histFunRollover.textContent  = currency.format(dollarsFromCents(rFun));
-  histGasRollover.textContent  = currency.format(dollarsFromCents(rGas));
+  for (const k of CATEGORY_ORDER) {
+    const s = Number(await getMeta(`prev_spent_${k}_cents`)) || 0;
+    const r = Number(await getMeta(`prev_roll_${k}_cents`)) || 0;
+    histEls[k].spent.textContent = currency.format(dollarsFromCents(s));
+    histEls[k].rollover.textContent = currency.format(dollarsFromCents(r));
+  }
 }
 
 /* =========================================================
@@ -1301,44 +1327,39 @@ historyBtn.addEventListener('click', openHistory);
 historyClose.addEventListener('click', closeHistory);
 historyBackdrop.addEventListener('click', (e) => { if (e.target === historyBackdrop) closeHistory(); });
 
-foodInput.addEventListener('input', updateButtonState);
-funInput.addEventListener('input',  updateButtonState);
-gasInput.addEventListener('input',  updateButtonState);
-
-/* ALSO update when user clears via autofill/X */
-foodInput.addEventListener('change', updateButtonState);
-funInput.addEventListener('change',  updateButtonState);
-gasInput.addEventListener('change',  updateButtonState);
+for (const k of CATEGORY_ORDER) {
+  entryEls[k].input.addEventListener('input', updateButtonState);
+  entryEls[k].input.addEventListener('change', updateButtonState);
+}
 
 submitBtn.addEventListener('click', async (e) => {
   e.preventDefault();
 
-  const food = parseDollarsFromText(foodInput.value) || 0;
-  const fun  = parseDollarsFromText(funInput.value) || 0;
-  const gas  = parseDollarsFromText(gasInput.value) || 0;
+  const entries = [];
+  for (const k of CATEGORY_ORDER) {
+    const dollars = parseDollarsFromText(entryEls[k].input.value) || 0;
+    const isRefund = !!entryEls[k].refund.checked;
 
-  const foodIsRefund = !!foodRefundToggle.checked;
-  const funIsRefund  = !!funRefundToggle.checked;
-  const gasIsRefund  = !!gasRefundToggle.checked;
-
-  // Clear inputs + reset toggles
-  foodInput.value = '';
-  funInput.value = '';
-  gasInput.value = '';
-  foodRefundToggle.checked = false;
-  funRefundToggle.checked = false;
-  gasRefundToggle.checked = false;
-  updateButtonState();
-
-  if ((!Number.isFinite(food) && food !== 0) || (!Number.isFinite(fun) && fun !== 0) || (!Number.isFinite(gas) && gas !== 0)) {
-    showSuccess('Invalid number');
-    return;
+    if (!Number.isFinite(dollars)) {
+      showSuccess('Invalid number');
+      return;
+    }
+    if (dollars !== 0) {
+      entries.push({ key: k, dollars, isRefund });
+    }
   }
 
-  if (food === 0 && fun === 0 && gas === 0) return;
+  // Clear inputs + toggles
+  for (const k of CATEGORY_ORDER) {
+    entryEls[k].input.value = '';
+    entryEls[k].refund.checked = false;
+  }
+  updateButtonState();
+
+  if (!entries.length) return;
 
   try {
-    await submitEntries(food, fun, gas, foodIsRefund, funIsRefund, gasIsRefund);
+    await submitEntries(entries);
     await loadSummary();
   } catch (err) {
     console.error(err);
@@ -1346,7 +1367,8 @@ submitBtn.addEventListener('click', async (e) => {
 });
 
 window.addEventListener('online', () => {
-  maybeShowOfflineNotice();
+  // Per your requirement, we do not auto-hide the offline modal based on online;
+  // user is told to refresh. We still sync in case they choose not to refresh.
   syncNow().then(loadSummary).catch(console.error);
 });
 
