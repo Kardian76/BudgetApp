@@ -108,12 +108,40 @@ body {
 .summary-row:last-child { margin-bottom: 0; }
 .summary-row span { font-weight: 900; }
 
+/* Period ends moved to bottom of balance card */
 .period-end {
-  margin: 0 0 0.85rem 0; /* moved to top */
+  margin: 0.85rem 0 0 0;
   text-align: center;
   color: var(--text-muted);
   font-size: 0.92rem;
   line-height: 1.35;
+}
+
+/* Balance Remaining table (3 columns) */
+.balance-grid {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.55rem 1rem;
+  align-items: baseline;
+}
+
+.balance-head {
+  color: var(--text-muted);
+  font-weight: 900;
+  font-size: 0.92rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid rgba(17,24,39,0.08);
+  margin-bottom: 0.65rem;
+}
+
+.balance-item {
+  font-weight: 800;
+}
+
+.balance-val {
+  text-align: right;
+  font-weight: 900; /* Remaining + Spent are bold */
+  white-space: nowrap;
 }
 
 h2 {
@@ -324,21 +352,28 @@ button:disabled {
     <span class="pill" id="netStatusPill">Checking…</span>
   </div>
 
+  <!-- Balance Remaining card (3 columns) -->
   <div class="card">
-    <div class="period-end" id="periodEndsText">Period ends: —</div>
+    <div class="balance-grid" aria-label="Budget summary">
+      <div class="balance-head"></div>
+      <div class="balance-head" style="text-align:right;">Remaining</div>
+      <div class="balance-head" style="text-align:right;">Spent</div>
 
-    <div class="summary-row">
-      <div>Food Remaining</div>
-      <span id="foodRemaining">$0.00</span>
+      <div class="balance-item">Food</div>
+      <div class="balance-val" id="foodRemaining">$0.00</div>
+      <div class="balance-val" id="foodSpent">$0.00</div>
+
+      <div class="balance-item">Fun</div>
+      <div class="balance-val" id="funRemaining">$0.00</div>
+      <div class="balance-val" id="funSpent">$0.00</div>
+
+      <div class="balance-item">Gas</div>
+      <div class="balance-val" id="gasRemaining">$0.00</div>
+      <div class="balance-val" id="gasSpent">$0.00</div>
     </div>
-    <div class="summary-row">
-      <div>Fun Remaining</div>
-      <span id="funRemaining">$0.00</span>
-    </div>
-    <div class="summary-row">
-      <div>Gas Remaining</div>
-      <span id="gasRemaining">$0.00</span>
-    </div>
+
+    <!-- Period Ends moved to bottom -->
+    <div class="period-end" id="periodEndsText">Period ends: —</div>
   </div>
 
   <div class="card expenses-card">
@@ -459,6 +494,11 @@ const submitBtn = document.getElementById('submitBtn');
 const foodRemainingEl = document.getElementById('foodRemaining');
 const funRemainingEl = document.getElementById('funRemaining');
 const gasRemainingEl = document.getElementById('gasRemaining');
+
+/* NEW: spent columns for the summary card */
+const foodSpentEl = document.getElementById('foodSpent');
+const funSpentEl = document.getElementById('funSpent');
+const gasSpentEl = document.getElementById('gasSpent');
 
 const mtdTitle = document.getElementById('mtdTitle');
 const mtdFoodEl = document.getElementById('mtdFood');
@@ -913,13 +953,18 @@ function computeRemainingForPeriod(budgetsCents, spentCents) {
   };
 }
 
-function renderSummary(remainingCents) {
+function renderSummary(remainingCents, spentCents) {
   const cur = currentPeriodInfoET(new Date());
   periodEndsText.textContent = formatPeriodEndText(cur);
 
   foodRemainingEl.textContent = currency.format(dollarsFromCents(remainingCents.food));
   funRemainingEl.textContent  = currency.format(dollarsFromCents(remainingCents.fun));
   gasRemainingEl.textContent  = currency.format(dollarsFromCents(remainingCents.gas));
+
+  /* NEW: render spent column */
+  foodSpentEl.textContent = currency.format(dollarsFromCents(spentCents.food));
+  funSpentEl.textContent  = currency.format(dollarsFromCents(spentCents.fun));
+  gasSpentEl.textContent  = currency.format(dollarsFromCents(spentCents.gas));
 }
 
 function renderPeriodToDate(spentCents) {
@@ -942,7 +987,7 @@ async function loadSummary() {
   const spentCents = computePeriodToDateSpentCents(ledger);
   const remainingCents = computeRemainingForPeriod(budgets, spentCents);
 
-  renderSummary(remainingCents);
+  renderSummary(remainingCents, spentCents);
   renderPeriodToDate(spentCents);
 
   if (navigator.onLine) {
@@ -956,7 +1001,7 @@ async function loadSummary() {
       const spent2 = computePeriodToDateSpentCents(ledger);
       const rem2 = computeRemainingForPeriod(budgets2, spent2);
 
-      renderSummary(rem2);
+      renderSummary(rem2, spent2);
       renderPeriodToDate(spent2);
     } catch (e) {
       console.error(e);
