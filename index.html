@@ -79,7 +79,7 @@ body {
 }
 
 .header-label {
-  font-size: 0.95rem; /* match pill */
+  font-size: 0.95rem;
   font-weight: 800;
   color: var(--text-muted);
 }
@@ -98,16 +98,6 @@ body {
   border: 1px solid rgba(37, 99, 235, 0.18);
 }
 
-.summary-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 0.85rem;
-  font-size: 1.05rem;
-}
-.summary-row:last-child { margin-bottom: 0; }
-.summary-row span { font-weight: 900; }
-
 /* Period ends moved to bottom of balance card */
 .period-end {
   margin: 0.85rem 0 0 0;
@@ -120,7 +110,7 @@ body {
 /* Balance Remaining table (3 equal columns) */
 .balance-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr; /* equal spacing */
+  grid-template-columns: 1fr 1fr 1fr;
   column-gap: 0.9rem;
   row-gap: 0.55rem;
   align-items: baseline;
@@ -135,25 +125,17 @@ body {
   margin-bottom: 0.65rem;
 }
 
-/* Column 1 left-justified */
 .balance-head.col1,
-.balance-item {
-  text-align: left;
-}
+.balance-item { text-align: left; }
 
-/* Columns 2 & 3 centered */
 .balance-head.col2,
 .balance-head.col3,
-.balance-val {
-  text-align: center;
-}
+.balance-val { text-align: center; }
 
-.balance-item {
-  font-weight: 800;
-}
+.balance-item { font-weight: 800; }
 
 .balance-val {
-  font-weight: 900; /* Remaining + Spent are bold */
+  font-weight: 900;
   white-space: nowrap;
 }
 
@@ -163,13 +145,6 @@ h2 {
   margin: 0 0 1rem 0;
   font-weight: 900;
   letter-spacing: -0.01em;
-}
-
-.form-group-vertical {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 0.9rem;
 }
 
 input {
@@ -232,20 +207,6 @@ button:disabled {
 .pill.offline { color: var(--warning); }
 .pill.syncing { color: var(--primary); }
 
-/* Compact refund switch row */
-.mode-row{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:0.75rem;
-  margin: 0 0 0.75rem 0;
-}
-.mode-label{
-  font-weight:900;
-  color: var(--text-muted);
-  font-size:0.95rem;
-}
-
 /* iOS/Android friendly switch */
 .switch{ position:relative; display:inline-block; width:46px; height:28px; }
 .switch input{ opacity:0; width:0; height:0; }
@@ -264,6 +225,37 @@ button:disabled {
 }
 .switch input:checked + .slider{ background: rgba(37,99,235,0.25); }
 .switch input:checked + .slider:before{ transform: translateX(18px); }
+
+/* Expenses entry table (3 columns) */
+.expenses-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr; /* equal spacing */
+  column-gap: 0.9rem;
+  row-gap: 0.75rem;
+  align-items: center;
+}
+
+.expenses-head {
+  color: var(--text-muted);
+  font-weight: 900;
+  font-size: 0.92rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid rgba(17,24,39,0.08);
+  margin-bottom: 0.15rem;
+}
+
+.expenses-head.col1,
+.expenses-item { text-align: left; }
+
+.expenses-head.col2,
+.expenses-head.col3,
+.expenses-center { text-align: center; }
+
+.expenses-item { font-weight: 900; }
+
+.amount-input {
+  text-align: center;
+}
 
 .modal-backdrop {
   position: fixed;
@@ -332,19 +324,6 @@ button:disabled {
 }
 .modal .actions .secondary:hover { background: #f9fafb; }
 
-.mtd-title {
-  text-align: center;
-  font-size: 1.05rem;
-  font-weight: 900;
-  margin: 0 0 0.85rem 0;
-}
-.small-note {
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 0.92rem;
-  margin-top: 0.65rem;
-}
-
 .footer-actions {
   margin-top: 0.25rem;
 }
@@ -365,7 +344,7 @@ button:disabled {
     <span class="pill" id="netStatusPill">Checking…</span>
   </div>
 
-  <!-- Balance Remaining card (3 equal columns) -->
+  <!-- Balance Remaining card -->
   <div class="card">
     <div class="balance-grid" aria-label="Budget summary">
       <div class="balance-head col1">Budget Item</div>
@@ -385,51 +364,54 @@ button:disabled {
       <div class="balance-val" id="gasSpent">$0.00</div>
     </div>
 
-    <!-- Period Ends moved to bottom -->
     <div class="period-end" id="periodEndsText">Period ends: —</div>
   </div>
 
+  <!-- Enter Expenses / Refunds (3 columns with per-item refund toggle) -->
   <div class="card expenses-card">
     <h2>Enter Expenses / Refunds</h2>
 
-    <!-- Compact Refund toggle: user always types positive numbers -->
-    <div class="mode-row" aria-label="Refund toggle">
-      <span class="mode-label">Refund</span>
-      <label class="switch">
-        <input type="checkbox" id="refundToggle" aria-label="Refund mode">
-        <span class="slider"></span>
-      </label>
-    </div>
+    <div class="expenses-grid" aria-label="Expense entry">
+      <div class="expenses-head col1">Budget Item</div>
+      <div class="expenses-head col2 expenses-center">Refund?</div>
+      <div class="expenses-head col3 expenses-center">Amount</div>
 
-    <div class="form-group-vertical">
-      <input type="text" inputmode="decimal" id="foodInput" placeholder="Food" autocomplete="off">
-      <input type="text" inputmode="decimal" id="funInput" placeholder="Fun" autocomplete="off">
-      <input type="text" inputmode="decimal" id="gasInput" placeholder="Gas" autocomplete="off">
+      <div class="expenses-item">Food</div>
+      <div class="expenses-center">
+        <label class="switch" aria-label="Food refund toggle">
+          <input type="checkbox" id="foodRefundToggle" aria-label="Food refund">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div>
+        <input class="amount-input" type="text" inputmode="decimal" id="foodInput" autocomplete="off" aria-label="Food amount">
+      </div>
+
+      <div class="expenses-item">Fun</div>
+      <div class="expenses-center">
+        <label class="switch" aria-label="Fun refund toggle">
+          <input type="checkbox" id="funRefundToggle" aria-label="Fun refund">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div>
+        <input class="amount-input" type="text" inputmode="decimal" id="funInput" autocomplete="off" aria-label="Fun amount">
+      </div>
+
+      <div class="expenses-item">Gas</div>
+      <div class="expenses-center">
+        <label class="switch" aria-label="Gas refund toggle">
+          <input type="checkbox" id="gasRefundToggle" aria-label="Gas refund">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div>
+        <input class="amount-input" type="text" inputmode="decimal" id="gasInput" autocomplete="off" aria-label="Gas amount">
+      </div>
     </div>
 
     <button id="submitBtn" disabled>Submit</button>
     <div id="successMsg" class="success-message">Saved</div>
-  </div>
-
-  <div class="card">
-    <div class="mtd-title" id="mtdTitle">Period-to-date spent</div>
-
-    <div class="summary-row">
-      <div>Food</div>
-      <span id="mtdFood">$0.00</span>
-    </div>
-    <div class="summary-row">
-      <div>Fun</div>
-      <span id="mtdFun">$0.00</span>
-    </div>
-    <div class="summary-row">
-      <div>Gas</div>
-      <span id="mtdGas">$0.00</span>
-    </div>
-
-    <div class="small-note">
-      Refunds reduce “spent” totals automatically.
-    </div>
   </div>
 
   <div class="footer-actions">
@@ -497,7 +479,10 @@ const setFun = document.getElementById('setFun');
 const setGas = document.getElementById('setGas');
 const settingsSubtitle = document.getElementById('settingsSubtitle');
 
-const refundToggle = document.getElementById('refundToggle');
+/* Per-item refund toggles */
+const foodRefundToggle = document.getElementById('foodRefundToggle');
+const funRefundToggle  = document.getElementById('funRefundToggle');
+const gasRefundToggle  = document.getElementById('gasRefundToggle');
 
 const foodInput = document.getElementById('foodInput');
 const funInput = document.getElementById('funInput');
@@ -512,18 +497,12 @@ const foodSpentEl = document.getElementById('foodSpent');
 const funSpentEl = document.getElementById('funSpent');
 const gasSpentEl = document.getElementById('gasSpent');
 
-const mtdTitle = document.getElementById('mtdTitle');
-const mtdFoodEl = document.getElementById('mtdFood');
-const mtdFunEl = document.getElementById('mtdFun');
-const mtdGasEl = document.getElementById('mtdGas');
-
 const successMsg = document.getElementById('successMsg');
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
 let db = null;
 let isSyncing = false;
-let entryMode = "expense";
 
 /* =========================================================
    PWA / SERVICE WORKER (silent)
@@ -613,16 +592,16 @@ const etPartsFormatter = new Intl.DateTimeFormat('en-US', {
   day: '2-digit'
 });
 
-const etMonthYearFormatter = new Intl.DateTimeFormat('en-US', {
-  timeZone: STANDARD_TZ,
-  month: 'long',
-  year: 'numeric'
-});
-
 const etMonthDayFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: STANDARD_TZ,
   month: 'long',
   day: 'numeric',
+  year: 'numeric'
+});
+
+const etMonthYearFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: STANDARD_TZ,
+  month: 'long',
   year: 'numeric'
 });
 
@@ -664,6 +643,12 @@ function currentPeriodInfoET(now = new Date()) {
   return { y, m, d, half, last, key: `${y}-${pad2(m)}-${half}`, label, endY, endM, endD };
 }
 
+function formatPeriodEndText(cur) {
+  const approxUtc = new Date(Date.UTC(cur.endY, cur.endM - 1, cur.endD, 12, 0, 0));
+  const dateLabel = etMonthDayFormatter.format(approxUtc);
+  return `Period ends: ${dateLabel} at 12:00 AM ET`;
+}
+
 function nextPeriodInfoET(now = new Date()) {
   const cur = currentPeriodInfoET(now);
   let ny = cur.y, nm = cur.m, nd;
@@ -676,12 +661,6 @@ function nextPeriodInfoET(now = new Date()) {
   }
   const approxUtc = new Date(Date.UTC(ny, nm - 1, nd, 12, 0, 0));
   return currentPeriodInfoET(approxUtc);
-}
-
-function formatPeriodEndText(cur) {
-  const approxUtc = new Date(Date.UTC(cur.endY, cur.endM - 1, cur.endD, 12, 0, 0));
-  const dateLabel = etMonthDayFormatter.format(approxUtc);
-  return `Period ends: ${dateLabel} at 12:00 AM ET`;
 }
 
 function formatEffectiveDateOnly(curNext) {
@@ -929,12 +908,8 @@ function updateButtonState() {
   submitBtn.disabled = (!foodInput.value && !funInput.value && !gasInput.value);
 }
 
-function setModeFromToggle() {
-  entryMode = refundToggle.checked ? "refund" : "expense";
-}
-
 /* =========================================================
-   SUMMARY + PERIOD-TO-DATE TOTALS (ET)
+   SUMMARY (Remaining + Spent)
    ========================================================= */
 
 function computePeriodToDateSpentCents(ledgerItems) {
@@ -978,14 +953,6 @@ function renderSummary(remainingCents, spentCents) {
   gasSpentEl.textContent  = currency.format(dollarsFromCents(spentCents.gas));
 }
 
-function renderPeriodToDate(spentCents) {
-  const cur = currentPeriodInfoET(new Date());
-  mtdTitle.textContent = `Period-to-date spent (${cur.label})`;
-  mtdFoodEl.textContent = currency.format(dollarsFromCents(spentCents.food));
-  mtdFunEl.textContent  = currency.format(dollarsFromCents(spentCents.fun));
-  mtdGasEl.textContent  = currency.format(dollarsFromCents(spentCents.gas));
-}
-
 async function loadSummary() {
   setNetStatus();
   await rollBudgetPeriodIfNeeded();
@@ -999,7 +966,6 @@ async function loadSummary() {
   const remainingCents = computeRemainingForPeriod(budgets, spentCents);
 
   renderSummary(remainingCents, spentCents);
-  renderPeriodToDate(spentCents);
 
   if (navigator.onLine) {
     try {
@@ -1013,7 +979,6 @@ async function loadSummary() {
       const rem2 = computeRemainingForPeriod(budgets2, spent2);
 
       renderSummary(rem2, spent2);
-      renderPeriodToDate(spent2);
     } catch (e) {
       console.error(e);
     }
@@ -1030,20 +995,19 @@ function enqueueOfflineBatch(batch) {
 }
 
 /* =========================================================
-   SUBMIT HANDLING
+   SUBMIT HANDLING (per-item refund toggle)
    ========================================================= */
 
-async function submitExpenses(foodDollars, funDollars, gasDollars) {
+async function submitEntries(foodDollars, funDollars, gasDollars, foodIsRefund, funIsRefund, gasIsRefund) {
   const occurred_at = nowIso();
   const created_by = "pwa";
 
-  const sign = (entryMode === "refund") ? -1 : 1;
   const items = [];
 
   if (foodDollars !== 0) items.push({
     client_id: uuid(),
     category_key: "food",
-    amount: sign * centsFromDollars(foodDollars),
+    amount: (foodIsRefund ? -1 : 1) * centsFromDollars(foodDollars),
     note: null,
     occurred_at,
     created_by
@@ -1052,7 +1016,7 @@ async function submitExpenses(foodDollars, funDollars, gasDollars) {
   if (funDollars !== 0) items.push({
     client_id: uuid(),
     category_key: "fun",
-    amount: sign * centsFromDollars(funDollars),
+    amount: (funIsRefund ? -1 : 1) * centsFromDollars(funDollars),
     note: null,
     occurred_at,
     created_by
@@ -1061,7 +1025,7 @@ async function submitExpenses(foodDollars, funDollars, gasDollars) {
   if (gasDollars !== 0) items.push({
     client_id: uuid(),
     category_key: "gas",
-    amount: sign * centsFromDollars(gasDollars),
+    amount: (gasIsRefund ? -1 : 1) * centsFromDollars(gasDollars),
     note: null,
     occurred_at,
     created_by
@@ -1219,8 +1183,6 @@ settingsCancel.addEventListener('click', closeSettings);
 settingsBackdrop.addEventListener('click', (e) => { if (e.target === settingsBackdrop) closeSettings(); });
 settingsSave.addEventListener('click', () => saveSettings().catch(console.error));
 
-refundToggle.addEventListener('change', setModeFromToggle);
-
 foodInput.addEventListener('input', updateButtonState);
 funInput.addEventListener('input',  updateButtonState);
 gasInput.addEventListener('input',  updateButtonState);
@@ -1232,9 +1194,18 @@ submitBtn.addEventListener('click', async (e) => {
   const fun  = parseDollarsFromText(funInput.value) || 0;
   const gas  = parseDollarsFromText(gasInput.value) || 0;
 
+  const foodIsRefund = !!foodRefundToggle.checked;
+  const funIsRefund  = !!funRefundToggle.checked;
+  const gasIsRefund  = !!gasRefundToggle.checked;
+
+  // Clear inputs (and reset toggles to avoid accidental refunds)
   foodInput.value = '';
   funInput.value = '';
   gasInput.value = '';
+  foodRefundToggle.checked = false;
+  funRefundToggle.checked = false;
+  gasRefundToggle.checked = false;
+
   updateButtonState();
 
   if ((!Number.isFinite(food) && food !== 0) || (!Number.isFinite(fun) && fun !== 0) || (!Number.isFinite(gas) && gas !== 0)) {
@@ -1245,7 +1216,7 @@ submitBtn.addEventListener('click', async (e) => {
   if (food === 0 && fun === 0 && gas === 0) return;
 
   try {
-    await submitExpenses(food, fun, gas);
+    await submitEntries(food, fun, gas, foodIsRefund, funIsRefund, gasIsRefund);
     await loadSummary();
   } catch (err) {
     console.error(err);
@@ -1267,7 +1238,6 @@ setInterval(() => {
 }, 25000);
 
 /* INIT */
-setModeFromToggle();
 setNetStatus();
 updateButtonState();
 
