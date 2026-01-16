@@ -455,7 +455,7 @@ button:disabled {
   </div>
 </div>
 
-<!-- HISTORY MODAL -->
+<!-- HISTORY MODAL (Local estimate only; shared truth comes from server budgets) -->
 <div class="modal-backdrop" id="historyBackdrop" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="historyTitle">
     <h3 id="historyTitle">Last Period</h3>
@@ -466,7 +466,6 @@ button:disabled {
       <div class="history-head history-center">Spent</div>
       <div class="history-head history-center">Rolled Over</div>
 
-      <!-- Order: Groceries, Gas, Kids, Date Nights -->
       <div class="history-left">Groceries</div>
       <div class="history-center" id="histGroceriesSpent">$0.00</div>
       <div class="history-center" id="histGroceriesRollover">$0.00</div>
@@ -496,7 +495,6 @@ button:disabled {
     <h3 id="settingsTitle">Settings</h3>
     <p class="muted" id="settingsSubtitle">Changes take effect on: —</p>
 
-    <!-- Order: Groceries, Gas, Kids, Date Nights -->
     <div class="row">
       <label for="setGroceries">Groceries</label>
       <input id="setGroceries" type="text" inputmode="decimal" autocomplete="off">
@@ -538,9 +536,6 @@ button:disabled {
       <div class="sqlbox" id="resetSqlBox">DELETE FROM expenses;
 DELETE FROM changes;
 DELETE FROM sqlite_sequence WHERE name IN ('expenses','changes');</div>
-      <p class="muted" style="margin: .6rem 0 0 0;">
-        Note: If you add server budgets, also clear: <b>DELETE FROM budgets;</b> and reset settings if needed.
-      </p>
       <div class="actions" style="margin-top:.65rem;">
         <button class="secondary" type="button" id="copySqlBtn">Copy SQL</button>
       </div>
@@ -565,30 +560,12 @@ DELETE FROM sqlite_sequence WHERE name IN ('expenses','changes');</div>
    ========================================================= */
 const API_BASE = "https://budgetapp-api.kardian.workers.dev";
 const AUTH_TOKEN = "K7QvN2P9x0MZyJHcF4rW8E5U1R_AkDqB3aSXTGm6nVfLw-heCpd";
-const SW_VERSION = "2026-01-15-1"; // bump to force fresh SW/index caching
+const SW_VERSION = "2026-01-14-1";
 
-// D1 categories keys (ledger uses these)
+// REQUIRED ORDER: Groceries, Gas, Kids, Date Nights
 const CATEGORY_ORDER = ["groceries", "gas", "kids", "date_nights"];
-
-// Client-side fallback (used only if we have never fetched server budgets)
-const DEFAULT_BUDGETS = { groceries: 500, gas: 200, kids: 300, date_nights: 100 };
-
 const PRUNE_DAYS = 60;
 const STANDARD_TZ = "America/New_York";
-
-/*
-  SERVER BUDGET MODEL (food/fun/gas) mapping:
-  - groceries -> food
-  - gas       -> gas
-  - kids      -> fun
-  - date_nights -> fun  (shared pool)
-*/
-const SERVER_MAP = {
-  groceries: "food",
-  gas: "gas",
-  kids: "fun",
-  date_nights: "fun"
-};
 
 /* =========================================================
    ELEMENTS / STATE
@@ -629,68 +606,28 @@ const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: '
 let db = null;
 let isSyncing = false;
 
-// Cached server budgets (period-locked) for offline display
-let serverPeriodKey = null;
-let serverBudgetsCents = null; // { food_cents, fun_cents, gas_cents }
-
 /* ---- Balance elements ---- */
 const balanceEls = {
-  groceries: {
-    remaining: document.getElementById('groceriesRemaining'),
-    spent: document.getElementById('groceriesSpent')
-  },
-  gas: {
-    remaining: document.getElementById('gasRemaining'),
-    spent: document.getElementById('gasSpent')
-  },
-  kids: {
-    remaining: document.getElementById('kidsRemaining'),
-    spent: document.getElementById('kidsSpent')
-  },
-  date_nights: {
-    remaining: document.getElementById('dateNightsRemaining'),
-    spent: document.getElementById('dateNightsSpent')
-  }
+  groceries: { remaining: document.getElementById('groceriesRemaining'), spent: document.getElementById('groceriesSpent') },
+  gas: { remaining: document.getElementById('gasRemaining'), spent: document.getElementById('gasSpent') },
+  kids: { remaining: document.getElementById('kidsRemaining'), spent: document.getElementById('kidsSpent') },
+  date_nights: { remaining: document.getElementById('dateNightsRemaining'), spent: document.getElementById('dateNightsSpent') }
 };
 
 /* ---- Entry inputs/toggles ---- */
 const entryEls = {
-  groceries: {
-    input: document.getElementById('groceriesInput'),
-    refund: document.getElementById('groceriesRefundToggle')
-  },
-  gas: {
-    input: document.getElementById('gasInput'),
-    refund: document.getElementById('gasRefundToggle')
-  },
-  kids: {
-    input: document.getElementById('kidsInput'),
-    refund: document.getElementById('kidsRefundToggle')
-  },
-  date_nights: {
-    input: document.getElementById('dateNightsInput'),
-    refund: document.getElementById('dateNightsRefundToggle')
-  }
+  groceries: { input: document.getElementById('groceriesInput'), refund: document.getElementById('groceriesRefundToggle') },
+  gas: { input: document.getElementById('gasInput'), refund: document.getElementById('gasRefundToggle') },
+  kids: { input: document.getElementById('kidsInput'), refund: document.getElementById('kidsRefundToggle') },
+  date_nights: { input: document.getElementById('dateNightsInput'), refund: document.getElementById('dateNightsRefundToggle') }
 };
 
 /* ---- History elements ---- */
 const histEls = {
-  groceries: {
-    spent: document.getElementById('histGroceriesSpent'),
-    rollover: document.getElementById('histGroceriesRollover')
-  },
-  gas: {
-    spent: document.getElementById('histGasSpent'),
-    rollover: document.getElementById('histGasRollover')
-  },
-  kids: {
-    spent: document.getElementById('histKidsSpent'),
-    rollover: document.getElementById('histKidsRollover')
-  },
-  date_nights: {
-    spent: document.getElementById('histDateNightsSpent'),
-    rollover: document.getElementById('histDateNightsRollover')
-  }
+  groceries: { spent: document.getElementById('histGroceriesSpent'), rollover: document.getElementById('histGroceriesRollover') },
+  gas: { spent: document.getElementById('histGasSpent'), rollover: document.getElementById('histGasRollover') },
+  kids: { spent: document.getElementById('histKidsSpent'), rollover: document.getElementById('histKidsRollover') },
+  date_nights: { spent: document.getElementById('histDateNightsSpent'), rollover: document.getElementById('histDateNightsRollover') }
 };
 
 /* =========================================================
@@ -719,7 +656,6 @@ function closeOfflineNotice() {
 function maybeShowOfflineNotice() {
   if (!navigator.onLine) openOfflineNotice();
 }
-
 offlineOk.addEventListener('click', closeOfflineNotice);
 offlineBackdrop.addEventListener('click', (e) => { if (e.target === offlineBackdrop) closeOfflineNotice(); });
 
@@ -740,9 +676,10 @@ offlineBackdrop.addEventListener('click', (e) => { if (e.target === offlineBackd
     await cleanupLegacyOutbox();
     await pruneLocalData(PRUNE_DAYS);
 
-    // Load cached server budgets if available (offline display)
-    await loadCachedServerBudgets();
+    // Try to render using last known server state immediately (better iPhone UX)
+    await loadCachedServerBudgetState();
 
+    // Then sync + refresh
     await loadSummary();
   };
   req.onerror = () => console.error('IndexedDB error');
@@ -754,7 +691,6 @@ offlineBackdrop.addEventListener('click', (e) => { if (e.target === offlineBackd
 function centsFromDollars(d) { return Math.round(Number(d) * 100); }
 function dollarsFromCents(c) { return (Number(c) || 0) / 100; }
 function nowIso() { return new Date().toISOString(); }
-function pad2(n) { return String(n).padStart(2,'0'); }
 
 function uuid() {
   if (crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -783,13 +719,15 @@ function showSuccess(text) {
   setTimeout(() => { successMsg.style.display = 'none'; }, 2000);
 }
 
+/* FIX: Submit enabling checks all Amount fields */
 function updateButtonState() {
   const hasAny = CATEGORY_ORDER.some(k => String(entryEls[k].input.value || '').trim() !== '');
   submitBtn.disabled = !hasAny;
 }
 
 /* =========================================================
-   EASTERN TIME PERIOD LOGIC (semi-monthly)
+   EASTERN TIME PERIOD HELPERS (client display only)
+   - Server is authoritative for period state; this is only for Settings effective date text.
    ========================================================= */
 const etPartsFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: STANDARD_TZ,
@@ -797,82 +735,40 @@ const etPartsFormatter = new Intl.DateTimeFormat('en-US', {
   month: '2-digit',
   day: '2-digit'
 });
-
-const etMonthYearFormatter = new Intl.DateTimeFormat('en-US', {
-  timeZone: STANDARD_TZ,
-  month: 'long',
-  year: 'numeric'
-});
-
 const etMonthDayFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: STANDARD_TZ,
   month: 'long',
   day: 'numeric',
   year: 'numeric'
 });
-
+function pad2(n) { return String(n).padStart(2,'0'); }
 function getEtYmd(dateObj) {
   const parts = etPartsFormatter.formatToParts(dateObj);
   const map = Object.fromEntries(parts.filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
   return { y: Number(map.year), m: Number(map.month), d: Number(map.day) };
 }
-
 function lastDayOfMonth(y, m1to12) {
   return new Date(Date.UTC(y, m1to12, 0)).getUTCDate();
 }
-
-function periodKeyFromYmd(y, m, d) {
-  const half = (d <= 14) ? 1 : 2;
-  return `${y}-${pad2(m)}-${half}`;
-}
-
 function currentPeriodInfoET(now = new Date()) {
   const { y, m, d } = getEtYmd(now);
   const half = (d <= 14) ? 1 : 2;
   const last = lastDayOfMonth(y, m);
 
-  const monthYear = etMonthYearFormatter.format(now);
-
-  const label = (half === 1)
-    ? `${monthYear} (1–14, ET)`
-    : `${monthYear} (15–${last}, ET)`;
-
   let endY = y, endM = m, endD;
-  if (half === 1) {
-    endD = 15;
-  } else {
+  if (half === 1) { endD = 15; }
+  else {
     endD = 1;
     if (m === 12) { endM = 1; endY = y + 1; }
     else { endM = m + 1; }
   }
-
-  return { y, m, d, half, last, key: `${y}-${pad2(m)}-${half}`, label, endY, endM, endD };
+  return { y, m, d, half, last, endY, endM, endD };
 }
-
-function nextPeriodInfoET(now = new Date()) {
-  const cur = currentPeriodInfoET(now);
-  let ny = cur.y, nm = cur.m, nd;
-  if (cur.half === 1) {
-    nd = 15;
-  } else {
-    nd = 1;
-    if (cur.m === 12) { nm = 1; ny = cur.y + 1; }
-    else { nm = cur.m + 1; }
-  }
-  const approxUtc = new Date(Date.UTC(ny, nm - 1, nd, 12, 0, 0));
-  return currentPeriodInfoET(approxUtc);
-}
-
-function formatPeriodEndText(cur) {
-  const approxUtc = new Date(Date.UTC(cur.endY, cur.endM - 1, cur.endD, 12, 0, 0));
-  const dateLabel = etMonthDayFormatter.format(approxUtc);
-  return `Period ends: ${dateLabel} at 12:00 AM ET`;
-}
-
-function formatEffectiveDateOnly(curNext) {
-  const startDay = (curNext.half === 1) ? 1 : 15;
-  const approxStartUtc = new Date(Date.UTC(curNext.y, curNext.m - 1, startDay, 12, 0, 0));
-  return etMonthDayFormatter.format(approxStartUtc);
+function formatEffectiveDateOnlyNextPeriod() {
+  // Effective at 12:00 AM ET on next period start (either 15th or 1st)
+  const cur = currentPeriodInfoET(new Date());
+  const approxNoonUtc = new Date(Date.UTC(cur.endY, cur.endM - 1, cur.endD, 12, 0, 0));
+  return etMonthDayFormatter.format(approxNoonUtc);
 }
 
 /* =========================================================
@@ -927,7 +823,7 @@ async function apiPostJson(path, payload) {
 }
 
 /* =========================================================
-   META STORE
+   META STORE (local)
    ========================================================= */
 function getMeta(key) {
   return new Promise((resolve, reject) => {
@@ -938,7 +834,6 @@ function getMeta(key) {
     req.onerror = () => reject(req.error);
   });
 }
-
 function setMeta(key, value) {
   return new Promise((resolve, reject) => {
     if (!db) return resolve();
@@ -950,7 +845,7 @@ function setMeta(key, value) {
 }
 
 /* =========================================================
-   LEDGER
+   LEDGER (local offline cache of expenses)
    ========================================================= */
 function upsertLedgerItems(items) {
   return new Promise((resolve, reject) => {
@@ -962,7 +857,6 @@ function upsertLedgerItems(items) {
     tx.onerror = () => reject(tx.error);
   });
 }
-
 function getAllLedger() {
   return new Promise((resolve, reject) => {
     if (!db) return resolve([]);
@@ -978,7 +872,6 @@ function getAllLedger() {
    ========================================================= */
 async function cleanupLegacyOutbox() {
   if (!db) return;
-
   const tx = db.transaction('tx', 'readwrite');
   const store = tx.objectStore('tx');
 
@@ -987,11 +880,9 @@ async function cleanupLegacyOutbox() {
     req.onsuccess = (e) => {
       const c = e.target.result;
       if (!c) return resolve();
-
       const v = c.value;
       const isValid = v && Array.isArray(v.items);
       if (!isValid) store.delete(c.key);
-
       c.continue();
     };
     req.onerror = () => reject(req.error);
@@ -1014,11 +905,9 @@ async function pruneLocalData(days) {
     req.onsuccess = (e) => {
       const c = e.target.result;
       if (!c) return resolve();
-
       const v = c.value;
       const t = Date.parse(v?.occurred_at || '');
       if (Number.isFinite(t) && t < cutoffMs) store.delete(c.key);
-
       c.continue();
     };
     req.onerror = () => reject(req.error);
@@ -1032,12 +921,10 @@ async function pruneLocalData(days) {
     req.onsuccess = (e) => {
       const c = e.target.result;
       if (!c) return resolve();
-
       const batch = c.value;
       const first = batch?.items?.[0];
       const t = Date.parse(first?.occurred_at || '');
       if (Number.isFinite(t) && t < cutoffMs) store.delete(c.key);
-
       c.continue();
     };
     req.onerror = () => reject(req.error);
@@ -1047,186 +934,45 @@ async function pruneLocalData(days) {
 }
 
 /* =========================================================
-   SERVER BUDGETS (shared)
-   - Cached in meta so offline mode can still show remaining/spent
+   SERVER BUDGET STATE (shared truth)
    ========================================================= */
-async function loadCachedServerBudgets() {
+async function fetchBudgetState() {
+  return await apiGet('/api/budget/state');
+}
+
+function renderBudgetState(state) {
+  // state expected from /api/budget/state
+  if (!state) return;
+
+  const ends = state.period_ends_text ? `Period ends: ${state.period_ends_text}` : 'Period ends: —';
+  periodEndsText.textContent = ends;
+
+  const spent = state.spent_cents || {};
+  const remaining = state.remaining_cents || {};
+
+  for (const k of CATEGORY_ORDER) {
+    balanceEls[k].spent.textContent = currency.format(dollarsFromCents(Number(spent[k] || 0)));
+    balanceEls[k].remaining.textContent = currency.format(dollarsFromCents(Number(remaining[k] || 0)));
+  }
+}
+
+async function cacheServerBudgetState(state) {
   try {
-    const pk = await getMeta('server_budget_period_key');
-    const food = await getMeta('server_budget_food_cents');
-    const fun  = await getMeta('server_budget_fun_cents');
-    const gas  = await getMeta('server_budget_gas_cents');
-
-    if (pk && Number.isFinite(Number(food)) && Number.isFinite(Number(fun)) && Number.isFinite(Number(gas))) {
-      serverPeriodKey = pk;
-      serverBudgetsCents = {
-        food_cents: Number(food),
-        fun_cents: Number(fun),
-        gas_cents: Number(gas)
-      };
-    }
+    await setMeta('last_server_budget_state', JSON.stringify(state));
+    await setMeta('last_server_budget_state_at', new Date().toISOString());
   } catch (e) {
-    console.error('Failed loading cached server budgets', e);
+    console.error('Failed to cache server budget state', e);
   }
 }
 
-async function cacheServerBudgets(res) {
-  if (!res?.period_key || !res?.budgets) return;
-
-  serverPeriodKey = res.period_key;
-  serverBudgetsCents = {
-    food_cents: Number(res.budgets.food_cents),
-    fun_cents:  Number(res.budgets.fun_cents),
-    gas_cents:  Number(res.budgets.gas_cents),
-  };
-
-  await setMeta('server_budget_period_key', serverPeriodKey);
-  await setMeta('server_budget_food_cents', serverBudgetsCents.food_cents);
-  await setMeta('server_budget_fun_cents',  serverBudgetsCents.fun_cents);
-  await setMeta('server_budget_gas_cents',  serverBudgetsCents.gas_cents);
-}
-
-async function fetchServerBudgetsCurrent() {
-  const res = await apiGet('/api/budgets/current');
-  await cacheServerBudgets(res);
-  return res;
-}
-
-/* Convert server budgets -> per UI category budgets.
-   Note: kids + date_nights both share fun pool on server. We split it proportionally
-   based on settings values (or defaults) so each row shows something sensible.
-*/
-function getUiBudgetsFromServer() {
-  // If server budgets missing, fallback to defaults (local only)
-  if (!serverBudgetsCents) {
-    const fallback = {};
-    for (const k of CATEGORY_ORDER) fallback[k] = centsFromDollars(DEFAULT_BUDGETS[k]);
-    return fallback;
-  }
-
-  // Desired split ratio for fun pool between kids/date_nights:
-  // Use current Settings fields if present in meta; else default split based on DEFAULT_BUDGETS.
-  const defaultKids = centsFromDollars(DEFAULT_BUDGETS.kids);
-  const defaultDn   = centsFromDollars(DEFAULT_BUDGETS.date_nights);
-  const total = Math.max(1, defaultKids + defaultDn);
-
-  const funTotal = Number(serverBudgetsCents.fun_cents);
-  const kidsShare = Math.round(funTotal * (defaultKids / total));
-  const dnShare   = funTotal - kidsShare;
-
-  return {
-    groceries: Number(serverBudgetsCents.food_cents),
-    gas:       Number(serverBudgetsCents.gas_cents),
-    kids:      kidsShare,
-    date_nights: dnShare
-  };
-}
-
-/* =========================================================
-   SPENT / REMAINING for current ET period
-   ========================================================= */
-function computeSpentForPeriodKey(ledgerItems, periodKey) {
-  const spent = {};
-  for (const k of CATEGORY_ORDER) spent[k] = 0;
-
-  for (const e of ledgerItems) {
-    const t = Date.parse(e?.occurred_at || '');
-    if (!Number.isFinite(t)) continue;
-
-    const ymd = getEtYmd(new Date(t));
-    const entryKey = periodKeyFromYmd(ymd.y, ymd.m, ymd.d);
-    if (entryKey !== periodKey) continue;
-
-    const k = e.category_key;
-    if (k in spent) spent[k] += Number(e.amount || 0);
-  }
-
-  return spent;
-}
-
-function computeRemainingForPeriod(budgetsCents, spentCents) {
-  const rem = {};
-  for (const k of CATEGORY_ORDER) rem[k] = budgetsCents[k] - spentCents[k];
-  return rem;
-}
-
-/* =========================================================
-   HISTORY (local-only convenience)
-   ========================================================= */
-async function storePreviousPeriodSummary(ledger, prevPeriodKey, prevBudgetsUi) {
-  const spentLast = computeSpentForPeriodKey(ledger, prevPeriodKey);
-
-  await setMeta('prev_period_key', prevPeriodKey);
-  for (const k of CATEGORY_ORDER) {
-    await setMeta(`prev_spent_${k}_cents`, spentLast[k]);
-    await setMeta(`prev_roll_${k}_cents`, prevBudgetsUi[k] - spentLast[k]);
-  }
-}
-
-/* =========================================================
-   UI RENDERING
-   ========================================================= */
-function renderSummary(remainingCents, spentCents) {
-  const cur = currentPeriodInfoET(new Date());
-  periodEndsText.textContent = formatPeriodEndText(cur);
-
-  for (const k of CATEGORY_ORDER) {
-    balanceEls[k].remaining.textContent = currency.format(dollarsFromCents(remainingCents[k]));
-    balanceEls[k].spent.textContent = currency.format(dollarsFromCents(spentCents[k]));
-  }
-}
-
-/* =========================================================
-   LOAD SUMMARY + SYNC
-   ========================================================= */
-async function loadSummary() {
-  maybeShowOfflineNotice();
-
-  let ledger = [];
-  try { ledger = await getAllLedger(); }
-  catch (e) { console.error(e); }
-
-  // Determine current ET period label (display) and key (local computation)
-  const curInfo = currentPeriodInfoET(new Date());
-
-  // If online, fetch authoritative budgets for current period from server (shared)
-  if (navigator.onLine) {
-    try {
-      // Before fetching, if cached serverPeriodKey != current, store "last period" summary
-      if (serverPeriodKey && serverPeriodKey !== curInfo.key) {
-        // We store last period summary using *last known* budgets (best-effort)
-        const prevUiBudgets = getUiBudgetsFromServer();
-        await storePreviousPeriodSummary(ledger, serverPeriodKey, prevUiBudgets);
-      }
-
-      await fetchServerBudgetsCurrent();
-    } catch (e) {
-      console.error('Budget fetch failed; using cached budgets if any', e);
-    }
-  }
-
-  const uiBudgets = getUiBudgetsFromServer();
-  const spentCents = computeSpentForPeriodKey(ledger, curInfo.key);
-  const remainingCents = computeRemainingForPeriod(uiBudgets, spentCents);
-
-  renderSummary(remainingCents, spentCents);
-
-  // Then do sync to pull in newest expenses and recalc
-  if (navigator.onLine) {
-    try {
-      await syncNow();
-      ledger = await getAllLedger();
-
-      // Budgets may have been created server-side during sync timing; refresh budgets once more
-      try { await fetchServerBudgetsCurrent(); } catch {}
-
-      const uiBudgets2 = getUiBudgetsFromServer();
-      const spent2 = computeSpentForPeriodKey(ledger, curInfo.key);
-      const rem2 = computeRemainingForPeriod(uiBudgets2, spent2);
-      renderSummary(rem2, spent2);
-    } catch (e) {
-      console.error(e);
-    }
+async function loadCachedServerBudgetState() {
+  try {
+    const raw = await getMeta('last_server_budget_state');
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    renderBudgetState(parsed);
+  } catch (e) {
+    // ignore
   }
 }
 
@@ -1249,7 +995,6 @@ async function submitEntries(entries) {
   for (const e of entries) {
     const dollars = e.dollars;
     if (!dollars) continue;
-
     const sign = e.isRefund ? -1 : 1;
 
     items.push({
@@ -1282,7 +1027,7 @@ async function submitEntries(entries) {
 }
 
 /* =========================================================
-   SYNC ENGINE
+   SYNC ENGINE (existing pattern)
    ========================================================= */
 async function pushQueueOnce() {
   if (!db) return;
@@ -1349,28 +1094,64 @@ async function syncNow() {
 }
 
 /* =========================================================
-   SETTINGS MODAL (server-shared)
-   - saves next-period budgets via /api/budgets/next
+   LOAD SUMMARY
+   - Online: server budget state is authoritative
+   - Offline: show last cached server budget state (if any)
+   ========================================================= */
+async function loadSummary() {
+  maybeShowOfflineNotice();
+
+  if (navigator.onLine) {
+    try {
+      await syncNow();
+    } catch (e) {
+      console.error(e);
+    }
+
+    try {
+      const state = await fetchBudgetState();
+      renderBudgetState(state);
+      await cacheServerBudgetState(state);
+      return;
+    } catch (e) {
+      console.error('Failed to fetch budget state', e);
+      // fall back to cached
+    }
+  }
+
+  // Offline or budget fetch failed
+  await loadCachedServerBudgetState();
+}
+
+/* =========================================================
+   SETTINGS MODAL (posts server next-period settings)
    ========================================================= */
 function moneyStringFromCents(cents) {
   return `$${dollarsFromCents(cents).toFixed(2)}`;
 }
 
-function openSettings() {
+async function openSettings() {
   settingsBackdrop.style.display = 'flex';
   settingsBackdrop.setAttribute('aria-hidden', 'false');
 
-  // Use server budgets as the baseline shown; if offline, fallback to defaults
-  const uiBudgets = getUiBudgetsFromServer();
-
-  const next = nextPeriodInfoET(new Date());
-  const effectiveDate = formatEffectiveDateOnly(next);
+  const effectiveDate = formatEffectiveDateOnlyNextPeriod();
   settingsSubtitle.textContent = `Changes take effect on: ${effectiveDate} (12:00 AM ET)`;
 
-  setGroceries.value = moneyStringFromCents(uiBudgets.groceries);
-  setGas.value       = moneyStringFromCents(uiBudgets.gas);
-  setKids.value      = moneyStringFromCents(uiBudgets.kids);
-  setDateNights.value= moneyStringFromCents(uiBudgets.date_nights);
+  // Prefill with last known server budgets if available; otherwise leave blank.
+  try {
+    const raw = await getMeta('last_server_budget_state');
+    if (!raw) return;
+
+    const state = JSON.parse(raw);
+    const b = state?.budgets_cents || {};
+
+    setGroceries.value = moneyStringFromCents(Number(b.groceries || 0));
+    setGas.value       = moneyStringFromCents(Number(b.gas || 0));
+    setKids.value      = moneyStringFromCents(Number(b.kids || 0));
+    setDateNights.value= moneyStringFromCents(Number(b.date_nights || 0));
+  } catch {
+    // ignore
+  }
 }
 
 function closeSettings() {
@@ -1391,23 +1172,24 @@ async function saveSettings() {
     return;
   }
 
-  // Convert UI desired budgets -> server budgets (food/fun/gas).
-  // fun pool = kids + date_nights
-  const payload = {
-    food_cents: centsFromDollars(values.groceries),
-    gas_cents:  centsFromDollars(values.gas),
-    fun_cents:  centsFromDollars(values.kids + values.date_nights),
-  };
-
   if (!navigator.onLine) {
-    showSuccess('Offline: connect to save settings');
+    showSuccess('Go online to save settings');
     return;
   }
 
   try {
-    await apiPostJson('/api/budgets/next', payload);
+    await apiPostJson('/api/budget/settings', {
+      next_groceries_cents: centsFromDollars(values.groceries),
+      next_gas_cents: centsFromDollars(values.gas),
+      next_kids_cents: centsFromDollars(values.kids),
+      next_date_nights_cents: centsFromDollars(values.date_nights),
+    });
+
     closeSettings();
     showSuccess('Saved (effective next period)');
+
+    // Refresh state
+    await loadSummary();
   } catch (e) {
     console.error(e);
     showSuccess('Save failed');
@@ -1415,22 +1197,23 @@ async function saveSettings() {
 }
 
 /* =========================================================
-   HISTORY MODAL
+   HISTORY MODAL (local-only estimate retained)
    ========================================================= */
 function openHistory() {
   historyBackdrop.style.display = 'flex';
   historyBackdrop.setAttribute('aria-hidden', 'false');
   renderHistory().catch(console.error);
 }
-
 function closeHistory() {
   historyBackdrop.style.display = 'none';
   historyBackdrop.setAttribute('aria-hidden', 'true');
 }
 
 async function renderHistory() {
+  // This is left as-is from your earlier approach: local stored meta keys.
+  // Shared truth for rollover is on the server; this is a local estimate only.
   const prevKey = (await getMeta('prev_period_key')) || '—';
-  historySubtitle.textContent = `Period: ${prevKey} (ET)`;
+  historySubtitle.textContent = `Period: ${prevKey} (local estimate)`;
 
   for (const k of CATEGORY_ORDER) {
     const s = Number(await getMeta(`prev_spent_${k}_cents`)) || 0;
@@ -1454,6 +1237,7 @@ function closeReset() {
 
 async function resetAppLocal() {
   try {
+    // Clear SW caches
     if (window.caches) {
       const keys = await caches.keys();
       await Promise.all(keys.map(k => caches.delete(k)));
@@ -1462,6 +1246,7 @@ async function resetAppLocal() {
     console.error('Cache delete failed', e);
   }
 
+  // Delete IndexedDB (budgetDB)
   await new Promise((resolve) => {
     const req = indexedDB.deleteDatabase('budgetDB');
     req.onsuccess = () => resolve();
@@ -1475,11 +1260,11 @@ async function resetAppLocal() {
 async function copyResetSql() {
   const sql = resetSqlBox.textContent || '';
   try {
-    await navigator.clipboard.writeText(sql + "\nDELETE FROM budgets;\nUPDATE budget_settings SET next_effective_period_key=NULL,next_food_cents=NULL,next_fun_cents=NULL,next_gas_cents=NULL WHERE id=1;");
+    await navigator.clipboard.writeText(sql);
     showSuccess('SQL copied');
   } catch {
     const ta = document.createElement('textarea');
-    ta.value = sql + "\nDELETE FROM budgets;\nUPDATE budget_settings SET next_effective_period_key=NULL,next_food_cents=NULL,next_fun_cents=NULL,next_gas_cents=NULL WHERE id=1;";
+    ta.value = sql;
     ta.style.position = 'fixed';
     ta.style.left = '-9999px';
     document.body.appendChild(ta);
@@ -1493,7 +1278,7 @@ async function copyResetSql() {
 /* =========================================================
    EVENT WIRING
    ========================================================= */
-settingsBtn.addEventListener('click', openSettings);
+settingsBtn.addEventListener('click', () => openSettings().catch(console.error));
 settingsCancel.addEventListener('click', closeSettings);
 settingsBackdrop.addEventListener('click', (e) => { if (e.target === settingsBackdrop) closeSettings(); });
 settingsSave.addEventListener('click', () => saveSettings().catch(console.error));
@@ -1530,6 +1315,7 @@ submitBtn.addEventListener('click', async (e) => {
     }
   }
 
+  // Clear inputs + toggles
   for (const k of CATEGORY_ORDER) {
     entryEls[k].input.value = '';
     entryEls[k].refund.checked = false;
@@ -1547,7 +1333,7 @@ submitBtn.addEventListener('click', async (e) => {
 });
 
 window.addEventListener('online', () => {
-  fetchServerBudgetsCurrent().then(() => syncNow().then(loadSummary)).catch(console.error);
+  syncNow().then(loadSummary).catch(console.error);
 });
 
 window.addEventListener('offline', () => {
@@ -1564,16 +1350,9 @@ updateButtonState();
 maybeShowOfflineNotice();
 
 (async function boot() {
-  try {
-    if (navigator.onLine) {
-      await fetchServerBudgetsCurrent();
-      await syncNow();
-    }
-  } catch (e) {
-    console.error(e);
-  } finally {
-    await loadSummary();
-  }
+  try { await syncNow(); }
+  catch (e) { console.error(e); }
+  finally { await loadSummary(); }
 })();
 </script>
 </body>
