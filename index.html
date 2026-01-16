@@ -538,6 +538,9 @@ button:disabled {
       <div class="sqlbox" id="resetSqlBox">DELETE FROM expenses;
 DELETE FROM changes;
 DELETE FROM sqlite_sequence WHERE name IN ('expenses','changes');</div>
+      <p class="muted" style="margin: .6rem 0 0 0;">
+        Note: If you add server budgets, also clear: <b>DELETE FROM budgets;</b> and reset settings if needed.
+      </p>
       <div class="actions" style="margin-top:.65rem;">
         <button class="secondary" type="button" id="copySqlBtn">Copy SQL</button>
       </div>
@@ -562,15 +565,30 @@ DELETE FROM sqlite_sequence WHERE name IN ('expenses','changes');</div>
    ========================================================= */
 const API_BASE = "https://budgetapp-api.kardian.workers.dev";
 const AUTH_TOKEN = "K7QvN2P9x0MZyJHcF4rW8E5U1R_AkDqB3aSXTGm6nVfLw-heCpd";
-const SW_VERSION = "2026-01-14-1";
+const SW_VERSION = "2026-01-15-1"; // bump to force fresh SW/index caching
 
-// Keys match D1 categories.key exactly
-// REQUIRED ORDER: Groceries, Gas, Kids, Date Nights
+// D1 categories keys (ledger uses these)
 const CATEGORY_ORDER = ["groceries", "gas", "kids", "date_nights"];
 
+// Client-side fallback (used only if we have never fetched server budgets)
 const DEFAULT_BUDGETS = { groceries: 500, gas: 200, kids: 300, date_nights: 100 };
+
 const PRUNE_DAYS = 60;
 const STANDARD_TZ = "America/New_York";
+
+/*
+  SERVER BUDGET MODEL (food/fun/gas) mapping:
+  - groceries -> food
+  - gas       -> gas
+  - kids      -> fun
+  - date_nights -> fun  (shared pool)
+*/
+const SERVER_MAP = {
+  groceries: "food",
+  gas: "gas",
+  kids: "fun",
+  date_nights: "fun"
+};
 
 /* =========================================================
    ELEMENTS / STATE
@@ -610,6 +628,10 @@ const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: '
 
 let db = null;
 let isSyncing = false;
+
+// Cached server budgets (period-locked) for offline display
+let serverPeriodKey = null;
+let serverBudgetsCents = null; // { food_cents, fun_cents, gas_cents }
 
 /* ---- Balance elements ---- */
 const balanceEls = {
@@ -684,7 +706,7 @@ const histEls = {
 })();
 
 /* =========================================================
-   OFFLINE MODAL (replaces top status UI)
+   OFFLINE MODAL
    ========================================================= */
 function openOfflineNotice() {
   offlineBackdrop.style.display = 'flex';
@@ -705,7 +727,7 @@ offlineBackdrop.addEventListener('click', (e) => { if (e.target === offlineBackd
    INDEXEDDB SETUP
    ========================================================= */
 (function initDB(){
-  const req = indexedDB.open('budgetDB', 4);
+  const req = indexedDB.open('budgetDB', 5);
   req.onupgradeneeded = e => {
     const d = e.target.result;
     if (!d.objectStoreNames.contains('tx')) d.createObjectStore('tx', { autoIncrement: true });
@@ -717,7 +739,10 @@ offlineBackdrop.addEventListener('click', (e) => { if (e.target === offlineBackd
 
     await cleanupLegacyOutbox();
     await pruneLocalData(PRUNE_DAYS);
-    await rollBudgetPeriodIfNeeded();
+
+    // Load cached server budgets if available (offline display)
+    await loadCachedServerBudgets();
+
     await loadSummary();
   };
   req.onerror = () => console.error('IndexedDB error');
@@ -758,7 +783,6 @@ function showSuccess(text) {
   setTimeout(() => { successMsg.style.display = 'none'; }, 2000);
 }
 
-/* FIX: Submit enabling checks all Amount fields */
 function updateButtonState() {
   const hasAny = CATEGORY_ORDER.some(k => String(entryEls[k].input.value || '').trim() !== '');
   submitBtn.disabled = !hasAny;
@@ -1023,30 +1047,84 @@ async function pruneLocalData(days) {
 }
 
 /* =========================================================
-   BUDGETS (locked per ET semi-monthly period)
+   SERVER BUDGETS (shared)
+   - Cached in meta so offline mode can still show remaining/spent
    ========================================================= */
-function metaKeyBudget(k) { return `budget_${k}_cents`; }
-function metaKeyNextBudget(k) { return `next_budget_${k}_cents`; }
+async function loadCachedServerBudgets() {
+  try {
+    const pk = await getMeta('server_budget_period_key');
+    const food = await getMeta('server_budget_food_cents');
+    const fun  = await getMeta('server_budget_fun_cents');
+    const gas  = await getMeta('server_budget_gas_cents');
 
-async function getCurrentPeriodBudgetsCents() {
-  const cur = currentPeriodInfoET(new Date());
-  const storedPeriod = await getMeta('budget_period');
-
-  if (!storedPeriod) {
-    await setMeta('budget_period', cur.key);
-    for (const k of CATEGORY_ORDER) {
-      await setMeta(metaKeyBudget(k), centsFromDollars(DEFAULT_BUDGETS[k]));
+    if (pk && Number.isFinite(Number(food)) && Number.isFinite(Number(fun)) && Number.isFinite(Number(gas))) {
+      serverPeriodKey = pk;
+      serverBudgetsCents = {
+        food_cents: Number(food),
+        fun_cents: Number(fun),
+        gas_cents: Number(gas)
+      };
     }
+  } catch (e) {
+    console.error('Failed loading cached server budgets', e);
   }
-
-  const result = { period: await getMeta('budget_period') };
-  for (const k of CATEGORY_ORDER) {
-    const v = Number(await getMeta(metaKeyBudget(k)));
-    result[k] = Number.isFinite(v) && v !== 0 ? v : centsFromDollars(DEFAULT_BUDGETS[k]);
-  }
-  return result;
 }
 
+async function cacheServerBudgets(res) {
+  if (!res?.period_key || !res?.budgets) return;
+
+  serverPeriodKey = res.period_key;
+  serverBudgetsCents = {
+    food_cents: Number(res.budgets.food_cents),
+    fun_cents:  Number(res.budgets.fun_cents),
+    gas_cents:  Number(res.budgets.gas_cents),
+  };
+
+  await setMeta('server_budget_period_key', serverPeriodKey);
+  await setMeta('server_budget_food_cents', serverBudgetsCents.food_cents);
+  await setMeta('server_budget_fun_cents',  serverBudgetsCents.fun_cents);
+  await setMeta('server_budget_gas_cents',  serverBudgetsCents.gas_cents);
+}
+
+async function fetchServerBudgetsCurrent() {
+  const res = await apiGet('/api/budgets/current');
+  await cacheServerBudgets(res);
+  return res;
+}
+
+/* Convert server budgets -> per UI category budgets.
+   Note: kids + date_nights both share fun pool on server. We split it proportionally
+   based on settings values (or defaults) so each row shows something sensible.
+*/
+function getUiBudgetsFromServer() {
+  // If server budgets missing, fallback to defaults (local only)
+  if (!serverBudgetsCents) {
+    const fallback = {};
+    for (const k of CATEGORY_ORDER) fallback[k] = centsFromDollars(DEFAULT_BUDGETS[k]);
+    return fallback;
+  }
+
+  // Desired split ratio for fun pool between kids/date_nights:
+  // Use current Settings fields if present in meta; else default split based on DEFAULT_BUDGETS.
+  const defaultKids = centsFromDollars(DEFAULT_BUDGETS.kids);
+  const defaultDn   = centsFromDollars(DEFAULT_BUDGETS.date_nights);
+  const total = Math.max(1, defaultKids + defaultDn);
+
+  const funTotal = Number(serverBudgetsCents.fun_cents);
+  const kidsShare = Math.round(funTotal * (defaultKids / total));
+  const dnShare   = funTotal - kidsShare;
+
+  return {
+    groceries: Number(serverBudgetsCents.food_cents),
+    gas:       Number(serverBudgetsCents.gas_cents),
+    kids:      kidsShare,
+    date_nights: dnShare
+  };
+}
+
+/* =========================================================
+   SPENT / REMAINING for current ET period
+   ========================================================= */
 function computeSpentForPeriodKey(ledgerItems, periodKey) {
   const spent = {};
   for (const k of CATEGORY_ORDER) spent[k] = 0;
@@ -1072,42 +1150,16 @@ function computeRemainingForPeriod(budgetsCents, spentCents) {
   return rem;
 }
 
-async function rollBudgetPeriodIfNeeded() {
-  const nowKey = currentPeriodInfoET(new Date()).key;
-  const storedPeriod = await getMeta('budget_period');
+/* =========================================================
+   HISTORY (local-only convenience)
+   ========================================================= */
+async function storePreviousPeriodSummary(ledger, prevPeriodKey, prevBudgetsUi) {
+  const spentLast = computeSpentForPeriodKey(ledger, prevPeriodKey);
 
-  if (!storedPeriod) {
-    await getCurrentPeriodBudgetsCents();
-    return;
-  }
-  if (storedPeriod === nowKey) return;
-
-  // Store previous period summary for History modal
-  try {
-    const ledger = await getAllLedger();
-    const lastBudgets = {};
-    for (const k of CATEGORY_ORDER) {
-      lastBudgets[k] = Number(await getMeta(metaKeyBudget(k))) || centsFromDollars(DEFAULT_BUDGETS[k]);
-    }
-    const spentLast = computeSpentForPeriodKey(ledger, storedPeriod);
-
-    await setMeta('prev_period_key', storedPeriod);
-    for (const k of CATEGORY_ORDER) {
-      await setMeta(`prev_spent_${k}_cents`, spentLast[k]);
-      await setMeta(`prev_roll_${k}_cents`, lastBudgets[k] - spentLast[k]);
-    }
-  } catch (e) {
-    console.error('Failed to store previous period summary', e);
-  }
-
-  // Roll budgets forward (use next_* if set, else keep current values)
-  await setMeta('budget_period', nowKey);
-
+  await setMeta('prev_period_key', prevPeriodKey);
   for (const k of CATEGORY_ORDER) {
-    const nextVal = await getMeta(metaKeyNextBudget(k));
-    const curVal = Number(await getMeta(metaKeyBudget(k))) || centsFromDollars(DEFAULT_BUDGETS[k]);
-    await setMeta(metaKeyBudget(k), Number(nextVal ?? curVal));
-    await setMeta(metaKeyNextBudget(k), null);
+    await setMeta(`prev_spent_${k}_cents`, spentLast[k]);
+    await setMeta(`prev_roll_${k}_cents`, prevBudgetsUi[k] - spentLast[k]);
   }
 }
 
@@ -1129,31 +1181,48 @@ function renderSummary(remainingCents, spentCents) {
    ========================================================= */
 async function loadSummary() {
   maybeShowOfflineNotice();
-  await rollBudgetPeriodIfNeeded();
 
   let ledger = [];
   try { ledger = await getAllLedger(); }
   catch (e) { console.error(e); }
 
-  const budgets = await getCurrentPeriodBudgetsCents();
-  const cur = currentPeriodInfoET(new Date());
-  const spentCents = computeSpentForPeriodKey(ledger, cur.key);
-  const remainingCents = computeRemainingForPeriod(budgets, spentCents);
+  // Determine current ET period label (display) and key (local computation)
+  const curInfo = currentPeriodInfoET(new Date());
+
+  // If online, fetch authoritative budgets for current period from server (shared)
+  if (navigator.onLine) {
+    try {
+      // Before fetching, if cached serverPeriodKey != current, store "last period" summary
+      if (serverPeriodKey && serverPeriodKey !== curInfo.key) {
+        // We store last period summary using *last known* budgets (best-effort)
+        const prevUiBudgets = getUiBudgetsFromServer();
+        await storePreviousPeriodSummary(ledger, serverPeriodKey, prevUiBudgets);
+      }
+
+      await fetchServerBudgetsCurrent();
+    } catch (e) {
+      console.error('Budget fetch failed; using cached budgets if any', e);
+    }
+  }
+
+  const uiBudgets = getUiBudgetsFromServer();
+  const spentCents = computeSpentForPeriodKey(ledger, curInfo.key);
+  const remainingCents = computeRemainingForPeriod(uiBudgets, spentCents);
 
   renderSummary(remainingCents, spentCents);
 
+  // Then do sync to pull in newest expenses and recalc
   if (navigator.onLine) {
     try {
       await syncNow();
       ledger = await getAllLedger();
 
-      await rollBudgetPeriodIfNeeded();
+      // Budgets may have been created server-side during sync timing; refresh budgets once more
+      try { await fetchServerBudgetsCurrent(); } catch {}
 
-      const budgets2 = await getCurrentPeriodBudgetsCents();
-      const cur2 = currentPeriodInfoET(new Date());
-      const spent2 = computeSpentForPeriodKey(ledger, cur2.key);
-      const rem2 = computeRemainingForPeriod(budgets2, spent2);
-
+      const uiBudgets2 = getUiBudgetsFromServer();
+      const spent2 = computeSpentForPeriodKey(ledger, curInfo.key);
+      const rem2 = computeRemainingForPeriod(uiBudgets2, spent2);
       renderSummary(rem2, spent2);
     } catch (e) {
       console.error(e);
@@ -1280,7 +1349,8 @@ async function syncNow() {
 }
 
 /* =========================================================
-   SETTINGS MODAL
+   SETTINGS MODAL (server-shared)
+   - saves next-period budgets via /api/budgets/next
    ========================================================= */
 function moneyStringFromCents(cents) {
   return `$${dollarsFromCents(cents).toFixed(2)}`;
@@ -1290,26 +1360,17 @@ function openSettings() {
   settingsBackdrop.style.display = 'flex';
   settingsBackdrop.setAttribute('aria-hidden', 'false');
 
-  Promise.all([
-    getCurrentPeriodBudgetsCents(),
-    ...CATEGORY_ORDER.map(k => getMeta(metaKeyNextBudget(k))),
-  ]).then(([cur, nGroceries, nGas, nKids, nDateNights]) => {
-    const next = nextPeriodInfoET(new Date());
-    const effectiveDate = formatEffectiveDateOnly(next);
-    settingsSubtitle.textContent = `Changes take effect on: ${effectiveDate} (12:00 AM ET)`;
+  // Use server budgets as the baseline shown; if offline, fallback to defaults
+  const uiBudgets = getUiBudgetsFromServer();
 
-    const mapNext = {
-      groceries: nGroceries,
-      gas: nGas,
-      kids: nKids,
-      date_nights: nDateNights
-    };
+  const next = nextPeriodInfoET(new Date());
+  const effectiveDate = formatEffectiveDateOnly(next);
+  settingsSubtitle.textContent = `Changes take effect on: ${effectiveDate} (12:00 AM ET)`;
 
-    setGroceries.value = moneyStringFromCents(Number(mapNext.groceries ?? cur.groceries));
-    setGas.value       = moneyStringFromCents(Number(mapNext.gas ?? cur.gas));
-    setKids.value      = moneyStringFromCents(Number(mapNext.kids ?? cur.kids));
-    setDateNights.value= moneyStringFromCents(Number(mapNext.date_nights ?? cur.date_nights));
-  });
+  setGroceries.value = moneyStringFromCents(uiBudgets.groceries);
+  setGas.value       = moneyStringFromCents(uiBudgets.gas);
+  setKids.value      = moneyStringFromCents(uiBudgets.kids);
+  setDateNights.value= moneyStringFromCents(uiBudgets.date_nights);
 }
 
 function closeSettings() {
@@ -1330,12 +1391,27 @@ async function saveSettings() {
     return;
   }
 
-  for (const k of CATEGORY_ORDER) {
-    await setMeta(metaKeyNextBudget(k), centsFromDollars(values[k]));
+  // Convert UI desired budgets -> server budgets (food/fun/gas).
+  // fun pool = kids + date_nights
+  const payload = {
+    food_cents: centsFromDollars(values.groceries),
+    gas_cents:  centsFromDollars(values.gas),
+    fun_cents:  centsFromDollars(values.kids + values.date_nights),
+  };
+
+  if (!navigator.onLine) {
+    showSuccess('Offline: connect to save settings');
+    return;
   }
 
-  closeSettings();
-  showSuccess('Saved (effective next period)');
+  try {
+    await apiPostJson('/api/budgets/next', payload);
+    closeSettings();
+    showSuccess('Saved (effective next period)');
+  } catch (e) {
+    console.error(e);
+    showSuccess('Save failed');
+  }
 }
 
 /* =========================================================
@@ -1378,7 +1454,6 @@ function closeReset() {
 
 async function resetAppLocal() {
   try {
-    // Clear SW caches
     if (window.caches) {
       const keys = await caches.keys();
       await Promise.all(keys.map(k => caches.delete(k)));
@@ -1387,7 +1462,6 @@ async function resetAppLocal() {
     console.error('Cache delete failed', e);
   }
 
-  // Delete IndexedDB (budgetDB)
   await new Promise((resolve) => {
     const req = indexedDB.deleteDatabase('budgetDB');
     req.onsuccess = () => resolve();
@@ -1401,12 +1475,11 @@ async function resetAppLocal() {
 async function copyResetSql() {
   const sql = resetSqlBox.textContent || '';
   try {
-    await navigator.clipboard.writeText(sql);
+    await navigator.clipboard.writeText(sql + "\nDELETE FROM budgets;\nUPDATE budget_settings SET next_effective_period_key=NULL,next_food_cents=NULL,next_fun_cents=NULL,next_gas_cents=NULL WHERE id=1;");
     showSuccess('SQL copied');
   } catch {
-    // Fallback for older iOS WebViews
     const ta = document.createElement('textarea');
-    ta.value = sql;
+    ta.value = sql + "\nDELETE FROM budgets;\nUPDATE budget_settings SET next_effective_period_key=NULL,next_food_cents=NULL,next_fun_cents=NULL,next_gas_cents=NULL WHERE id=1;";
     ta.style.position = 'fixed';
     ta.style.left = '-9999px';
     document.body.appendChild(ta);
@@ -1457,7 +1530,6 @@ submitBtn.addEventListener('click', async (e) => {
     }
   }
 
-  // Clear inputs + toggles
   for (const k of CATEGORY_ORDER) {
     entryEls[k].input.value = '';
     entryEls[k].refund.checked = false;
@@ -1475,7 +1547,7 @@ submitBtn.addEventListener('click', async (e) => {
 });
 
 window.addEventListener('online', () => {
-  syncNow().then(loadSummary).catch(console.error);
+  fetchServerBudgetsCurrent().then(() => syncNow().then(loadSummary)).catch(console.error);
 });
 
 window.addEventListener('offline', () => {
@@ -1492,9 +1564,16 @@ updateButtonState();
 maybeShowOfflineNotice();
 
 (async function boot() {
-  try { await syncNow(); }
-  catch (e) { console.error(e); }
-  finally { await loadSummary(); }
+  try {
+    if (navigator.onLine) {
+      await fetchServerBudgetsCurrent();
+      await syncNow();
+    }
+  } catch (e) {
+    console.error(e);
+  } finally {
+    await loadSummary();
+  }
 })();
 </script>
 </body>
