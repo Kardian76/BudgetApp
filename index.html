@@ -1,1359 +1,332 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Purrfect Budget</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Purrfect Budget</title>
+  <meta name="theme-color" content="#0b1220" />
 
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Optional: if you already have a manifest & icons, keep these -->
+  <!-- <link rel="manifest" href="./manifest.webmanifest"> -->
 
-<meta name="theme-color" content="#2563eb">
-<link rel="manifest" href="./manifest.webmanifest">
-
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Purrfect Budget">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-
-<link rel="apple-touch-icon" sizes="180x180" href="./Icon_192.png">
-<link rel="apple-touch-icon" sizes="167x167" href="./Icon_192.png">
-<link rel="apple-touch-icon" sizes="152x152" href="./Icon_192.png">
-<link rel="apple-touch-icon" sizes="120x120" href="./Icon_192.png">
-
-<link rel="icon" href="data:,">
-
-<style>
-:root {
-  --bg-color: #f4f6f9;
-  --card-bg: #ffffff;
-  --card-accent: #eef2ff;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --text-main: #111827;
-  --text-muted: #6b7280;
-  --border-color: #e5e7eb;
-  --success: #16a34a;
-
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-right: env(safe-area-inset-right, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-left: env(safe-area-inset-left, 0px);
-
-  --tap-min: 54px;
-}
-
-* { box-sizing: border-box; }
-
-html {
-  font-size: 16px;
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
-
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-main);
-}
-
-.container {
-  width: 100%;
-  padding: calc(1.25rem + var(--safe-top))
-           calc(1.25rem + var(--safe-right))
-           calc(1.5rem + var(--safe-bottom))
-           calc(1.25rem + var(--safe-left));
-}
-
-.card {
-  background: var(--card-bg);
-  border-radius: 1.1rem;
-  padding: 1.25rem;
-  margin-bottom: 1.25rem;
-  box-shadow: 0 12px 24px rgba(0,0,0,0.06);
-  border: 1px solid rgba(17,24,39,0.05);
-}
-
-.card.expenses-card {
-  background: var(--card-accent);
-  border: 1px solid rgba(37, 99, 235, 0.18);
-}
-
-.period-end {
-  margin: 0.85rem 0 0 0;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 0.92rem;
-  line-height: 1.35;
-}
-
-/* Balance Remaining table (3 equal columns) */
-.balance-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  column-gap: 0.9rem;
-  row-gap: 0.55rem;
-  align-items: baseline;
-}
-
-.balance-head {
-  color: var(--text-muted);
-  font-weight: 900;
-  font-size: 0.92rem;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid rgba(17,24,39,0.08);
-  margin-bottom: 0.65rem;
-}
-
-.balance-head.col1,
-.balance-item { text-align: left; }
-
-.balance-head.col2,
-.balance-head.col3,
-.balance-val { text-align: center; }
-
-.balance-item { font-weight: 800; }
-
-.balance-val {
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-h2 {
-  text-align: center;
-  font-size: 1.15rem;
-  margin: 0 0 1rem 0;
-  font-weight: 900;
-  letter-spacing: -0.01em;
-}
-
-input {
-  width: 100%;
-  min-height: 44px;
-  padding: 0.6rem 0.9rem;
-  font-size: 1.02rem;
-  border-radius: 0.85rem;
-  border: 1px solid var(--border-color);
-  text-align: center;
-  background: #fff;
-}
-
-input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.18);
-}
-
-button {
-  width: 100%;
-  min-height: var(--tap-min);
-  padding: 0.95rem 1rem;
-  font-size: 1.1rem;
-  font-weight: 900;
-  border-radius: 0.9rem;
-  border: none;
-  background-color: var(--primary);
-  color: #ffffff;
-  cursor: pointer;
-}
-
-button:hover:not(:disabled) { background-color: var(--primary-hover); }
-
-button:disabled {
-  background-color: #9ca3af;
-  cursor: not-allowed;
-}
-
-/* Space above Submit */
-.card.expenses-card #submitBtn {
-  margin-top: 1.2rem;
-}
-
-.success-message {
-  text-align: center;
-  font-size: 0.95rem;
-  color: var(--success);
-  margin-top: 0.9rem;
-  display: none;
-}
-
-/* iOS/Android friendly switch */
-.switch{ position:relative; display:inline-block; width:46px; height:28px; }
-.switch input{ opacity:0; width:0; height:0; }
-.slider{
-  position:absolute; cursor:pointer; inset:0;
-  background:#e5e7eb; border-radius:999px;
-  transition: .2s;
-  border:1px solid var(--border-color);
-}
-.slider:before{
-  position:absolute; content:"";
-  height:22px; width:22px; left:3px; top:2px;
-  background:white; border-radius:999px;
-  transition:.2s;
-  box-shadow: 0 6px 14px rgba(0,0,0,0.10);
-}
-.switch input:checked + .slider{ background: rgba(37,99,235,0.25); }
-.switch input:checked + .slider:before{ transform: translateX(18px); }
-
-/* Expenses entry table (3 columns) */
-.expenses-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  column-gap: 0.9rem;
-  row-gap: 0.9rem;
-  align-items: center;
-}
-
-.expenses-head {
-  color: var(--text-muted);
-  font-weight: 900;
-  font-size: 0.92rem;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid rgba(17,24,39,0.08);
-  margin-bottom: 0.15rem;
-}
-
-.expenses-head.col1,
-.expenses-item { text-align: left; }
-
-.expenses-head.col2,
-.expenses-head.col3 { text-align: center; }
-
-.expenses-center{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.expenses-item { font-weight: 900; }
-
-/* Footer buttons */
-.footer-actions {
-  margin-top: 0.25rem;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.9rem;
-}
-
-.footer-actions button {
-  background: #fff;
-  color: var(--text-main);
-  border: 1px solid var(--border-color);
-  box-shadow: 0 10px 22px rgba(0,0,0,0.08);
-}
-.footer-actions button:hover { background: #f9fafb; }
-
-/* Modals */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(17,24,39,0.45);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  z-index: 9999;
-}
-
-.modal {
-  width: min(560px, 100%);
-  background: #fff;
-  border-radius: 1.1rem;
-  border: 1px solid rgba(17,24,39,0.08);
-  box-shadow: 0 18px 42px rgba(0,0,0,0.22);
-  padding: 1.1rem;
-}
-
-.modal h3 {
-  margin: 0 0 0.6rem 0;
-  font-size: 1.2rem;
-  font-weight: 900;
-  text-align: center;
-}
-
-.modal .muted {
-  color: var(--text-muted);
-  font-size: 0.95rem;
-  line-height: 1.35;
-  margin: 0 0 0.9rem 0;
-  text-align: center;
-}
-
-.modal .row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.45rem;
-  margin-bottom: 0.85rem;
-}
-
-.modal label {
-  font-weight: 900;
-  font-size: 0.95rem;
-  text-align: center;
-}
-
-.modal input {
-  min-height: 44px;
-}
-
-.modal .actions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 0.9rem;
-}
-.modal .actions button {
-  min-height: 48px;
-}
-.modal .actions .secondary {
-  background: #fff;
-  color: var(--text-main);
-  border: 1px solid var(--border-color);
-}
-.modal .actions .secondary:hover { background: #f9fafb; }
-
-/* History grid (3 columns) */
-.history-grid{
-  display:grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: .6rem .9rem;
-  align-items: baseline;
-  margin-top: .25rem;
-}
-.history-head{
-  font-weight:900;
-  color: var(--text-muted);
-  border-bottom: 1px solid rgba(17,24,39,0.10);
-  padding-bottom:.35rem;
-}
-.history-left{ text-align:left; font-weight:900; }
-.history-center{ text-align:center; font-weight:900; white-space:nowrap; }
-
-/* Reset SQL block */
-.sqlbox{
-  width:100%;
-  border:1px solid var(--border-color);
-  border-radius:.85rem;
-  background:#f9fafb;
-  padding:.85rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size:.9rem;
-  line-height:1.35;
-  white-space:pre-wrap;
-  word-break:break-word;
-}
-</style>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; }
+    header { padding: 16px; border-bottom: 1px solid rgba(127,127,127,.25); }
+    main { padding: 16px; max-width: 960px; margin: 0 auto; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .card { border: 1px solid rgba(127,127,127,.25); border-radius: 12px; padding: 12px; flex: 1 1 320px; }
+    label { display: block; font-size: 12px; opacity: .8; margin-top: 10px; }
+    input[type="text"], input[type="number"] {
+      width: 100%; box-sizing: border-box; padding: 10px; border-radius: 10px;
+      border: 1px solid rgba(127,127,127,.35); background: transparent;
+    }
+    button {
+      padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(127,127,127,.35);
+      background: transparent; cursor: pointer;
+    }
+    button.primary { border-width: 2px; }
+    pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; opacity: .9; }
+    .muted { opacity: .8; font-size: 12px; }
+    .ok { color: #2aa876; }
+    .err { color: #d44; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 6px 4px; border-bottom: 1px solid rgba(127,127,127,.2); text-align: left; }
+    .right { text-align: right; }
+  </style>
 </head>
 
 <body>
-<div class="container">
-
-  <!-- Balance Remaining card -->
-  <div class="card">
-    <div class="balance-grid" aria-label="Budget summary">
-      <div class="balance-head col1">Budget Item</div>
-      <div class="balance-head col2">Remaining</div>
-      <div class="balance-head col3">Spent</div>
-
-      <!-- Order: Groceries, Gas, Kids, Date Nights -->
-      <div class="balance-item">Groceries</div>
-      <div class="balance-val" id="groceriesRemaining">$0.00</div>
-      <div class="balance-val" id="groceriesSpent">$0.00</div>
-
-      <div class="balance-item">Gas</div>
-      <div class="balance-val" id="gasRemaining">$0.00</div>
-      <div class="balance-val" id="gasSpent">$0.00</div>
-
-      <div class="balance-item">Kids</div>
-      <div class="balance-val" id="kidsRemaining">$0.00</div>
-      <div class="balance-val" id="kidsSpent">$0.00</div>
-
-      <div class="balance-item">Date Nights</div>
-      <div class="balance-val" id="dateNightsRemaining">$0.00</div>
-      <div class="balance-val" id="dateNightsSpent">$0.00</div>
-    </div>
-
-    <div class="period-end" id="periodEndsText">Period ends: —</div>
-  </div>
-
-  <!-- Enter Expenses / Refunds -->
-  <div class="card expenses-card">
-    <h2>Enter Expenses / Refunds</h2>
-
-    <div class="expenses-grid" aria-label="Expense entry">
-      <div class="expenses-head col1">Budget Item</div>
-      <div class="expenses-head col2">Refund?</div>
-      <div class="expenses-head col3">Amount</div>
-
-      <!-- Order: Groceries, Gas, Kids, Date Nights -->
-      <div class="expenses-item">Groceries</div>
-      <div class="expenses-center">
-        <label class="switch" aria-label="Groceries refund toggle">
-          <input type="checkbox" id="groceriesRefundToggle" aria-label="Groceries refund">
-          <span class="slider"></span>
-        </label>
-      </div>
+  <header>
+    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap;">
       <div>
-        <input type="text" inputmode="decimal" id="groceriesInput" autocomplete="off" aria-label="Groceries amount">
+        <div style="font-size:18px; font-weight:700;">Purrfect Budget</div>
+        <div class="muted" id="subtitle">Loading…</div>
       </div>
-
-      <div class="expenses-item">Gas</div>
-      <div class="expenses-center">
-        <label class="switch" aria-label="Gas refund toggle">
-          <input type="checkbox" id="gasRefundToggle" aria-label="Gas refund">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div>
-        <input type="text" inputmode="decimal" id="gasInput" autocomplete="off" aria-label="Gas amount">
-      </div>
-
-      <div class="expenses-item">Kids</div>
-      <div class="expenses-center">
-        <label class="switch" aria-label="Kids refund toggle">
-          <input type="checkbox" id="kidsRefundToggle" aria-label="Kids refund">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div>
-        <input type="text" inputmode="decimal" id="kidsInput" autocomplete="off" aria-label="Kids amount">
-      </div>
-
-      <div class="expenses-item">Date Nights</div>
-      <div class="expenses-center">
-        <label class="switch" aria-label="Date Nights refund toggle">
-          <input type="checkbox" id="dateNightsRefundToggle" aria-label="Date Nights refund">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div>
-        <input type="text" inputmode="decimal" id="dateNightsInput" autocomplete="off" aria-label="Date Nights amount">
-      </div>
+      <div class="muted" id="status"></div>
     </div>
+  </header>
 
-    <button id="submitBtn" disabled>Submit</button>
-    <div id="successMsg" class="success-message">Saved</div>
-  </div>
-
-  <!-- Footer actions -->
-  <div class="footer-actions">
-    <button id="historyBtn" type="button">History</button>
-    <button id="settingsBtn" type="button">Settings</button>
-  </div>
-</div>
-
-<!-- OFFLINE NOTIFICATION MODAL -->
-<div class="modal-backdrop" id="offlineBackdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="offlineTitle">
-    <h3 id="offlineTitle">Offline</h3>
-    <p class="muted">
-      You can still enter amounts while offline. When your internet connection is restored,
-      please refresh the app to sync the latest data.
-    </p>
-    <div class="actions">
-      <button type="button" id="offlineOk">OK</button>
-    </div>
-  </div>
-</div>
-
-<!-- HISTORY MODAL (Local estimate only; shared truth comes from server budgets) -->
-<div class="modal-backdrop" id="historyBackdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="historyTitle">
-    <h3 id="historyTitle">Last Period</h3>
-    <p class="muted" id="historySubtitle">—</p>
-
-    <div class="history-grid" aria-label="Last period summary">
-      <div class="history-head history-left">Budget Item</div>
-      <div class="history-head history-center">Spent</div>
-      <div class="history-head history-center">Rolled Over</div>
-
-      <div class="history-left">Groceries</div>
-      <div class="history-center" id="histGroceriesSpent">$0.00</div>
-      <div class="history-center" id="histGroceriesRollover">$0.00</div>
-
-      <div class="history-left">Gas</div>
-      <div class="history-center" id="histGasSpent">$0.00</div>
-      <div class="history-center" id="histGasRollover">$0.00</div>
-
-      <div class="history-left">Kids</div>
-      <div class="history-center" id="histKidsSpent">$0.00</div>
-      <div class="history-center" id="histKidsRollover">$0.00</div>
-
-      <div class="history-left">Date Nights</div>
-      <div class="history-center" id="histDateNightsSpent">$0.00</div>
-      <div class="history-center" id="histDateNightsRollover">$0.00</div>
-    </div>
-
-    <div class="actions">
-      <button class="secondary" type="button" id="historyClose">Close</button>
-    </div>
-  </div>
-</div>
-
-<!-- SETTINGS MODAL -->
-<div class="modal-backdrop" id="settingsBackdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-    <h3 id="settingsTitle">Settings</h3>
-    <p class="muted" id="settingsSubtitle">Changes take effect on: —</p>
-
+  <main>
     <div class="row">
-      <label for="setGroceries">Groceries</label>
-      <input id="setGroceries" type="text" inputmode="decimal" autocomplete="off">
+      <section class="card">
+        <div style="font-weight:700; margin-bottom:8px;">Connection</div>
+
+        <label>Worker Base URL</label>
+        <input id="baseUrl" type="text" placeholder="https://budgetapp-api.kardian.workers.dev" />
+
+        <label>AUTH Token (Bearer)</label>
+        <input id="authToken" type="text" placeholder="Paste token here" />
+
+        <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+          <button id="saveConn" class="primary">Save</button>
+          <button id="refresh">Refresh State</button>
+        </div>
+
+        <div class="muted" style="margin-top:10px;">
+          Tip: This stores settings in <code>localStorage</code> on the device. Your actual budget state remains shared in D1.
+        </div>
+      </section>
+
+      <section class="card">
+        <div style="font-weight:700; margin-bottom:8px;">Budget State</div>
+        <div class="muted" id="periodLine">—</div>
+
+        <div style="margin-top:10px; overflow:auto;">
+          <table id="budgetTable">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th class="right">Budget</th>
+                <th class="right">Rollover</th>
+                <th class="right">Spent</th>
+                <th class="right">Remaining</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <details style="margin-top:10px;">
+          <summary>Raw JSON</summary>
+          <pre id="rawJson">—</pre>
+        </details>
+      </section>
     </div>
 
-    <div class="row">
-      <label for="setGas">Gas</label>
-      <input id="setGas" type="text" inputmode="decimal" autocomplete="off">
+    <div class="row" style="margin-top:16px;">
+      <section class="card">
+        <div style="font-weight:700; margin-bottom:8px;">Update “Next Period” Settings</div>
+        <div class="muted">Writes to <code>POST /api/budget/settings</code>. This should affect the next effective period per your Worker logic.</div>
+
+        <label>Next Groceries (cents)</label>
+        <input id="ng" type="number" step="1" min="0" />
+
+        <label>Next Gas (cents)</label>
+        <input id="nGas" type="number" step="1" min="0" />
+
+        <label>Next Kids (cents)</label>
+        <input id="nKids" type="number" step="1" min="0" />
+
+        <label>Next Date Nights (cents)</label>
+        <input id="nDates" type="number" step="1" min="0" />
+
+        <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+          <button id="prefill">Prefill From Current Budgets</button>
+          <button id="saveSettings" class="primary">Save Settings</button>
+        </div>
+
+        <div class="muted" style="margin-top:10px;">
+          Note: keeping these as integers avoids rounding differences across platforms.
+        </div>
+      </section>
+
+      <section class="card">
+        <div style="font-weight:700; margin-bottom:8px;">Rollover Sanity Check</div>
+        <div class="muted">
+          This page will compute whether your API is internally consistent:
+          <code>remaining = budgets + rollover - spent</code>.
+          If you see “Mismatch”, your Worker is likely double-counting or mis-populating rollover.
+        </div>
+
+        <div style="margin-top:10px;" id="rolloverCheck">—</div>
+      </section>
     </div>
+  </main>
 
-    <div class="row">
-      <label for="setKids">Kids</label>
-      <input id="setKids" type="text" inputmode="decimal" autocomplete="off">
-    </div>
+  <script>
+    // Defaults for your environment
+    const DEFAULT_BASE = "https://budgetapp-api.kardian.workers.dev";
 
-    <div class="row">
-      <label for="setDateNights">Date Nights</label>
-      <input id="setDateNights" type="text" inputmode="decimal" autocomplete="off">
-    </div>
+    function $(id) { return document.getElementById(id); }
 
-    <div class="actions">
-      <button class="secondary" type="button" id="resetBtn">Reset</button>
-      <button class="secondary" type="button" id="settingsCancel">Cancel</button>
-      <button type="button" id="settingsSave">Save</button>
-    </div>
-  </div>
-</div>
-
-<!-- RESET MODAL -->
-<div class="modal-backdrop" id="resetBackdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="resetTitle">
-    <h3 id="resetTitle">Reset / Start Over</h3>
-    <p class="muted">
-      To start completely from scratch for both users, you must clear the server (D1) and each device’s local data.
-    </p>
-
-    <div class="row">
-      <label>Server reset (Cloudflare D1 Console)</label>
-      <div class="sqlbox" id="resetSqlBox">DELETE FROM expenses;
-DELETE FROM changes;
-DELETE FROM sqlite_sequence WHERE name IN ('expenses','changes');</div>
-      <div class="actions" style="margin-top:.65rem;">
-        <button class="secondary" type="button" id="copySqlBtn">Copy SQL</button>
-      </div>
-    </div>
-
-    <div class="row">
-      <label>Local reset (this device)</label>
-      <p class="muted" style="margin-top:0;">
-        Clears this device’s IndexedDB and offline cache, then reloads the app.
-      </p>
-      <div class="actions">
-        <button type="button" id="clearLocalBtn">Clear Local Data</button>
-        <button class="secondary" type="button" id="resetClose">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-/* =========================================================
-   CONFIG
-   ========================================================= */
-const API_BASE = "https://budgetapp-api.kardian.workers.dev";
-const AUTH_TOKEN = "K7QvN2P9x0MZyJHcF4rW8E5U1R_AkDqB3aSXTGm6nVfLw-heCpd";
-const SW_VERSION = "2026-01-14-1";
-
-// REQUIRED ORDER: Groceries, Gas, Kids, Date Nights
-const CATEGORY_ORDER = ["groceries", "gas", "kids", "date_nights"];
-const PRUNE_DAYS = 60;
-const STANDARD_TZ = "America/New_York";
-
-/* =========================================================
-   ELEMENTS / STATE
-   ========================================================= */
-const periodEndsText = document.getElementById('periodEndsText');
-
-const settingsBtn = document.getElementById('settingsBtn');
-const settingsBackdrop = document.getElementById('settingsBackdrop');
-const settingsCancel = document.getElementById('settingsCancel');
-const settingsSave = document.getElementById('settingsSave');
-const settingsSubtitle = document.getElementById('settingsSubtitle');
-
-const setGroceries = document.getElementById('setGroceries');
-const setGas = document.getElementById('setGas');
-const setKids = document.getElementById('setKids');
-const setDateNights = document.getElementById('setDateNights');
-
-const resetBtn = document.getElementById('resetBtn');
-const resetBackdrop = document.getElementById('resetBackdrop');
-const resetClose = document.getElementById('resetClose');
-const clearLocalBtn = document.getElementById('clearLocalBtn');
-const copySqlBtn = document.getElementById('copySqlBtn');
-const resetSqlBox = document.getElementById('resetSqlBox');
-
-const offlineBackdrop = document.getElementById('offlineBackdrop');
-const offlineOk = document.getElementById('offlineOk');
-
-const historyBtn = document.getElementById('historyBtn');
-const historyBackdrop = document.getElementById('historyBackdrop');
-const historyClose = document.getElementById('historyClose');
-const historySubtitle = document.getElementById('historySubtitle');
-
-const successMsg = document.getElementById('successMsg');
-const submitBtn = document.getElementById('submitBtn');
-
-const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-
-let db = null;
-let isSyncing = false;
-
-/* ---- Balance elements ---- */
-const balanceEls = {
-  groceries: { remaining: document.getElementById('groceriesRemaining'), spent: document.getElementById('groceriesSpent') },
-  gas: { remaining: document.getElementById('gasRemaining'), spent: document.getElementById('gasSpent') },
-  kids: { remaining: document.getElementById('kidsRemaining'), spent: document.getElementById('kidsSpent') },
-  date_nights: { remaining: document.getElementById('dateNightsRemaining'), spent: document.getElementById('dateNightsSpent') }
-};
-
-/* ---- Entry inputs/toggles ---- */
-const entryEls = {
-  groceries: { input: document.getElementById('groceriesInput'), refund: document.getElementById('groceriesRefundToggle') },
-  gas: { input: document.getElementById('gasInput'), refund: document.getElementById('gasRefundToggle') },
-  kids: { input: document.getElementById('kidsInput'), refund: document.getElementById('kidsRefundToggle') },
-  date_nights: { input: document.getElementById('dateNightsInput'), refund: document.getElementById('dateNightsRefundToggle') }
-};
-
-/* ---- History elements ---- */
-const histEls = {
-  groceries: { spent: document.getElementById('histGroceriesSpent'), rollover: document.getElementById('histGroceriesRollover') },
-  gas: { spent: document.getElementById('histGasSpent'), rollover: document.getElementById('histGasRollover') },
-  kids: { spent: document.getElementById('histKidsSpent'), rollover: document.getElementById('histKidsRollover') },
-  date_nights: { spent: document.getElementById('histDateNightsSpent'), rollover: document.getElementById('histDateNightsRollover') }
-};
-
-/* =========================================================
-   PWA / SERVICE WORKER (silent)
-   ========================================================= */
-(async function initPwa() {
-  try {
-    if (!('serviceWorker' in navigator)) return;
-    await navigator.serviceWorker.register(`./sw.js?v=${encodeURIComponent(SW_VERSION)}`);
-  } catch (e) {
-    console.error('SW registration failed', e);
-  }
-})();
-
-/* =========================================================
-   OFFLINE MODAL
-   ========================================================= */
-function openOfflineNotice() {
-  offlineBackdrop.style.display = 'flex';
-  offlineBackdrop.setAttribute('aria-hidden', 'false');
-}
-function closeOfflineNotice() {
-  offlineBackdrop.style.display = 'none';
-  offlineBackdrop.setAttribute('aria-hidden', 'true');
-}
-function maybeShowOfflineNotice() {
-  if (!navigator.onLine) openOfflineNotice();
-}
-offlineOk.addEventListener('click', closeOfflineNotice);
-offlineBackdrop.addEventListener('click', (e) => { if (e.target === offlineBackdrop) closeOfflineNotice(); });
-
-/* =========================================================
-   INDEXEDDB SETUP
-   ========================================================= */
-(function initDB(){
-  const req = indexedDB.open('budgetDB', 5);
-  req.onupgradeneeded = e => {
-    const d = e.target.result;
-    if (!d.objectStoreNames.contains('tx')) d.createObjectStore('tx', { autoIncrement: true });
-    if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'key' });
-    if (!d.objectStoreNames.contains('ledger')) d.createObjectStore('ledger', { keyPath: 'client_id' });
-  };
-  req.onsuccess = async (e) => {
-    db = e.target.result;
-
-    await cleanupLegacyOutbox();
-    await pruneLocalData(PRUNE_DAYS);
-
-    // Try to render using last known server state immediately (better iPhone UX)
-    await loadCachedServerBudgetState();
-
-    // Then sync + refresh
-    await loadSummary();
-  };
-  req.onerror = () => console.error('IndexedDB error');
-})();
-
-/* =========================================================
-   HELPERS
-   ========================================================= */
-function centsFromDollars(d) { return Math.round(Number(d) * 100); }
-function dollarsFromCents(c) { return (Number(c) || 0) / 100; }
-function nowIso() { return new Date().toISOString(); }
-
-function uuid() {
-  if (crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
-
-function parseDollarsFromText(s) {
-  const t = String(s ?? '').trim();
-  if (!t) return 0;
-  const cleaned = t.replace(/\$/g,'').replace(/,/g,'');
-  const n = Number(cleaned);
-  return Number.isFinite(n) ? n : NaN;
-}
-
-function clampNonNegative(n) {
-  return (Number.isFinite(n) && n >= 0) ? n : NaN;
-}
-
-function showSuccess(text) {
-  successMsg.textContent = text || 'Saved';
-  successMsg.style.display = 'block';
-  setTimeout(() => { successMsg.style.display = 'none'; }, 2000);
-}
-
-/* FIX: Submit enabling checks all Amount fields */
-function updateButtonState() {
-  const hasAny = CATEGORY_ORDER.some(k => String(entryEls[k].input.value || '').trim() !== '');
-  submitBtn.disabled = !hasAny;
-}
-
-/* =========================================================
-   EASTERN TIME PERIOD HELPERS (client display only)
-   - Server is authoritative for period state; this is only for Settings effective date text.
-   ========================================================= */
-const etPartsFormatter = new Intl.DateTimeFormat('en-US', {
-  timeZone: STANDARD_TZ,
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit'
-});
-const etMonthDayFormatter = new Intl.DateTimeFormat('en-US', {
-  timeZone: STANDARD_TZ,
-  month: 'long',
-  day: 'numeric',
-  year: 'numeric'
-});
-function pad2(n) { return String(n).padStart(2,'0'); }
-function getEtYmd(dateObj) {
-  const parts = etPartsFormatter.formatToParts(dateObj);
-  const map = Object.fromEntries(parts.filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
-  return { y: Number(map.year), m: Number(map.month), d: Number(map.day) };
-}
-function lastDayOfMonth(y, m1to12) {
-  return new Date(Date.UTC(y, m1to12, 0)).getUTCDate();
-}
-function currentPeriodInfoET(now = new Date()) {
-  const { y, m, d } = getEtYmd(now);
-  const half = (d <= 14) ? 1 : 2;
-  const last = lastDayOfMonth(y, m);
-
-  let endY = y, endM = m, endD;
-  if (half === 1) { endD = 15; }
-  else {
-    endD = 1;
-    if (m === 12) { endM = 1; endY = y + 1; }
-    else { endM = m + 1; }
-  }
-  return { y, m, d, half, last, endY, endM, endD };
-}
-function formatEffectiveDateOnlyNextPeriod() {
-  // Effective at 12:00 AM ET on next period start (either 15th or 1st)
-  const cur = currentPeriodInfoET(new Date());
-  const approxNoonUtc = new Date(Date.UTC(cur.endY, cur.endM - 1, cur.endD, 12, 0, 0));
-  return etMonthDayFormatter.format(approxNoonUtc);
-}
-
-/* =========================================================
-   API CALLS
-   ========================================================= */
-async function apiGet(path) {
-  const resp = await fetch(`${API_BASE}${path}`, {
-    method: "GET",
-    mode: "cors",
-    cache: "no-store",
-    headers: { "Authorization": `Bearer ${AUTH_TOKEN}` }
-  });
-
-  const text = await resp.text();
-  let json;
-  try { json = JSON.parse(text); }
-  catch { throw new Error(`Non-JSON (HTTP ${resp.status})`); }
-
-  if (!resp.ok || json?.ok === false) throw new Error(json?.error || `HTTP ${resp.status}`);
-  return json;
-}
-
-async function apiHealth() {
-  const resp = await fetch(`${API_BASE}/api/health`, { method: "GET", mode: "cors", cache: "no-store" });
-  const text = await resp.text();
-  let json;
-  try { json = JSON.parse(text); }
-  catch { throw new Error(`Non-JSON (HTTP ${resp.status})`); }
-  if (!resp.ok || json?.ok === false) throw new Error(json?.error || `HTTP ${resp.status}`);
-  return json;
-}
-
-async function apiPostJson(path, payload) {
-  const resp = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    mode: "cors",
-    cache: "no-store",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${AUTH_TOKEN}`
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const text = await resp.text();
-  let json;
-  try { json = JSON.parse(text); }
-  catch { throw new Error(`Non-JSON (HTTP ${resp.status})`); }
-
-  if (!resp.ok || json?.ok === false) throw new Error(json?.error || `HTTP ${resp.status}`);
-  return json;
-}
-
-/* =========================================================
-   META STORE (local)
-   ========================================================= */
-function getMeta(key) {
-  return new Promise((resolve, reject) => {
-    if (!db) return resolve(null);
-    const tx = db.transaction('meta', 'readonly');
-    const req = tx.objectStore('meta').get(key);
-    req.onsuccess = () => resolve(req.result ? req.result.value : null);
-    req.onerror = () => reject(req.error);
-  });
-}
-function setMeta(key, value) {
-  return new Promise((resolve, reject) => {
-    if (!db) return resolve();
-    const tx = db.transaction('meta', 'readwrite');
-    tx.objectStore('meta').put({ key, value });
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-/* =========================================================
-   LEDGER (local offline cache of expenses)
-   ========================================================= */
-function upsertLedgerItems(items) {
-  return new Promise((resolve, reject) => {
-    if (!db) return resolve();
-    const tx = db.transaction('ledger', 'readwrite');
-    const store = tx.objectStore('ledger');
-    for (const it of items) store.put(it);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-function getAllLedger() {
-  return new Promise((resolve, reject) => {
-    if (!db) return resolve([]);
-    const tx = db.transaction('ledger', 'readonly');
-    const req = tx.objectStore('ledger').getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-/* =========================================================
-   OUTBOX CLEANUP
-   ========================================================= */
-async function cleanupLegacyOutbox() {
-  if (!db) return;
-  const tx = db.transaction('tx', 'readwrite');
-  const store = tx.objectStore('tx');
-
-  return new Promise((resolve, reject) => {
-    const req = store.openCursor();
-    req.onsuccess = (e) => {
-      const c = e.target.result;
-      if (!c) return resolve();
-      const v = c.value;
-      const isValid = v && Array.isArray(v.items);
-      if (!isValid) store.delete(c.key);
-      c.continue();
-    };
-    req.onerror = () => reject(req.error);
-  });
-}
-
-/* =========================================================
-   PRUNING (local)
-   ========================================================= */
-async function pruneLocalData(days) {
-  if (!db) return;
-
-  const cutoffMs = Date.now() - (days * 24 * 60 * 60 * 1000);
-
-  await new Promise((resolve, reject) => {
-    const tx = db.transaction('ledger', 'readwrite');
-    const store = tx.objectStore('ledger');
-    const req = store.openCursor();
-
-    req.onsuccess = (e) => {
-      const c = e.target.result;
-      if (!c) return resolve();
-      const v = c.value;
-      const t = Date.parse(v?.occurred_at || '');
-      if (Number.isFinite(t) && t < cutoffMs) store.delete(c.key);
-      c.continue();
-    };
-    req.onerror = () => reject(req.error);
-  });
-
-  await new Promise((resolve, reject) => {
-    const tx = db.transaction('tx', 'readwrite');
-    const store = tx.objectStore('tx');
-    const req = store.openCursor();
-
-    req.onsuccess = (e) => {
-      const c = e.target.result;
-      if (!c) return resolve();
-      const batch = c.value;
-      const first = batch?.items?.[0];
-      const t = Date.parse(first?.occurred_at || '');
-      if (Number.isFinite(t) && t < cutoffMs) store.delete(c.key);
-      c.continue();
-    };
-    req.onerror = () => reject(req.error);
-  });
-
-  await setMeta('last_prune_iso', new Date().toISOString());
-}
-
-/* =========================================================
-   SERVER BUDGET STATE (shared truth)
-   ========================================================= */
-async function fetchBudgetState() {
-  return await apiGet('/api/budget/state');
-}
-
-function renderBudgetState(state) {
-  // state expected from /api/budget/state
-  if (!state) return;
-
-  const ends = state.period_ends_text ? `Period ends: ${state.period_ends_text}` : 'Period ends: —';
-  periodEndsText.textContent = ends;
-
-  const spent = state.spent_cents || {};
-  const remaining = state.remaining_cents || {};
-
-  for (const k of CATEGORY_ORDER) {
-    balanceEls[k].spent.textContent = currency.format(dollarsFromCents(Number(spent[k] || 0)));
-    balanceEls[k].remaining.textContent = currency.format(dollarsFromCents(Number(remaining[k] || 0)));
-  }
-}
-
-async function cacheServerBudgetState(state) {
-  try {
-    await setMeta('last_server_budget_state', JSON.stringify(state));
-    await setMeta('last_server_budget_state_at', new Date().toISOString());
-  } catch (e) {
-    console.error('Failed to cache server budget state', e);
-  }
-}
-
-async function loadCachedServerBudgetState() {
-  try {
-    const raw = await getMeta('last_server_budget_state');
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    renderBudgetState(parsed);
-  } catch (e) {
-    // ignore
-  }
-}
-
-/* =========================================================
-   OUTBOX
-   ========================================================= */
-function enqueueOfflineBatch(batch) {
-  if (!db) return;
-  db.transaction('tx','readwrite').objectStore('tx').add(batch);
-}
-
-/* =========================================================
-   SUBMIT HANDLING
-   ========================================================= */
-async function submitEntries(entries) {
-  const occurred_at = nowIso();
-  const created_by = "pwa";
-  const items = [];
-
-  for (const e of entries) {
-    const dollars = e.dollars;
-    if (!dollars) continue;
-    const sign = e.isRefund ? -1 : 1;
-
-    items.push({
-      client_id: uuid(),
-      category_key: e.key,
-      amount: sign * centsFromDollars(dollars),
-      note: null,
-      occurred_at,
-      created_by
-    });
-  }
-
-  if (!items.length) return;
-
-  await upsertLedgerItems(items);
-  enqueueOfflineBatch({ items });
-
-  if (navigator.onLine) {
-    try {
-      await syncNow();
-      showSuccess('Saved');
-    } catch (e) {
-      console.error(e);
-      showSuccess('Saved (sync pending)');
+    function setStatus(msg, kind) {
+      const el = $("status");
+      el.textContent = msg || "";
+      el.className = kind === "err" ? "err" : (kind === "ok" ? "ok" : "");
     }
-  } else {
-    showSuccess('Saved (offline)');
-    maybeShowOfflineNotice();
-  }
-}
 
-/* =========================================================
-   SYNC ENGINE (existing pattern)
-   ========================================================= */
-async function pushQueueOnce() {
-  if (!db) return;
+    function dollars(cents) {
+      // Display helper only; keep cents as integers in API/storage.
+      const sign = cents < 0 ? "-" : "";
+      const abs = Math.abs(cents);
+      return sign + "$" + (abs / 100).toFixed(2);
+    }
 
-  const tx = db.transaction('tx', 'readwrite');
-  const store = tx.objectStore('tx');
+    function getConn() {
+      const baseUrl = ($("baseUrl").value || "").trim() || DEFAULT_BASE;
+      const token = ($("authToken").value || "").trim();
+      return { baseUrl, token };
+    }
 
-  return new Promise((resolve, reject) => {
-    const req = store.openCursor();
+    function saveConn() {
+      const { baseUrl, token } = getConn();
+      localStorage.setItem("pb_baseUrl", baseUrl);
+      localStorage.setItem("pb_authToken", token);
+      setStatus("Saved connection settings.", "ok");
+    }
 
-    req.onsuccess = async (e) => {
-      const c = e.target.result;
-      if (!c) return resolve();
+    function loadConn() {
+      const baseUrl = localStorage.getItem("pb_baseUrl") || DEFAULT_BASE;
+      const token = localStorage.getItem("pb_authToken") || "";
+      $("baseUrl").value = baseUrl;
+      $("authToken").value = token;
+    }
 
-      const batch = c.value;
+    async function apiFetch(path, options = {}) {
+      const { baseUrl, token } = getConn();
+      if (!token) throw new Error("Missing AUTH token.");
+      const url = baseUrl.replace(/\/$/, "") + path;
 
-      if (!batch || !Array.isArray(batch.items) || batch.items.length === 0) {
-        store.delete(c.key);
-        c.continue();
-        return;
+      const headers = Object.assign(
+        { "Authorization": "Bearer " + token },
+        options.headers || {}
+      );
+
+      const resp = await fetch(url, Object.assign({}, options, { headers }));
+      const text = await resp.text();
+
+      let json;
+      try { json = JSON.parse(text); } catch { json = { raw: text }; }
+
+      if (!resp.ok) {
+        const msg = (json && (json.error || json.message)) ? (json.error || json.message) : ("HTTP " + resp.status);
+        throw new Error(msg + " (" + url + ")");
+      }
+      return json;
+    }
+
+    function renderState(state) {
+      // Header text
+      $("subtitle").textContent = state?.period_label ? state.period_label : "—";
+      $("periodLine").textContent = [
+        state?.period_key ? ("period_key=" + state.period_key) : null,
+        state?.period_ends_text ? ("ends " + state.period_ends_text) : null,
+        state?.now ? ("server now " + state.now) : null
+      ].filter(Boolean).join(" · ");
+
+      // Raw JSON
+      $("rawJson").textContent = JSON.stringify(state, null, 2);
+
+      // Table
+      const tbody = $("budgetTable").querySelector("tbody");
+      tbody.innerHTML = "";
+
+      const cats = ["groceries", "gas", "kids", "date_nights"];
+      for (const c of cats) {
+        const b = state?.budgets_cents?.[c] ?? 0;
+        const r = state?.rollover_cents?.[c] ?? 0;
+        const s = state?.spent_cents?.[c] ?? 0;
+        const rem = state?.remaining_cents?.[c] ?? 0;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${c.replace("_", " ")}</td>
+          <td class="right">${dollars(b)}</td>
+          <td class="right">${dollars(r)}</td>
+          <td class="right">${dollars(s)}</td>
+          <td class="right">${dollars(rem)}</td>
+        `;
+        tbody.appendChild(tr);
       }
 
-      try {
-        await apiPostJson('/api/expenses/batch', batch);
-        store.delete(c.key);
-        c.continue();
-      } catch (err) {
-        reject(err);
+      // Rollover sanity check: remaining should equal budgets + rollover - spent
+      const mismatches = [];
+      for (const c of cats) {
+        const b = state?.budgets_cents?.[c] ?? 0;
+        const r = state?.rollover_cents?.[c] ?? 0;
+        const s = state?.spent_cents?.[c] ?? 0;
+        const rem = state?.remaining_cents?.[c] ?? 0;
+        const expected = b + r - s;
+        if (expected !== rem) {
+          mismatches.push({ category: c, expected, got: rem });
+        }
       }
-    };
 
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function pullChanges() {
-  const since = Number((await getMeta('cursor')) || 0);
-  const res = await apiGet(`/api/changes?since=${encodeURIComponent(String(since))}`);
-
-  if (Array.isArray(res.expenses) && res.expenses.length) {
-    await upsertLedgerItems(res.expenses);
-  }
-
-  if (typeof res.cursor === "number") {
-    await setMeta('cursor', res.cursor);
-  }
-
-  return res;
-}
-
-async function syncNow() {
-  if (!navigator.onLine) return;
-
-  isSyncing = true;
-
-  try {
-    await apiHealth();
-    await pushQueueOnce();
-    await pullChanges();
-    await pruneLocalData(PRUNE_DAYS);
-  } finally {
-    isSyncing = false;
-  }
-}
-
-/* =========================================================
-   LOAD SUMMARY
-   - Online: server budget state is authoritative
-   - Offline: show last cached server budget state (if any)
-   ========================================================= */
-async function loadSummary() {
-  maybeShowOfflineNotice();
-
-  if (navigator.onLine) {
-    try {
-      await syncNow();
-    } catch (e) {
-      console.error(e);
+      const chk = $("rolloverCheck");
+      if (!mismatches.length) {
+        chk.innerHTML = `<div class="ok">OK: remaining = budgets + rollover - spent for all categories.</div>`;
+      } else {
+        const lines = mismatches.map(m =>
+          `<li><code>${m.category}</code>: expected ${dollars(m.expected)} but got ${dollars(m.got)}</li>`
+        ).join("");
+        chk.innerHTML = `
+          <div class="err">Mismatch detected:</div>
+          <ul>${lines}</ul>
+          <div class="muted">This typically indicates rollover is being populated incorrectly or the remaining calculation differs between server and UI expectations.</div>
+        `;
+      }
     }
 
-    try {
-      const state = await fetchBudgetState();
-      renderBudgetState(state);
-      await cacheServerBudgetState(state);
-      return;
-    } catch (e) {
-      console.error('Failed to fetch budget state', e);
-      // fall back to cached
+    async function refreshState() {
+      setStatus("Loading state…");
+      const state = await apiFetch("/api/budget/state", { method: "GET" });
+      renderState(state);
+      setStatus("State loaded.", "ok");
+      return state;
     }
-  }
 
-  // Offline or budget fetch failed
-  await loadCachedServerBudgetState();
-}
-
-/* =========================================================
-   SETTINGS MODAL (posts server next-period settings)
-   ========================================================= */
-function moneyStringFromCents(cents) {
-  return `$${dollarsFromCents(cents).toFixed(2)}`;
-}
-
-async function openSettings() {
-  settingsBackdrop.style.display = 'flex';
-  settingsBackdrop.setAttribute('aria-hidden', 'false');
-
-  const effectiveDate = formatEffectiveDateOnlyNextPeriod();
-  settingsSubtitle.textContent = `Changes take effect on: ${effectiveDate} (12:00 AM ET)`;
-
-  // Prefill with last known server budgets if available; otherwise leave blank.
-  try {
-    const raw = await getMeta('last_server_budget_state');
-    if (!raw) return;
-
-    const state = JSON.parse(raw);
-    const b = state?.budgets_cents || {};
-
-    setGroceries.value = moneyStringFromCents(Number(b.groceries || 0));
-    setGas.value       = moneyStringFromCents(Number(b.gas || 0));
-    setKids.value      = moneyStringFromCents(Number(b.kids || 0));
-    setDateNights.value= moneyStringFromCents(Number(b.date_nights || 0));
-  } catch {
-    // ignore
-  }
-}
-
-function closeSettings() {
-  settingsBackdrop.style.display = 'none';
-  settingsBackdrop.setAttribute('aria-hidden', 'true');
-}
-
-async function saveSettings() {
-  const values = {
-    groceries: clampNonNegative(parseDollarsFromText(setGroceries.value)),
-    gas: clampNonNegative(parseDollarsFromText(setGas.value)),
-    kids: clampNonNegative(parseDollarsFromText(setKids.value)),
-    date_nights: clampNonNegative(parseDollarsFromText(setDateNights.value)),
-  };
-
-  if (!Object.values(values).every(v => Number.isFinite(v))) {
-    showSuccess('Enter valid non-negative amounts');
-    return;
-  }
-
-  if (!navigator.onLine) {
-    showSuccess('Go online to save settings');
-    return;
-  }
-
-  try {
-    await apiPostJson('/api/budget/settings', {
-      next_groceries_cents: centsFromDollars(values.groceries),
-      next_gas_cents: centsFromDollars(values.gas),
-      next_kids_cents: centsFromDollars(values.kids),
-      next_date_nights_cents: centsFromDollars(values.date_nights),
-    });
-
-    closeSettings();
-    showSuccess('Saved (effective next period)');
-
-    // Refresh state
-    await loadSummary();
-  } catch (e) {
-    console.error(e);
-    showSuccess('Save failed');
-  }
-}
-
-/* =========================================================
-   HISTORY MODAL (local-only estimate retained)
-   ========================================================= */
-function openHistory() {
-  historyBackdrop.style.display = 'flex';
-  historyBackdrop.setAttribute('aria-hidden', 'false');
-  renderHistory().catch(console.error);
-}
-function closeHistory() {
-  historyBackdrop.style.display = 'none';
-  historyBackdrop.setAttribute('aria-hidden', 'true');
-}
-
-async function renderHistory() {
-  // This is left as-is from your earlier approach: local stored meta keys.
-  // Shared truth for rollover is on the server; this is a local estimate only.
-  const prevKey = (await getMeta('prev_period_key')) || '—';
-  historySubtitle.textContent = `Period: ${prevKey} (local estimate)`;
-
-  for (const k of CATEGORY_ORDER) {
-    const s = Number(await getMeta(`prev_spent_${k}_cents`)) || 0;
-    const r = Number(await getMeta(`prev_roll_${k}_cents`)) || 0;
-    histEls[k].spent.textContent = currency.format(dollarsFromCents(s));
-    histEls[k].rollover.textContent = currency.format(dollarsFromCents(r));
-  }
-}
-
-/* =========================================================
-   RESET MODAL
-   ========================================================= */
-function openReset() {
-  resetBackdrop.style.display = 'flex';
-  resetBackdrop.setAttribute('aria-hidden', 'false');
-}
-function closeReset() {
-  resetBackdrop.style.display = 'none';
-  resetBackdrop.setAttribute('aria-hidden', 'true');
-}
-
-async function resetAppLocal() {
-  try {
-    // Clear SW caches
-    if (window.caches) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k => caches.delete(k)));
+    function prefillFromCurrent(state) {
+      // Prefill “next” inputs from current budgets (not rollover)
+      $("ng").value = state?.budgets_cents?.groceries ?? 0;
+      $("nGas").value = state?.budgets_cents?.gas ?? 0;
+      $("nKids").value = state?.budgets_cents?.kids ?? 0;
+      $("nDates").value = state?.budgets_cents?.date_nights ?? 0;
+      setStatus("Prefilled next settings from current budgets.", "ok");
     }
-  } catch (e) {
-    console.error('Cache delete failed', e);
-  }
 
-  // Delete IndexedDB (budgetDB)
-  await new Promise((resolve) => {
-    const req = indexedDB.deleteDatabase('budgetDB');
-    req.onsuccess = () => resolve();
-    req.onerror = () => resolve();
-    req.onblocked = () => resolve();
-  });
+    async function saveSettings() {
+      setStatus("Saving settings…");
+      const payload = {
+        next_groceries_cents: Number($("ng").value || 0),
+        next_gas_cents: Number($("nGas").value || 0),
+        next_kids_cents: Number($("nKids").value || 0),
+        next_date_nights_cents: Number($("nDates").value || 0),
+      };
 
-  location.reload();
-}
+      const resp = await apiFetch("/api/budget/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-async function copyResetSql() {
-  const sql = resetSqlBox.textContent || '';
-  try {
-    await navigator.clipboard.writeText(sql);
-    showSuccess('SQL copied');
-  } catch {
-    const ta = document.createElement('textarea');
-    ta.value = sql;
-    ta.style.position = 'fixed';
-    ta.style.left = '-9999px';
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); showSuccess('SQL copied'); }
-    catch { showSuccess('Copy failed'); }
-    finally { document.body.removeChild(ta); }
-  }
-}
-
-/* =========================================================
-   EVENT WIRING
-   ========================================================= */
-settingsBtn.addEventListener('click', () => openSettings().catch(console.error));
-settingsCancel.addEventListener('click', closeSettings);
-settingsBackdrop.addEventListener('click', (e) => { if (e.target === settingsBackdrop) closeSettings(); });
-settingsSave.addEventListener('click', () => saveSettings().catch(console.error));
-
-historyBtn.addEventListener('click', openHistory);
-historyClose.addEventListener('click', closeHistory);
-historyBackdrop.addEventListener('click', (e) => { if (e.target === historyBackdrop) closeHistory(); });
-
-resetBtn.addEventListener('click', openReset);
-resetClose.addEventListener('click', closeReset);
-resetBackdrop.addEventListener('click', (e) => { if (e.target === resetBackdrop) closeReset(); });
-clearLocalBtn.addEventListener('click', () => resetAppLocal().catch(console.error));
-copySqlBtn.addEventListener('click', () => copyResetSql().catch(console.error));
-
-for (const k of CATEGORY_ORDER) {
-  entryEls[k].input.addEventListener('input', updateButtonState);
-  entryEls[k].input.addEventListener('change', updateButtonState);
-}
-
-submitBtn.addEventListener('click', async (e) => {
-  e.preventDefault();
-
-  const entries = [];
-  for (const k of CATEGORY_ORDER) {
-    const dollars = parseDollarsFromText(entryEls[k].input.value) || 0;
-    const isRefund = !!entryEls[k].refund.checked;
-
-    if (!Number.isFinite(dollars)) {
-      showSuccess('Invalid number');
-      return;
+      setStatus("Settings saved. Refreshing state…", "ok");
+      await refreshState();
+      return resp;
     }
-    if (dollars !== 0) {
-      entries.push({ key: k, dollars, isRefund });
-    }
-  }
 
-  // Clear inputs + toggles
-  for (const k of CATEGORY_ORDER) {
-    entryEls[k].input.value = '';
-    entryEls[k].refund.checked = false;
-  }
-  updateButtonState();
+    // Wire up UI
+    (function init() {
+      loadConn();
 
-  if (!entries.length) return;
+      $("saveConn").addEventListener("click", () => {
+        try { saveConn(); } catch (e) { setStatus(e.message, "err"); }
+      });
 
-  try {
-    await submitEntries(entries);
-    await loadSummary();
-  } catch (err) {
-    console.error(err);
-  }
-});
+      $("refresh").addEventListener("click", async () => {
+        try { await refreshState(); } catch (e) { setStatus(e.message, "err"); }
+      });
 
-window.addEventListener('online', () => {
-  syncNow().then(loadSummary).catch(console.error);
-});
+      $("prefill").addEventListener("click", async () => {
+        try {
+          const state = await refreshState();
+          prefillFromCurrent(state);
+        } catch (e) {
+          setStatus(e.message, "err");
+        }
+      });
 
-window.addEventListener('offline', () => {
-  isSyncing = false;
-  maybeShowOfflineNotice();
-});
+      $("saveSettings").addEventListener("click", async () => {
+        try { await saveSettings(); } catch (e) { setStatus(e.message, "err"); }
+      });
 
-setInterval(() => {
-  if (navigator.onLine) syncNow().then(loadSummary).catch(() => {});
-}, 25000);
-
-/* INIT */
-updateButtonState();
-maybeShowOfflineNotice();
-
-(async function boot() {
-  try { await syncNow(); }
-  catch (e) { console.error(e); }
-  finally { await loadSummary(); }
-})();
-</script>
+      // Auto-load state if token exists
+      if (($("authToken").value || "").trim()) {
+        refreshState().catch(e => setStatus(e.message, "err"));
+      } else {
+        setStatus("Paste token and click Refresh State.");
+      }
+    })();
+  </script>
 </body>
 </html>
