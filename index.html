@@ -24,8 +24,13 @@
       color: #e9eef7;
       outline: none;
     }
-
     input:focus, select:focus { border-color: rgba(130,190,255,0.6); }
+
+    /* Disabled inputs: show that it's intentionally inactive */
+    input:disabled {
+      opacity: 0.75;
+      cursor: not-allowed;
+    }
 
     .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
     button {
@@ -96,12 +101,9 @@
                 <option value="quarterly">Quarterly (Every 3 Months)</option>
               </select>
 
-              <label for="wizAnchorDate">Anchor Date (YYYY-MM-DD)</label>
-              <input id="wizAnchorDate" type="text" placeholder="2026-01-01" />
-              <!-- Middle-ground helper text (kept enabled for all, but explains effect) -->
-              <p class="status" id="anchorDateHelp">
-                Anchor date is used to align Weekly, Every Two Weeks, and Quarterly budgets.
-              </p>
+              <!-- Renamed + UI date format: MM-DD-YYYY -->
+              <label for="wizStartDate">Start Date (MM-DD-YYYY)</label>
+              <input id="wizStartDate" type="text" placeholder="MM-DD-YYYY" />
 
               <div class="row">
                 <button id="wizNext1" type="button">Next</button>
@@ -203,8 +205,7 @@
     const wizStatus3 = document.getElementById("wizStatus3");
 
     const wizPeriodType = document.getElementById("wizPeriodType");
-    const wizAnchorDate = document.getElementById("wizAnchorDate");
-    const anchorDateHelp = document.getElementById("anchorDateHelp");
+    const wizStartDate = document.getElementById("wizStartDate");
 
     const wizCatList = document.getElementById("wizCatList");
 
@@ -256,15 +257,85 @@
         .replaceAll("'", "&#039;");
     }
 
-    // -------------------- Middle-ground helper text --------------------
-    function updateAnchorDateHelpText() {
-      const pt = (wizPeriodType?.value || "").trim();
-      if (!anchorDateHelp) return;
+    // -------------------- Date helpers (UI MM-DD-YYYY, DB YYYY-MM-DD) --------------------
+    function pad2(n) { return String(n).padStart(2, "0"); }
 
-      if (pt === "weekly" || pt === "biweekly" || pt === "quarterly") {
-        anchorDateHelp.textContent = "Anchor date determines how this budget period is aligned.";
+    function todayYMD() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = d.getMonth() + 1;
+      const day = d.getDate();
+      return `${y}-${pad2(m)}-${pad2(day)}`;
+    }
+
+    function ymdToMdy(ymd) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
+      if (!m) return "";
+      return `${m[2]}-${m[3]}-${m[1]}`;
+    }
+
+    function mdyToYmd(mdy) {
+      const s = String(mdy || "").trim();
+      const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s);
+      if (!m) return null;
+
+      const mm = Number(m[1]);
+      const dd = Number(m[2]);
+      const yyyy = Number(m[3]);
+
+      // Basic range checks
+      if (yyyy < 1900 || yyyy > 2100) return null;
+      if (mm < 1 || mm > 12) return null;
+      if (dd < 1 || dd > 31) return null;
+
+      // Calendar-valid check
+      const dt = new Date(yyyy, mm - 1, dd);
+      if (dt.getFullYear() !== yyyy || dt.getMonth() !== (mm - 1) || dt.getDate() !== dd) return null;
+
+      return `${yyyy}-${pad2(mm)}-${pad2(dd)}`;
+    }
+
+    // -------------------- Start Date behavior (disable when not needed) --------------------
+    function periodUsesStartDate(periodType) {
+      // Matches your Worker behavior: anchor/start date affects weekly/biweekly/quarterly
+      return periodType === "weekly" || periodType === "biweekly" || periodType === "quarterly";
+    }
+
+    function disabledStartDateMessage(periodType) {
+      // User-facing message shown in the disabled field (MM-DD-YYYY UI is not applicable here)
+      switch (periodType) {
+        case "daily": return "Not needed for Daily budgets";
+        case "monthly": return "Not needed for Monthly budgets";
+        case "semi_monthly": return "Not needed for Twice-a-Month budgets";
+        default: return "Not needed for this budget period type";
+      }
+    }
+
+    function updateStartDateAvailability() {
+      const pt = (wizPeriodType?.value || "").trim();
+      const uses = periodUsesStartDate(pt);
+
+      if (!wizStartDate) return;
+
+      if (uses) {
+        // Re-enable and restore prior value if we saved it
+        const prev = wizStartDate.dataset.prevValue;
+        wizStartDate.disabled = false;
+        wizStartDate.placeholder = "MM-DD-YYYY";
+        if (prev && wizStartDate.value === disabledStartDateMessage(pt)) {
+          wizStartDate.value = prev;
+        }
+        if (!wizStartDate.value || wizStartDate.value.startsWith("Not needed")) {
+          // Ensure there is a valid default UI date
+          wizStartDate.value = ymdToMdy(todayYMD());
+        }
       } else {
-        anchorDateHelp.textContent = "Anchor date is stored but does not affect this period type.";
+        // Save the last real date so we can restore it later
+        if (wizStartDate.value && !wizStartDate.value.startsWith("Not needed")) {
+          wizStartDate.dataset.prevValue = wizStartDate.value;
+        }
+        wizStartDate.disabled = true;
+        wizStartDate.value = disabledStartDateMessage(pt);
       }
     }
 
@@ -437,13 +508,28 @@
       }).filter(c => c.name.length > 0);
     }
 
+    function effectiveStartDateYmd() {
+      const pt = (wizPeriodType.value || "").trim();
+      if (!periodUsesStartDate(pt)) {
+        // Backend requires a valid YYYY-MM-DD even if it won't be used
+        return todayYMD();
+      }
+      const ymd = mdyToYmd(wizStartDate.value);
+      return ymd;
+    }
+
     function validateStep1() {
       const pt = (wizPeriodType.value || "").trim();
-      const ad = (wizAnchorDate.value || "").trim();
 
       const allowed = new Set(["daily", "weekly", "biweekly", "semi_monthly", "monthly", "quarterly"]);
       if (!allowed.has(pt)) return `Period type must be one of: ${Array.from(allowed).join(", ")}`;
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(ad)) return "Anchor date must be YYYY-MM-DD.";
+
+      // Only require/validate Start Date when it is used
+      if (periodUsesStartDate(pt)) {
+        const ymd = mdyToYmd(wizStartDate.value);
+        if (!ymd) return "Start Date must be MM-DD-YYYY.";
+      }
+
       return null;
     }
 
@@ -467,7 +553,7 @@
 
     function buildInitPayloadForReview() {
       const period_type = (wizPeriodType.value || "").trim();
-      const period_anchor_date = (wizAnchorDate.value || "").trim();
+      const period_anchor_date = effectiveStartDateYmd(); // DB format, even if UI is MM-DD-YYYY
       const categories = readCategoriesFromUI().map(c => ({
         name: c.name,
         sort_order: c.sort_order,
@@ -478,21 +564,29 @@
 
     function renderReview() {
       const payload = buildInitPayloadForReview();
+      const uiStartDate = periodUsesStartDate(payload.period_type)
+        ? (wizStartDate.value || "").trim()
+        : "(not applicable)";
+
       wizReviewText.textContent =
-        `You are about to initialize a ${payload.period_type} budget starting from ${payload.period_anchor_date} with ${payload.categories.length} categories.`;
-      wizReviewJson.textContent = JSON.stringify(payload, null, 2);
+        `You are about to initialize a ${payload.period_type} budget starting from ${uiStartDate} with ${payload.categories.length} categories.`;
+
+      // Show UI date in the review JSON for readability, while still sending YYYY-MM-DD in payload
+      const reviewPayload = {
+        ...payload,
+        start_date_ui: periodUsesStartDate(payload.period_type) ? uiStartDate : null
+      };
+      wizReviewJson.textContent = JSON.stringify(reviewPayload, null, 2);
     }
 
     function initWizardDefaults() {
-      // Default anchor date = today (local) as YYYY-MM-DD
-      const d = new Date();
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      if (wizAnchorDate && !wizAnchorDate.value) wizAnchorDate.value = `${yyyy}-${mm}-${dd}`;
-
-      // Default period type (biweekly). Select already defaults, this is defensive.
+      // Default period type (biweekly). Select already defaults; this is defensive.
       if (wizPeriodType && !wizPeriodType.value) wizPeriodType.value = "biweekly";
+
+      // Default Start Date in UI format MM-DD-YYYY
+      if (wizStartDate && (!wizStartDate.value || wizStartDate.value === "MM-DD-YYYY")) {
+        wizStartDate.value = ymdToMdy(todayYMD());
+      }
 
       if (wizCatList && wizCatList.children.length === 0) {
         addWizCategoryRow("Groceries", "300.00");
@@ -501,7 +595,7 @@
       }
 
       setWizStep(1);
-      updateAnchorDateHelpText();
+      updateStartDateAvailability();
     }
 
     // -------------------- App Views --------------------
@@ -642,7 +736,11 @@
     });
 
     // Wizard wiring
-    wizPeriodType?.addEventListener("change", updateAnchorDateHelpText);
+    wizPeriodType?.addEventListener("change", () => {
+      updateStartDateAvailability();
+      // Also update review text in case user is on step 3 and changes type
+      if (wizardState.step === 3) renderReview();
+    });
 
     wizNext1?.addEventListener("click", () => {
       const err = validateStep1();
