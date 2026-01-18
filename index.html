@@ -70,6 +70,13 @@
       letter-spacing: 0.2px;
     }
 
+    h2{
+      font-size: 15px;
+      margin: 0 0 10px;
+      letter-spacing: 0.2px;
+      color: var(--text);
+    }
+
     p{ margin: 10px 0; line-height: 1.35; color: var(--muted); }
     label{ display:block; margin: 12px 0 6px; font-size: 13px; color: var(--muted); }
 
@@ -105,6 +112,20 @@
       align-items:center;
       flex-wrap: wrap;
       margin-top: 12px;
+    }
+
+    .row.nowrap{
+      flex-wrap: nowrap;
+    }
+
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    @media (max-width: 620px){
+      .grid2{ grid-template-columns: 1fr; }
     }
 
     button{
@@ -195,9 +216,66 @@
       }
     }
 
-    /* Optional: slightly smaller headings on small phones */
     @media (max-width: 360px){
       h1{ font-size: 17px; }
+    }
+
+    /* ---------------- Dashboard cards ---------------- */
+    .metricCard{
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.05);
+      box-shadow: var(--shadow2);
+    }
+    .metricLabel{
+      font-size: 12px;
+      color: var(--muted2);
+      margin: 0 0 6px;
+    }
+    .metricValue{
+      font-size: 22px;
+      font-weight: 750;
+      letter-spacing: 0.2px;
+      margin: 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    table{
+      width:100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      overflow:hidden;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.16);
+    }
+    th, td{
+      text-align:left;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      font-size: 13px;
+      color: var(--text);
+    }
+    th{
+      color: var(--muted);
+      font-weight: 650;
+      background: rgba(255,255,255,0.04);
+    }
+    tr:last-child td{ border-bottom: 0; }
+    td.num{ text-align:right; font-variant-numeric: tabular-nums; }
+    .pill{
+      display:inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: var(--muted);
+    }
+    .small{
+      font-size: 12px;
+      color: var(--muted2);
     }
   </style>
 </head>
@@ -226,12 +304,101 @@
     <div id="appView" class="hidden">
       <p id="appStatus" class="status"></p>
 
-      <div id="hasCategoriesView" class="hidden">
-        <p class="ok">Budget categories loaded.</p>
-        <pre class="mono" id="categoriesPreview"></pre>
+      <!-- ========= MAIN DASHBOARD (DEFAULT AFTER INIT) ========= -->
+      <div id="dashboardView" class="hidden">
+        <div class="row" style="justify-content:space-between; align-items:flex-start;">
+          <div>
+            <h2 id="dashTitle" style="margin:0 0 4px;">Budget overview</h2>
+            <div id="dashSub" class="small"></div>
+          </div>
+          <div class="pill" id="dashPill">Ready</div>
+        </div>
+
+        <div class="grid2">
+          <div class="metricCard">
+            <div class="metricLabel">Remaining</div>
+            <p class="metricValue" id="metricRemaining">$0.00</p>
+          </div>
+          <div class="metricCard">
+            <div class="metricLabel">Spent (net)</div>
+            <p class="metricValue" id="metricSpent">$0.00</p>
+          </div>
+        </div>
+
+        <div class="card subcard">
+          <h2 style="margin:0 0 8px;">Add transaction</h2>
+          <div class="small">Expenses reduce remaining; refunds increase remaining.</div>
+
+          <div class="grid2" style="margin-top:12px;">
+            <div>
+              <label for="txType">Type</label>
+              <select id="txType">
+                <option value="expense" selected>Expense</option>
+                <option value="refund">Refund</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="txCategory">Category</label>
+              <select id="txCategory"></select>
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div>
+              <label for="txAmount">Amount</label>
+              <input id="txAmount" type="text" inputmode="decimal" placeholder="$0.00" />
+            </div>
+            <div>
+              <label for="txNote">Note (optional)</label>
+              <input id="txNote" type="text" placeholder="e.g., Target, reimbursement…" />
+            </div>
+          </div>
+
+          <div class="row">
+            <button id="txSaveBtn" type="button">Save</button>
+            <button id="txClearBtn" class="secondary" type="button">Clear</button>
+          </div>
+          <div id="txStatus" class="status"></div>
+        </div>
+
+        <div class="card subcard">
+          <h2 style="margin:0 0 8px;">Categories</h2>
+          <div class="small">Budgets are from your initialized setup; transactions are stored locally (IndexedDB).</div>
+
+          <table aria-label="Category totals">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th class="num">Budget</th>
+                <th class="num">Spent</th>
+                <th class="num">Remaining</th>
+              </tr>
+            </thead>
+            <tbody id="catTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="card subcard">
+          <h2 style="margin:0 0 8px;">Recent transactions</h2>
+          <div class="small">Most recent first.</div>
+          <table aria-label="Recent transactions">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Category</th>
+                <th>Note</th>
+                <th class="num">Amount</th>
+              </tr>
+            </thead>
+            <tbody id="txTableBody"></tbody>
+          </table>
+        </div>
       </div>
 
-      <div id="noCategoriesView" class="hidden">
+      <!-- ========= SETUP WIZARD (ONLY WHEN UNINITIALIZED) ========= -->
+      <div id="setupView" class="hidden">
         <p class="ok">Welcome. Let’s initialize your budget.</p>
 
         <!-- ---------- STEP 1 ---------- -->
@@ -280,7 +447,6 @@
             Please confirm these details before saving your initial budget.
           </p>
 
-          <!-- Friendly review (no code) -->
           <div id="wizReviewCard" style="margin-top:10px;">
             <div class="status" id="wizReviewSummary" style="margin-top:0;"></div>
 
@@ -301,7 +467,6 @@
             </div>
           </div>
 
-          <!-- Optional: keep JSON for debugging only (hidden) -->
           <pre id="wizReviewJson" class="mono hidden" style="white-space:pre-wrap;"></pre>
 
           <div class="row">
@@ -332,12 +497,15 @@ const API = {
   timeoutMs: 12000
 };
 
-/* ================= INDEXEDDB ================= */
+/* ================= INDEXEDDB =================
+   auth token store + local transactions store
+*/
 const IDB = {
   name: "pwa-budget-app",
-  version: 1,
-  store: "auth",
-  key: "bearerToken"
+  version: 2,              // bumped to add tx store
+  storeAuth: "auth",
+  storeTx: "tx",
+  keyToken: "bearerToken"
 };
 
 function openDb() {
@@ -345,19 +513,27 @@ function openDb() {
     const req = indexedDB.open(IDB.name, IDB.version);
     req.onupgradeneeded = () => {
       const db = req.result;
-      if (!db.objectStoreNames.contains(IDB.store)) db.createObjectStore(IDB.store);
+
+      if (!db.objectStoreNames.contains(IDB.storeAuth)) {
+        db.createObjectStore(IDB.storeAuth);
+      }
+
+      if (!db.objectStoreNames.contains(IDB.storeTx)) {
+        const txStore = db.createObjectStore(IDB.storeTx, { keyPath: "id" });
+        txStore.createIndex("by_ts", "ts", { unique: false });
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
 
-async function idbGet(key) {
+async function idbGetAuth(key) {
   const db = await openDb();
   try {
     return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB.store, "readonly");
-      const store = tx.objectStore(IDB.store);
+      const tx = db.transaction(IDB.storeAuth, "readonly");
+      const store = tx.objectStore(IDB.storeAuth);
       const req = store.get(key);
       req.onsuccess = () => resolve(req.result ?? null);
       req.onerror = () => reject(req.error);
@@ -365,12 +541,12 @@ async function idbGet(key) {
   } finally { db.close(); }
 }
 
-async function idbSet(key, value) {
+async function idbSetAuth(key, value) {
   const db = await openDb();
   try {
     return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB.store, "readwrite");
-      const store = tx.objectStore(IDB.store);
+      const tx = db.transaction(IDB.storeAuth, "readwrite");
+      const store = tx.objectStore(IDB.storeAuth);
       const req = store.put(value, key);
       req.onsuccess = () => resolve(true);
       req.onerror = () => reject(req.error);
@@ -378,14 +554,51 @@ async function idbSet(key, value) {
   } finally { db.close(); }
 }
 
-async function idbDel(key) {
+async function idbDelAuth(key) {
   const db = await openDb();
   try {
     return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB.store, "readwrite");
-      const store = tx.objectStore(IDB.store);
+      const tx = db.transaction(IDB.storeAuth, "readwrite");
+      const store = tx.objectStore(IDB.storeAuth);
       const req = store.delete(key);
       req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
+    });
+  } finally { db.close(); }
+}
+
+function uuidLike() {
+  return (crypto?.randomUUID?.() || ("tx_" + Math.random().toString(16).slice(2) + "_" + Date.now()));
+}
+
+async function idbAddTx(txObj) {
+  const db = await openDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB.storeTx, "readwrite");
+      const store = tx.objectStore(IDB.storeTx);
+      const req = store.put(txObj);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
+    });
+  } finally { db.close(); }
+}
+
+async function idbListTx(limit = 50) {
+  const db = await openDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB.storeTx, "readonly");
+      const store = tx.objectStore(IDB.storeTx);
+      const idx = store.index("by_ts");
+      const req = idx.openCursor(null, "prev");
+      const out = [];
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (!cursor || out.length >= limit) return resolve(out);
+        out.push(cursor.value);
+        cursor.continue();
+      };
       req.onerror = () => reject(req.error);
     });
   } finally { db.close(); }
@@ -402,9 +615,25 @@ const authStatus = $("authStatus");
 
 const appView = $("appView");
 const appStatus = $("appStatus");
-const hasCategoriesView = $("hasCategoriesView");
-const noCategoriesView = $("noCategoriesView");
-const categoriesPreview = $("categoriesPreview");
+
+const dashboardView = $("dashboardView");
+const setupView = $("setupView");
+
+const dashTitle = $("dashTitle");
+const dashSub = $("dashSub");
+const dashPill = $("dashPill");
+const metricRemaining = $("metricRemaining");
+const metricSpent = $("metricSpent");
+const catTableBody = $("catTableBody");
+const txTableBody = $("txTableBody");
+
+const txType = $("txType");
+const txCategory = $("txCategory");
+const txAmount = $("txAmount");
+const txNote = $("txNote");
+const txSaveBtn = $("txSaveBtn");
+const txClearBtn = $("txClearBtn");
+const txStatus = $("txStatus");
 
 const logoutBtn = $("logoutBtn");
 const retryBtn = $("retryBtn");
@@ -420,7 +649,6 @@ const wizStartDate = $("wizStartDate");
 const wizCatList = $("wizCatList");
 const wizReviewJson = $("wizReviewJson");
 
-/* Friendly Step 3 review DOM */
 const wizReviewSummary = $("wizReviewSummary");
 const wizReviewPeriod = $("wizReviewPeriod");
 const wizReviewStartDate = $("wizReviewStartDate");
@@ -453,7 +681,8 @@ function setStatus(el, msg, kind) {
 function setBusy(isBusy) {
   const btns = [
     saveTokenBtn, toggleTokenBtn, logoutBtn, retryBtn,
-    wizNext1, wizBack2, wizNext2, wizAddCat, wizBack3, wizSubmit
+    wizNext1, wizBack2, wizNext2, wizAddCat, wizBack3, wizSubmit,
+    txSaveBtn, txClearBtn
   ].filter(Boolean);
   for (const b of btns) b.disabled = !!isBusy;
 }
@@ -610,12 +839,50 @@ function normalizeBudgetDisplay(s) {
   return "$" + n.toFixed(2);
 }
 
-function budgetDisplayToNumericString(s) {
+function budgetDisplayToNumeric(s) {
   const raw = String(s || "").trim().replace(/[^0-9.]/g, "");
-  if (!raw) return "";
+  if (!raw) return null;
   const n = Number(raw);
-  if (!Number.isFinite(n)) return "";
-  return n.toFixed(2);
+  if (!Number.isFinite(n)) return null;
+  return n;
+}
+
+function dollarsStringToNumberMaybe(v) {
+  // Accept numbers or numeric strings with $/commas
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  const raw = String(v ?? "").trim().replace(/[^0-9.-]/g, "");
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function fmtUsd(n) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return "$0.00";
+  return "$" + num.toFixed(2);
+}
+
+function periodLabel(pt) {
+  switch (pt) {
+    case "daily": return "Daily";
+    case "weekly": return "Weekly";
+    case "biweekly": return "Every Two Weeks";
+    case "semi_monthly": return "Twice a Month";
+    case "monthly": return "Monthly";
+    case "quarterly": return "Quarterly";
+    default: return pt || "—";
+  }
+}
+
+function fmtTs(ts) {
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return "—";
+  const mm = pad2(d.getMonth()+1);
+  const dd = pad2(d.getDate());
+  const yyyy = d.getFullYear();
+  const hh = pad2(d.getHours());
+  const mi = pad2(d.getMinutes());
+  return `${mm}-${dd}-${yyyy} ${hh}:${mi}`;
 }
 
 /* ================= WIZARD ================= */
@@ -662,7 +929,7 @@ function readCategoriesFromUI() {
   const rows = Array.from(wizCatList.querySelectorAll(".catRow"));
   return rows.map((r, idx) => {
     const name = r.querySelector(".catName")?.value?.trim() || "";
-    const budgetNumeric = budgetDisplayToNumericString(r.querySelector(".catBudget")?.value || "");
+    const budgetNumeric = budgetDisplayToNumeric(r.querySelector(".catBudget")?.value || "");
     return { name, budget_dollars: budgetNumeric, sort_order: idx + 1 };
   }).filter(c => c.name.length > 0);
 }
@@ -687,7 +954,7 @@ function validateStep2() {
   for (const c of cats) {
     if (!c.name) return "Category name cannot be blank.";
     if (c.name.length > 64) return `Category name too long: ${c.name}`;
-    if (!c.budget_dollars || !String(c.budget_dollars).trim()) return `Please enter a budget for: ${c.name}`;
+    if (!Number.isFinite(c.budget_dollars)) return `Please enter a budget for: ${c.name}`;
 
     const k = c.name.toLowerCase();
     if (seen.has(k)) return `Duplicate category name: ${c.name}`;
@@ -709,33 +976,14 @@ function buildInitPayload() {
     categories: readCategoriesFromUI().map(c => ({
       name: c.name,
       sort_order: c.sort_order,
-      budget_dollars: c.budget_dollars
+      budget_dollars: c.budget_dollars.toFixed(2)
     }))
   };
-}
-
-function periodLabel(pt) {
-  switch (pt) {
-    case "daily": return "Daily";
-    case "weekly": return "Weekly";
-    case "biweekly": return "Every Two Weeks";
-    case "semi_monthly": return "Twice a Month";
-    case "monthly": return "Monthly";
-    case "quarterly": return "Quarterly";
-    default: return pt || "—";
-  }
-}
-
-function fmtUsdFromDollarsString(d) {
-  const n = Number(d);
-  if (!Number.isFinite(n)) return "—";
-  return `$${n.toFixed(2)}`;
 }
 
 function renderReview() {
   const payload = buildInitPayload();
 
-  // Keep hidden JSON available for debugging if desired
   if (wizReviewJson) {
     wizReviewJson.textContent = JSON.stringify(payload, null, 2);
   }
@@ -743,18 +991,15 @@ function renderReview() {
   const pt = payload.period_type;
   const uses = periodUsesStartDate(pt);
 
-  // Summary
   const catCount = payload.categories?.length || 0;
   if (wizReviewSummary) {
     wizReviewSummary.textContent = `You’re about to initialize your budget with ${catCount} ${catCount === 1 ? "category" : "categories"}.`;
   }
 
-  // Period
   if (wizReviewPeriod) {
     wizReviewPeriod.textContent = `Period type: ${periodLabel(pt)}`;
   }
 
-  // Start date (user-friendly, only when relevant)
   if (wizReviewStartDate) {
     if (uses) {
       wizReviewStartDate.textContent = `Start date: ${ymdToMdy(payload.period_anchor_date)}`;
@@ -765,7 +1010,6 @@ function renderReview() {
     }
   }
 
-  // Categories list
   let total = 0;
   if (wizReviewCategories) {
     wizReviewCategories.innerHTML = "";
@@ -785,7 +1029,7 @@ function renderReview() {
       left.style.fontWeight = "650";
 
       const right = document.createElement("div");
-      right.textContent = fmtUsdFromDollarsString(c.budget_dollars);
+      right.textContent = fmtUsd(amt);
       right.style.color = "var(--text)";
       right.style.fontVariantNumeric = "tabular-nums";
 
@@ -796,7 +1040,7 @@ function renderReview() {
   }
 
   if (wizReviewTotal) {
-    wizReviewTotal.textContent = `Total starting budget: $${total.toFixed(2)}`;
+    wizReviewTotal.textContent = `Total starting budget: ${fmtUsd(total)}`;
   }
 }
 
@@ -814,38 +1058,204 @@ function initWizardDefaults() {
   showStep(0);
 }
 
-/* ================= APP FLOW ================= */
-async function loadAppState(token) {
-  showApp("Connected. Loading budget state…");
-  hide(hasCategoriesView);
-  hide(noCategoriesView);
-  categoriesPreview.textContent = "";
+/* ================= Dashboard computation ================= */
+let CURRENT_STATE = null; // server state
+let CURRENT_CATEGORIES = []; // normalized categories [{name,budget}]
+let CURRENT_TX = []; // local transactions
 
-  const result = await fetchState(token);
-  if (result.authFailed) {
-    await idbDel(IDB.key);
-    return showAuth("Stored token is invalid/expired. Please re-enter.", true);
+function normalizeCategoriesFromState(state) {
+  const catsRaw = Array.isArray(state?.categories) ? state.categories : [];
+  const cats = catsRaw
+    .map(c => ({
+      name: String(c?.name ?? "").trim(),
+      budget: dollarsStringToNumberMaybe(c?.budget_dollars ?? c?.budget ?? c?.amount ?? 0) ?? 0
+    }))
+    .filter(c => c.name.length > 0);
+
+  // stable sort by name if no sort_order
+  return cats;
+}
+
+function computeTotals(categories, txList) {
+  const byCat = new Map();
+  for (const c of categories) {
+    byCat.set(c.name, { budget: c.budget, spent: 0 });
   }
 
-  const state = result.state || {};
-  const categories = Array.isArray(state.categories) ? state.categories : [];
+  // transactions: expense adds to spent; refund subtracts from spent
+  for (const t of txList) {
+    const cat = String(t.category ?? "").trim();
+    if (!cat) continue;
+    if (!byCat.has(cat)) {
+      byCat.set(cat, { budget: 0, spent: 0 });
+    }
+    const amt = dollarsStringToNumberMaybe(t.amount) ?? 0;
+    const sign = (t.type === "refund") ? -1 : 1;
+    byCat.get(cat).spent += sign * amt;
+  }
 
-  if (state.initialized === false) {
-    show(noCategoriesView);
-    setStatus(appStatus, "Budget not yet initialized.");
-    initWizardDefaults();
+  const rows = [];
+  let totalBudget = 0;
+  let totalSpent = 0;
+
+  for (const [name, v] of byCat.entries()) {
+    totalBudget += v.budget;
+    totalSpent += v.spent;
+    rows.push({
+      name,
+      budget: v.budget,
+      spent: v.spent,
+      remaining: v.budget - v.spent
+    });
+  }
+
+  // Prefer showing configured categories first, then any new categories from tx
+  const configuredSet = new Set(categories.map(c => c.name));
+  rows.sort((a, b) => {
+    const aCfg = configuredSet.has(a.name) ? 0 : 1;
+    const bCfg = configuredSet.has(b.name) ? 0 : 1;
+    if (aCfg !== bCfg) return aCfg - bCfg;
+    return a.name.localeCompare(b.name);
+  });
+
+  return {
+    totalBudget,
+    totalSpent,
+    totalRemaining: totalBudget - totalSpent,
+    rows
+  };
+}
+
+function renderCategoryDropdown(categories) {
+  if (!txCategory) return;
+  txCategory.innerHTML = "";
+
+  const opts = categories.length ? categories : [{ name: "Uncategorized", budget: 0 }];
+  for (const c of opts) {
+    const opt = document.createElement("option");
+    opt.value = c.name;
+    opt.textContent = c.name;
+    txCategory.appendChild(opt);
+  }
+}
+
+function renderCategoryTable(totals) {
+  if (!catTableBody) return;
+  catTableBody.innerHTML = "";
+
+  for (const r of totals.rows) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(r.name)}</td>
+      <td class="num">${escapeHtml(fmtUsd(r.budget))}</td>
+      <td class="num">${escapeHtml(fmtUsd(r.spent))}</td>
+      <td class="num">${escapeHtml(fmtUsd(r.remaining))}</td>
+    `;
+    catTableBody.appendChild(tr);
+  }
+}
+
+function renderTxTable(txList) {
+  if (!txTableBody) return;
+  txTableBody.innerHTML = "";
+
+  if (!txList.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="5" class="small">No transactions yet.</td>`;
+    txTableBody.appendChild(tr);
     return;
   }
 
-  if (categories.length > 0) {
-    show(hasCategoriesView);
-    setStatus(appStatus, "Categories found.");
-    categoriesPreview.textContent = JSON.stringify(categories, null, 2);
-  } else {
-    show(noCategoriesView);
-    setStatus(appStatus, "Initialized, but no categories found. Starting setup.");
-    initWizardDefaults();
+  for (const t of txList) {
+    const amt = dollarsStringToNumberMaybe(t.amount) ?? 0;
+    const sign = (t.type === "refund") ? 1 : -1; // show refunds as +, expenses as -
+    const display = fmtUsd(Math.abs(amt));
+    const signed = (t.type === "refund") ? `+${display}` : `-${display}`;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(fmtTs(t.ts))}</td>
+      <td>${escapeHtml(t.type === "refund" ? "Refund" : "Expense")}</td>
+      <td>${escapeHtml(String(t.category || ""))}</td>
+      <td>${escapeHtml(String(t.note || ""))}</td>
+      <td class="num">${escapeHtml(signed)}</td>
+    `;
+    txTableBody.appendChild(tr);
   }
+}
+
+async function renderDashboard() {
+  // load local tx
+  CURRENT_TX = await idbListTx(50);
+
+  const totals = computeTotals(CURRENT_CATEGORIES, CURRENT_TX);
+
+  metricRemaining.textContent = fmtUsd(totals.totalRemaining);
+  metricSpent.textContent = fmtUsd(totals.totalSpent);
+
+  renderCategoryDropdown(CURRENT_CATEGORIES);
+  renderCategoryTable(totals);
+  renderTxTable(CURRENT_TX);
+
+  const pt = String(CURRENT_STATE?.period_type ?? CURRENT_STATE?.periodType ?? "").trim();
+  const anchor = String(CURRENT_STATE?.period_anchor_date ?? CURRENT_STATE?.periodAnchorDate ?? "").trim();
+
+  dashTitle.textContent = "Budget overview";
+  if (pt) {
+    dashSub.textContent = `Period: ${periodLabel(pt)}${anchor ? ` • Anchor: ${ymdToMdy(anchor) || anchor}` : ""}`;
+  } else {
+    dashSub.textContent = "Your budget is ready.";
+  }
+  dashPill.textContent = "Ready";
+}
+
+/* ================= APP FLOW ================= */
+function showDashboard(message = "") {
+  hide(setupView);
+  show(dashboardView);
+  setStatus(appStatus, message);
+}
+
+function showSetup(message = "") {
+  hide(dashboardView);
+  show(setupView);
+  setStatus(appStatus, message);
+  initWizardDefaults();
+}
+
+async function loadAppState(token) {
+  showApp("Loading…");
+  hide(dashboardView);
+  hide(setupView);
+  setStatus(txStatus, "");
+
+  const result = await fetchState(token);
+  if (result.authFailed) {
+    await idbDelAuth(IDB.keyToken);
+    return showAuth("Stored token is invalid/expired. Please re-enter.", true);
+  }
+
+  CURRENT_STATE = result.state || {};
+
+  const initialized = (CURRENT_STATE.initialized !== false) && (CURRENT_STATE.initialized !== 0);
+  const categories = normalizeCategoriesFromState(CURRENT_STATE);
+
+  // If the API explicitly says "not initialized", always route to setup
+  if (CURRENT_STATE.initialized === false) {
+    showSetup("Budget setup required.");
+    return;
+  }
+
+  // If "initialized" but categories are missing, treat as setup (defensive)
+  if (!initialized || categories.length === 0) {
+    showSetup("Budget setup required.");
+    return;
+  }
+
+  // MAIN UX CHANGE: go straight to Dashboard (no “categories loaded” debug view)
+  CURRENT_CATEGORIES = categories;
+  showDashboard("");
+  await renderDashboard();
 }
 
 async function bootstrap() {
@@ -854,7 +1264,7 @@ async function bootstrap() {
   hide(authView);
   hide(appView);
 
-  const token = await idbGet(IDB.key);
+  const token = await idbGetAuth(IDB.keyToken);
 
   if (!token) {
     setBusy(false);
@@ -865,7 +1275,7 @@ async function bootstrap() {
     setStatus(globalStatus, "Validating token…");
     const ok = await validateToken(token);
     if (!ok) {
-      await idbDel(IDB.key);
+      await idbDelAuth(IDB.keyToken);
       setBusy(false);
       return showAuth("Saved token is invalid or expired. Please enter a new token.", true);
     }
@@ -892,7 +1302,7 @@ saveTokenBtn.addEventListener("click", async () => {
       setBusy(false);
       return setStatus(authStatus, "Token is invalid or expired.", "error");
     }
-    await idbSet(IDB.key, token);
+    await idbSetAuth(IDB.keyToken, token);
     setStatus(authStatus, "Token saved. Loading…", "ok");
     await loadAppState(token);
     setBusy(false);
@@ -911,7 +1321,7 @@ toggleTokenBtn.addEventListener("click", () => {
 
 logoutBtn.addEventListener("click", async () => {
   setBusy(true);
-  await idbDel(IDB.key);
+  await idbDelAuth(IDB.keyToken);
   setBusy(false);
   showAuth("Logged out. Enter your bearer token to continue.");
 });
@@ -950,7 +1360,7 @@ wizSubmit.addEventListener("click", async () => {
   const err2 = validateStep2();
   if (err2) { showStep(1); return setStatus(wizStatus2, err2, "error"); }
 
-  const token = await idbGet(IDB.key);
+  const token = await idbGetAuth(IDB.keyToken);
   if (!token) return showAuth("Missing token. Please re-enter.", true);
 
   const payload = buildInitPayload();
@@ -961,16 +1371,69 @@ wizSubmit.addEventListener("click", async () => {
   try {
     const res = await postInit(token, payload);
     if (res.authFailed) {
-      await idbDel(IDB.key);
+      await idbDelAuth(IDB.keyToken);
       setBusy(false);
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
-    setStatus(wizStatus3, "Initialized. Reloading…", "ok");
+
+    // MAIN UX CHANGE: after init, route directly to Dashboard (not a “loaded categories” message)
+    setStatus(wizStatus3, "Initialized. Loading your budget…", "ok");
     await loadAppState(token);
     setBusy(false);
   } catch (e) {
     setBusy(false);
     setStatus(wizStatus3, e.message, "error");
+  }
+});
+
+/* ------- Transactions (local, IndexedDB) ------- */
+txAmount.addEventListener("blur", () => {
+  txAmount.value = normalizeBudgetDisplay(txAmount.value);
+});
+
+txClearBtn.addEventListener("click", () => {
+  txType.value = "expense";
+  txAmount.value = "";
+  txNote.value = "";
+  setStatus(txStatus, "", "");
+  txAmount.focus();
+});
+
+txSaveBtn.addEventListener("click", async () => {
+  const type = String(txType.value || "").trim();
+  const category = String(txCategory.value || "").trim();
+  const amount = budgetDisplayToNumeric(txAmount.value);
+
+  if (!category) return setStatus(txStatus, "Please select a category.", "error");
+  if (!Number.isFinite(amount) || amount <= 0) return setStatus(txStatus, "Please enter a valid amount greater than $0.00.", "error");
+  if (type !== "expense" && type !== "refund") return setStatus(txStatus, "Invalid transaction type.", "error");
+
+  const note = String(txNote.value || "").trim();
+
+  const txObj = {
+    id: uuidLike(),
+    ts: Date.now(),
+    type,
+    category,
+    amount: Number(amount).toFixed(2),
+    note
+  };
+
+  try {
+    setBusy(true);
+    setStatus(txStatus, "Saving…");
+
+    await idbAddTx(txObj);
+
+    setStatus(txStatus, "Saved.", "ok");
+    txAmount.value = "";
+    txNote.value = "";
+
+    await renderDashboard();
+    setBusy(false);
+  } catch (e) {
+    setBusy(false);
+    setStatus(txStatus, `Unable to save transaction: ${e.message}`, "error");
   }
 });
 
