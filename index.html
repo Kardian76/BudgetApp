@@ -1,4 +1,3 @@
-<!-- Part 1/6 — index.html (head + styles + start body) -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -14,24 +13,20 @@
     h1 { font-size: 18px; margin: 0 0 12px; }
     p { margin: 10px 0; line-height: 1.35; color: rgba(233,238,247,0.9); }
     label { display: block; margin: 12px 0 6px; font-size: 13px; color: rgba(233,238,247,0.85); }
-    
-input[type="password"], input[type="text"], select {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.15);
-  background: rgba(0,0,0,0.25);
-  color: #e9eef7;
-  outline: none;
-}
 
-select:focus {
-  border-color: rgba(130,190,255,0.6);
-}
+    input[type="password"], input[type="text"], select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(0,0,0,0.25);
+      color: #e9eef7;
+      outline: none;
+    }
 
-    
-    input:focus { border-color: rgba(130,190,255,0.6); }
+    input:focus, select:focus { border-color: rgba(130,190,255,0.6); }
+
     .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
     button {
       appearance: none; border: 0; border-radius: 10px;
@@ -53,8 +48,8 @@ select:focus {
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>PWA Budget App</h1>
-<!-- Part 2/6 — body: Auth view + App view + Wizard markup -->
+      <h1>Purrfect Budget</h1>
+
       <!-- Auth / Token Prompt -->
       <div id="authView" class="hidden">
         <p>This app requires a bearer token on first launch. The token will be stored locally in IndexedDB.</p>
@@ -91,32 +86,22 @@ select:focus {
             <div id="wizStep1" class="card subcard">
               <h1 style="margin:0 0 10px;">Step 1 — Budget period</h1>
 
-<!-- 1) HTML change: replace the Period Type <input> with this <select> (defaults to Every Two Weeks) -->
-
-<label for="wizPeriodType">Period Type</label>
-<select id="wizPeriodType">
-  <option value="daily">Daily</option>
-  <option value="weekly">Weekly</option>
-  <option value="biweekly" selected>Every Two Weeks</option>
-  <option value="semi_monthly">Twice a Month (1–14, 15–end)</option>
-  <option value="monthly">Monthly</option>
-  <option value="quarterly">Quarterly (Every 3 Months)</option>
-</select>
-
-<!-- Optional enhancement: helper text shown under the dropdown -->
-<p class="status" id="periodTypeHelp">
-  Anchor date only affects Weekly, Every Two Weeks, and Quarterly budgets.
-</p>
-
-
+              <label for="wizPeriodType">Period Type</label>
+              <select id="wizPeriodType">
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="biweekly" selected>Every Two Weeks</option>
+                <option value="semi_monthly">Twice a Month (1–14, 15–end)</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly (Every 3 Months)</option>
+              </select>
 
               <label for="wizAnchorDate">Anchor Date (YYYY-MM-DD)</label>
-<input id="wizAnchorDate" type="text" placeholder="2026-01-01" />
-
-<p class="status" id="anchorDateHelp">
-  Anchor date is used to align Weekly, Every Two Weeks, and Quarterly budgets.
-</p>
-
+              <input id="wizAnchorDate" type="text" placeholder="2026-01-01" />
+              <!-- Middle-ground helper text (kept enabled for all, but explains effect) -->
+              <p class="status" id="anchorDateHelp">
+                Anchor date is used to align Weekly, Every Two Weeks, and Quarterly budgets.
+              </p>
 
               <div class="row">
                 <button id="wizNext1" type="button">Next</button>
@@ -171,11 +156,9 @@ select:focus {
       <div id="globalStatus" class="status"></div>
     </div>
   </div>
-<!-- Part 3/6 — script: configuration + DOM refs + utilities -->
+
   <script>
-    /**
-     * CONFIGURATION
-     */
+    // -------------------- Configuration --------------------
     const API = {
       baseUrl: "https://purrfect-budget-api.kardian.workers.dev",
       validatePath: "/api/auth/validate",
@@ -184,9 +167,7 @@ select:focus {
       timeoutMs: 12000
     };
 
-    /**
-     * IndexedDB settings
-     */
+    // -------------------- IndexedDB settings --------------------
     const DB = {
       name: "pwa-budget-app",
       version: 1,
@@ -194,7 +175,7 @@ select:focus {
       tokenKey: "bearerToken"
     };
 
-    // ---------- DOM ----------
+    // -------------------- DOM --------------------
     const authView = document.getElementById("authView");
     const tokenInput = document.getElementById("tokenInput");
     const saveTokenBtn = document.getElementById("saveTokenBtn");
@@ -213,7 +194,6 @@ select:focus {
 
     // Wizard DOM
     const wizStepLabel = document.getElementById("wizStepLabel");
-
     const wizStep1 = document.getElementById("wizStep1");
     const wizStep2 = document.getElementById("wizStep2");
     const wizStep3 = document.getElementById("wizStep3");
@@ -224,6 +204,7 @@ select:focus {
 
     const wizPeriodType = document.getElementById("wizPeriodType");
     const wizAnchorDate = document.getElementById("wizAnchorDate");
+    const anchorDateHelp = document.getElementById("anchorDateHelp");
 
     const wizCatList = document.getElementById("wizCatList");
 
@@ -238,26 +219,7 @@ select:focus {
     const wizBack3 = document.getElementById("wizBack3");
     const wizSubmit = document.getElementById("wizSubmit");
 
-const anchorDateHelp = document.getElementById("anchorDateHelp");
-
-function updateAnchorDateHelpText() {
-  const pt = (wizPeriodType?.value || "").trim();
-
-  if (!anchorDateHelp) return;
-
-  if (pt === "weekly" || pt === "biweekly" || pt === "quarterly") {
-    anchorDateHelp.textContent =
-      "Anchor date determines how this budget period is aligned.";
-  } else {
-    anchorDateHelp.textContent =
-      "Anchor date is stored but does not affect this period type.";
-  }
-}
-
-
-
-    
-    // ---------- Utilities ----------
+    // -------------------- Utilities --------------------
     function setStatus(el, msg, kind) {
       if (!el) return;
       el.textContent = msg || "";
@@ -293,8 +255,20 @@ function updateAnchorDateHelpText() {
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
     }
-<!-- Part 4/6 — script: IndexedDB + fetch helpers + API calls -->
-    // ---------- IndexedDB Token Storage ----------
+
+    // -------------------- Middle-ground helper text --------------------
+    function updateAnchorDateHelpText() {
+      const pt = (wizPeriodType?.value || "").trim();
+      if (!anchorDateHelp) return;
+
+      if (pt === "weekly" || pt === "biweekly" || pt === "quarterly") {
+        anchorDateHelp.textContent = "Anchor date determines how this budget period is aligned.";
+      } else {
+        anchorDateHelp.textContent = "Anchor date is stored but does not affect this period type.";
+      }
+    }
+
+    // -------------------- IndexedDB Token Storage --------------------
     function openDb() {
       return new Promise((resolve, reject) => {
         const req = indexedDB.open(DB.name, DB.version);
@@ -356,7 +330,7 @@ function updateAnchorDateHelpText() {
       }
     }
 
-    // ---------- Fetch Helpers ----------
+    // -------------------- Fetch Helpers --------------------
     function fetchWithTimeout(url, options = {}) {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), API.timeoutMs);
@@ -376,13 +350,10 @@ function updateAnchorDateHelpText() {
       try { return await resp.text(); } catch { return ""; }
     }
 
-    // ---------- API Calls ----------
+    // -------------------- API Calls --------------------
     async function validateToken(token) {
       const url = joinUrl(API.baseUrl, API.validatePath);
-      const resp = await fetchWithTimeout(url, {
-        method: "GET",
-        headers: authHeaders(token)
-      });
+      const resp = await fetchWithTimeout(url, { method: "GET", headers: authHeaders(token) });
 
       if (resp.ok) return true;
       if (resp.status === 401 || resp.status === 403) return false;
@@ -393,15 +364,10 @@ function updateAnchorDateHelpText() {
 
     async function fetchState(token) {
       const url = joinUrl(API.baseUrl, API.statePath);
-      const resp = await fetchWithTimeout(url, {
-        method: "GET",
-        headers: authHeaders(token)
-      });
+      const resp = await fetchWithTimeout(url, { method: "GET", headers: authHeaders(token) });
 
       if (!resp.ok) {
-        if (resp.status === 401 || resp.status === 403) {
-          return { authFailed: true, state: null };
-        }
+        if (resp.status === 401 || resp.status === 403) return { authFailed: true, state: null };
         const text = await safeReadText(resp);
         throw new Error(`State request failed (${resp.status}): ${text || resp.statusText}`);
       }
@@ -419,9 +385,7 @@ function updateAnchorDateHelpText() {
       });
 
       if (!resp.ok) {
-        if (resp.status === 401 || resp.status === 403) {
-          return { authFailed: true, result: null };
-        }
+        if (resp.status === 401 || resp.status === 403) return { authFailed: true, result: null };
         const text = await safeReadText(resp);
         throw new Error(`Init failed (${resp.status}): ${text || resp.statusText}`);
       }
@@ -429,11 +393,9 @@ function updateAnchorDateHelpText() {
       const data = await resp.json().catch(() => ({}));
       return { authFailed: false, result: data };
     }
-<!-- Part 5/6 — script: Wizard logic + App flow functions -->
-    // ---------- Onboarding Wizard (3-step) ----------
-    const wizardState = {
-      step: 1
-    };
+
+    // -------------------- Wizard logic --------------------
+    const wizardState = { step: 1 };
 
     function setWizStep(n) {
       wizardState.step = n;
@@ -447,9 +409,7 @@ function updateAnchorDateHelpText() {
       setStatus(wizStatus2, "");
       setStatus(wizStatus3, "");
 
-      const label = (n === 1) ? "Step 1 of 3"
-                  : (n === 2) ? "Step 2 of 3"
-                  : "Step 3 of 3";
+      const label = (n === 1) ? "Step 1 of 3" : (n === 2) ? "Step 2 of 3" : "Step 3 of 3";
       setStatus(wizStepLabel, label);
     }
 
@@ -470,12 +430,11 @@ function updateAnchorDateHelpText() {
 
     function readCategoriesFromUI() {
       const rows = Array.from(wizCatList.querySelectorAll(".row"));
-      const cats = rows.map((r, idx) => {
+      return rows.map((r, idx) => {
         const name = r.querySelector(".wizCatName")?.value?.trim() || "";
         const budget_dollars = r.querySelector(".wizCatBudget")?.value?.trim() || "";
         return { name, budget_dollars, sort_order: idx + 1 };
       }).filter(c => c.name.length > 0);
-      return cats;
     }
 
     function validateStep1() {
@@ -483,12 +442,8 @@ function updateAnchorDateHelpText() {
       const ad = (wizAnchorDate.value || "").trim();
 
       const allowed = new Set(["daily", "weekly", "biweekly", "semi_monthly", "monthly", "quarterly"]);
-      if (!allowed.has(pt)) {
-        return `Period type must be one of: ${Array.from(allowed).join(", ")}`;
-      }
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(ad)) {
-        return "Anchor date must be YYYY-MM-DD.";
-      }
+      if (!allowed.has(pt)) return `Period type must be one of: ${Array.from(allowed).join(", ")}`;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ad)) return "Anchor date must be YYYY-MM-DD.";
       return null;
     }
 
@@ -498,9 +453,7 @@ function updateAnchorDateHelpText() {
 
       for (const c of cats) {
         if (c.name.length > 64) return `Category name too long: ${c.name}`;
-        if (!c.budget_dollars || !String(c.budget_dollars).trim()) {
-          return `Please enter a budget for: ${c.name}`;
-        }
+        if (!c.budget_dollars || !String(c.budget_dollars).trim()) return `Please enter a budget for: ${c.name}`;
       }
 
       const seen = new Set();
@@ -538,6 +491,7 @@ function updateAnchorDateHelpText() {
       const dd = String(d.getDate()).padStart(2, "0");
       if (wizAnchorDate && !wizAnchorDate.value) wizAnchorDate.value = `${yyyy}-${mm}-${dd}`;
 
+      // Default period type (biweekly). Select already defaults, this is defensive.
       if (wizPeriodType && !wizPeriodType.value) wizPeriodType.value = "biweekly";
 
       if (wizCatList && wizCatList.children.length === 0) {
@@ -548,10 +502,9 @@ function updateAnchorDateHelpText() {
 
       setWizStep(1);
       updateAnchorDateHelpText();
-
     }
 
-    // ---------- App State / Views ----------
+    // -------------------- App Views --------------------
     function showAuth(message, isError = false) {
       show(authView);
       hide(appView);
@@ -642,8 +595,8 @@ function updateAnchorDateHelpText() {
         setStatus(globalStatus, "Startup encountered an error. You can Retry.", "error");
       }
     }
-<!-- Part 6/6 — script: Event handlers + wizard wiring + init + close body/html -->
-    // ---------- Event Handlers ----------
+
+    // -------------------- Event Handlers --------------------
     saveTokenBtn.addEventListener("click", async () => {
       const token = (tokenInput.value || "").trim();
       if (!token) return setStatus(authStatus, "Please enter a token.", "error");
@@ -663,7 +616,6 @@ function updateAnchorDateHelpText() {
         setStatus(authStatus, "Token saved.", "ok");
 
         await showAppWithState(token);
-
         setBusy(false);
       } catch (err) {
         setBusy(false);
@@ -689,8 +641,9 @@ function updateAnchorDateHelpText() {
       await bootstrap();
     });
 
-    // ---------- Wizard Button Wiring ----------
+    // Wizard wiring
     wizPeriodType?.addEventListener("change", updateAnchorDateHelpText);
+
     wizNext1?.addEventListener("click", () => {
       const err = validateStep1();
       if (err) return setStatus(wizStatus1, err, "error");
@@ -698,7 +651,6 @@ function updateAnchorDateHelpText() {
     });
 
     wizBack2?.addEventListener("click", () => setWizStep(1));
-
     wizAddCat?.addEventListener("click", () => addWizCategoryRow());
 
     wizNext2?.addEventListener("click", () => {
@@ -749,7 +701,7 @@ function updateAnchorDateHelpText() {
       });
     }
 
-    // Start the app
+    // Start
     bootstrap();
   </script>
 </body>
