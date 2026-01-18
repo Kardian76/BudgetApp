@@ -67,8 +67,26 @@
         </div>
 
         <div id="noCategoriesView" class="hidden">
-          <p class="ok">No budget categories found yet. Starting onboarding…</p>
-          <p class="mono">Next step: show “Create Categories” flow.</p>
+ <div id="initView">
+  <p class="ok">Budget not initialized. Please enter your starting setup.</p>
+
+  <label for="periodType">Period Type</label>
+  <input id="periodType" type="text" value="semi_monthly" placeholder="daily/weekly/biweekly/semi_monthly/monthly/quarterly" />
+
+  <label for="anchorDate">Period Anchor Date (YYYY-MM-DD)</label>
+  <input id="anchorDate" type="text" placeholder="2026-01-01" />
+
+  <p style="margin-top:14px;">Categories (1–10)</p>
+  <div id="catList"></div>
+
+  <div class="row">
+    <button id="addCatBtn" class="secondary" type="button">Add Category</button>
+    <button id="initBtn" type="button">Initialize Budget</button>
+  </div>
+
+  <div id="initStatus" class="status"></div>
+</div>
+
         </div>
 
         <div class="row">
@@ -88,11 +106,13 @@
      * - state:    GET /api/budget/state  (returns initialized + categories array)
      */
     const API = {
-      baseUrl: "https://purrfect-budget-api.kardian.workers.dev",
-      validatePath: "/api/auth/validate",
-      statePath: "/api/budget/state",
-      timeoutMs: 12000
-    };
+  baseUrl: "https://purrfect-budget-api.kardian.workers.dev",
+  validatePath: "/api/auth/validate",
+  statePath: "/api/budget/state",
+  initPath: "/api/budget/init",
+  timeoutMs: 12000
+};
+
 
     /**
      * IndexedDB settings
@@ -121,6 +141,87 @@
     const retryBtn = document.getElementById("retryBtn");
 
     const globalStatus = document.getElementById("globalStatus");
+
+    const initStatus = document.getElementById("initStatus");
+const periodTypeEl = document.getElementById("periodType");
+const anchorDateEl = document.getElementById("anchorDate");
+const catListEl = document.getElementById("catList");
+const addCatBtn = document.getElementById("addCatBtn");
+const initBtn = document.getElementById("initBtn");
+
+function addCategoryRow(name = "", dollars = "") {
+  const row = document.createElement("div");
+  row.className = "row";
+  row.innerHTML = `
+    <input class="catName" type="text" placeholder="Category name" value="${escapeHtml(name)}" style="flex: 1; min-width: 180px;" />
+    <input class="catBudget" type="text" placeholder="Budget (e.g., 250.00)" value="${escapeHtml(dollars)}" style="width: 180px;" />
+    <button class="secondary removeCatBtn" type="button">Remove</button>
+  `;
+  row.querySelector(".removeCatBtn").addEventListener("click", () => row.remove());
+  catListEl.appendChild(row);
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+addCatBtn?.addEventListener("click", () => addCategoryRow());
+
+initBtn?.addEventListener("click", async () => {
+  const token = await idbGet(DB.tokenKey);
+  if (!token) return showAuth("Missing token. Please re-enter your bearer token.", true);
+
+  const period_type = (periodTypeEl.value || "").trim();
+  const period_anchor_date = (anchorDateEl.value || "").trim();
+
+  const rows = Array.from(catListEl.querySelectorAll(".row"));
+  const categories = rows.map((r, idx) => {
+    const name = r.querySelector(".catName").value.trim();
+    const budget_dollars = r.querySelector(".catBudget").value.trim();
+    return { name, sort_order: idx + 1, budget_dollars };
+  }).filter(c => c.name);
+
+  // Basic client-side validation (server will still enforce rules)
+  if (!period_type) return setStatus(initStatus, "Please enter a period type.", "error");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(period_anchor_date)) {
+    return setStatus(initStatus, "Anchor date must be YYYY-MM-DD.", "error");
+  }
+  if (categories.length < 1 || categories.length > 10) {
+    return setStatus(initStatus, "Please provide 1 to 10 categories.", "error");
+  }
+
+  setBusy(true);
+  setStatus(initStatus, "Initializing…");
+
+  try {
+    const res = await postInit(token, { period_type, period_anchor_date, categories });
+    if (res.authFailed) {
+      await idbDel(DB.tokenKey);
+      setBusy(false);
+      return showAuth("Token invalid/expired. Please enter a new token.", true);
+    }
+
+    setStatus(initStatus, "Initialized. Loading state…", "ok");
+    // Reload main view
+    await showAppWithState(token);
+    setBusy(false);
+  } catch (e) {
+    setBusy(false);
+    setStatus(initStatus, e.message, "error");
+  }
+});
+
+// Seed with 2 default rows for usability
+if (catListEl && catListEl.children.length === 0) {
+  addCategoryRow("Groceries", "300.00");
+  addCategoryRow("Gas", "120.00");
+}
+
 
     // ---------- Utilities ----------
     function setStatus(el, msg, kind) {
@@ -241,25 +342,45 @@
     }
 
     // Uses GET /api/budget/state as the category existence check
-    async function fetchState(token) {
-      const url = joinUrl(API.baseUrl, API.statePath);
+async function fetchState(token) {
+  const url = joinUrl(API.baseUrl, API.statePath);
+  const resp = await fetchWithTimeout(url, {
+    method: "GET",
+    headers: authHeaders(token)
+  });
 
-      const resp = await fetchWithTimeout(url, {
-        method: "GET",
-        headers: authHeaders(token)
-      });
-
-      if (!resp.ok) {
-        if (resp.status === 401 || resp.status === 403) {
-          return { authFailed: true, state: null };
-        }
-        const text = await safeReadText(resp);
-        throw new Error(`State request failed (${resp.status}): ${text || resp.statusText}`);
-      }
-
-      const data = await resp.json().catch(() => null);
-      return { authFailed: false, state: data };
+  if (!resp.ok) {
+    if (resp.status === 401 || resp.status === 403) {
+      return { authFailed: true, state: null };
     }
+    const text = await safeReadText(resp);
+    throw new Error(`State request failed (${resp.status}): ${text || resp.statusText}`);
+  }
+
+  const data = await resp.json().catch(() => null);
+  return { authFailed: false, state: data };
+}
+
+    async function postInit(token, payload) {
+  const url = joinUrl(API.baseUrl, API.initPath);
+  const resp = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload)
+  });
+
+  if (!resp.ok) {
+    if (resp.status === 401 || resp.status === 403) {
+      return { authFailed: true, result: null };
+    }
+    const text = await safeReadText(resp);
+    throw new Error(`Init failed (${resp.status}): ${text || resp.statusText}`);
+  }
+
+  const data = await resp.json().catch(() => ({}));
+  return { authFailed: false, result: data };
+}
+
 
     // ---------- App State Machine (Launch Flow) ----------
     async function bootstrap() {
@@ -313,41 +434,46 @@
     }
 
     async function showAppWithState(token) {
-      show(appView);
-      hide(authView);
-      setStatus(appStatus, "Connected. Checking budget categories…");
+  show(appView);
+  hide(authView);
+  setStatus(appStatus, "Connected. Loading budget state…");
 
-      hide(hasCategoriesView);
-      hide(noCategoriesView);
-      categoriesPreview.textContent = "";
+  hide(hasCategoriesView);
+  hide(noCategoriesView);
+  categoriesPreview.textContent = "";
 
-      const result = await fetchState(token);
+  const result = await fetchState(token);
 
-      if (result.authFailed) {
-        await idbDel(DB.tokenKey);
-        return showAuth("Your token is no longer valid. Please enter a new token.", true);
-      }
+  if (result.authFailed) {
+    await idbDel(DB.tokenKey);
+    return showAuth("Your token is no longer valid. Please enter a new token.", true);
+  }
 
-      const state = result.state || {};
-      const categories = Array.isArray(state.categories) ? state.categories : [];
-      const initialized = Boolean(state.initialized);
+  const state = result.state || {};
+  if (state.initialized === false) {
+    // Show init/onboarding
+    hide(hasCategoriesView);
+    show(noCategoriesView);
+    setStatus(appStatus, "Budget not initialized.");
+    return;
+  }
 
-      // If not initialized, there cannot be categories yet (by your API semantics)
-      if (!initialized || categories.length === 0) {
-        hide(hasCategoriesView);
-        show(noCategoriesView);
-        setStatus(appStatus, initialized ? "No categories found." : "Not initialized yet.");
-        return;
-      }
+  const categories = Array.isArray(state.categories) ? state.categories : [];
 
-      show(hasCategoriesView);
-      hide(noCategoriesView);
-      setStatus(appStatus, "Categories found.");
+  if (categories.length > 0) {
+    show(hasCategoriesView);
+    hide(noCategoriesView);
+    setStatus(appStatus, "Categories found.");
+    categoriesPreview.textContent = JSON.stringify(categories.slice(0, 5), null, 2) +
+      (categories.length > 5 ? `\n… (${categories.length - 5} more)` : "");
+  } else {
+    // Initialized but no active categories (edge case)
+    hide(hasCategoriesView);
+    show(noCategoriesView);
+    setStatus(appStatus, "Initialized, but no active categories found.");
+  }
+}
 
-      categoriesPreview.textContent =
-        JSON.stringify(categories.slice(0, 5), null, 2) +
-        (categories.length > 5 ? `\n… (${categories.length - 5} more)` : "");
-    }
     // ---------- Event Handlers ----------
     saveTokenBtn.addEventListener("click", async () => {
       const token = (tokenInput.value || "").trim();
