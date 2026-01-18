@@ -161,18 +161,21 @@
       min-width:0; /* allow shrink */
     }
 
-    /* Category is longer than budget on phones */
+    /* CHANGE #1: Category always takes remaining space (dominant) */
     .catRow .catName{
-      flex: 1 1 70%;
+      flex: 1 1 auto;
       min-width: 0;
-      max-width: 520px; /* prevents absurdly long on large screens */
+      max-width: 520px;
     }
 
-    /* Budget is compact and right-aligned */
+    /* CHANGE #2: Budget stays truly compact (fixed), never grows */
     .catRow .catBudget{
-      flex: 0 0 120px;
-      width: 120px;
+      flex: 0 0 96px;     /* smaller fixed width than before */
+      width: 96px;
+      max-width: 96px;
       text-align:right;
+      padding-left: 10px; /* slightly tighter to look shorter */
+      padding-right: 10px;
     }
 
     .catRow .wizRemoveCat{
@@ -181,11 +184,15 @@
       padding: 11px 12px;
     }
 
+    /* CHANGE #3: smaller phones get an even tighter budget field */
     @media (max-width: 420px){
       .wrap{ padding: 14px; }
       .catRow .catBudget{
-        flex-basis: 108px;
-        width: 108px;
+        flex-basis: 88px;
+        width: 88px;
+        max-width: 88px;
+        padding-left: 9px;
+        padding-right: 9px;
       }
     }
 
@@ -564,12 +571,10 @@ function updateStartDateAvailability() {
 
 /* ================= Currency helpers ($ prefix) ================= */
 function normalizeBudgetDisplay(s) {
-  // Allow user to type: 250, 250.5, $250.50
   const raw = String(s || "").trim().replace(/[^0-9.]/g, "");
   if (!raw) return "";
   const n = Number(raw);
   if (!Number.isFinite(n)) return "";
-  // Keep two decimals for display
   return "$" + n.toFixed(2);
 }
 
@@ -578,7 +583,6 @@ function budgetDisplayToNumericString(s) {
   if (!raw) return "";
   const n = Number(raw);
   if (!Number.isFinite(n)) return "";
-  // Send dollars with 2 decimals (string) to match your existing API parsing
   return n.toFixed(2);
 }
 
@@ -616,14 +620,7 @@ function addWizCategoryRow(name = "", dollars = "") {
   `;
 
   const b = row.querySelector(".catBudget");
-
-  // Non-blocking: keep typing natural; enforce $ format on blur
-  b.addEventListener("blur", () => {
-    b.value = normalizeBudgetDisplay(b.value);
-  });
-
-  // If user focuses a formatted value, keep it as-is (banking-app feel)
-  // Optionally, you could strip $ on focus; leaving as-is is simpler.
+  b.addEventListener("blur", () => { b.value = normalizeBudgetDisplay(b.value); });
 
   row.querySelector(".wizRemoveCat").addEventListener("click", () => row.remove());
   wizCatList.appendChild(row);
