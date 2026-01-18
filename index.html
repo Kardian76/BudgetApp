@@ -15,6 +15,7 @@
     p { margin: 10px 0; line-height: 1.35; }
     label { display: block; margin: 12px 0 6px; font-size: 13px; }
 
+    /* Global form styles */
     input[type="text"], input[type="password"], select {
       width: 100%;
       box-sizing: border-box;
@@ -27,7 +28,7 @@
     input:disabled { opacity: .7; cursor: not-allowed; }
     input:focus, select:focus { border-color: rgba(130,190,255,.6); outline: none; }
 
-    .row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+    .row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
     button {
       border: 0; border-radius: 10px;
       padding: 10px 14px; font-weight: 600;
@@ -48,109 +49,129 @@
       gap: 10px;
       align-items: center;
       margin-top: 10px;
+      flex-wrap: nowrap;
     }
-    .catName { flex: 1 1 auto; min-width: 220px; }
-    .catBudget { width: 180px; }
+
+    /* CRITICAL OVERRIDE:
+       Cancel global input width:100% so flex can place fields side-by-side */
+    .catRow input {
+      width: auto;
+    }
+
+    /* Category name on the left */
+    .catRow .catName {
+      flex: 1 1 auto;
+      min-width: 220px;
+    }
+
+    /* Budget amount immediately to the right */
+    .catRow .catBudget {
+      flex: 0 0 160px;
+      width: 160px;
+      text-align: right;
+    }
 
     @media (max-width: 520px) {
+      /* Still allow wrap on very small screens */
       .catRow { flex-wrap: wrap; }
-      .catBudget { width: 100%; }
+      .catRow .catBudget { flex: 1 1 auto; width: 100%; text-align: left; }
+      .catRow input { width: 100%; }
     }
   </style>
 </head>
 
 <body>
 <div class="wrap">
-<div class="card">
-<h1>Purrfect Budget</h1>
+  <div class="card">
+    <h1>Purrfect Budget</h1>
 
-<!-- ================= AUTH ================= -->
-<div id="authView" class="hidden">
-  <p class="status">Enter your bearer token. It will be stored locally in IndexedDB.</p>
+    <!-- ================= AUTH ================= -->
+    <div id="authView" class="hidden">
+      <p class="status">Enter your bearer token. It will be stored locally in IndexedDB.</p>
 
-  <label for="tokenInput">Bearer Token</label>
-  <input id="tokenInput" type="password" placeholder="Paste token…" autocomplete="off" />
-
-  <div class="row">
-    <button id="saveTokenBtn" type="button">Save Token</button>
-    <button id="toggleTokenBtn" class="secondary" type="button">Show</button>
-  </div>
-
-  <div id="authStatus" class="status"></div>
-</div>
-
-<!-- ================= APP ================= -->
-<div id="appView" class="hidden">
-  <p id="appStatus" class="status"></p>
-
-  <div id="hasCategoriesView" class="hidden">
-    <p class="ok">Budget categories loaded.</p>
-    <pre class="mono" id="categoriesPreview"></pre>
-  </div>
-
-  <div id="noCategoriesView" class="hidden">
-    <p class="ok">Welcome. Let’s initialize your budget.</p>
-
-    <!-- ---------- STEP 1 ---------- -->
-    <div id="wizStep1" class="card">
-      <h1>Step 1 — Budget period</h1>
-
-      <label for="wizPeriodType">Period Type</label>
-      <select id="wizPeriodType">
-        <option value="daily">Daily</option>
-        <option value="weekly">Weekly</option>
-        <option value="biweekly" selected>Every Two Weeks</option>
-        <option value="semi_monthly">Twice a Month (Semi-Monthly)</option>
-        <option value="monthly">Monthly</option>
-        <option value="quarterly">Quarterly</option>
-      </select>
-
-      <label for="wizStartDate">Start Date (MM-DD-YYYY)</label>
-      <input id="wizStartDate" type="text" placeholder="MM-DD-YYYY" />
+      <label for="tokenInput">Bearer Token</label>
+      <input id="tokenInput" type="password" placeholder="Paste token…" autocomplete="off" />
 
       <div class="row">
-        <button id="wizNext1" type="button">Next</button>
+        <button id="saveTokenBtn" type="button">Save Token</button>
+        <button id="toggleTokenBtn" class="secondary" type="button">Show</button>
       </div>
-      <div id="wizStatus1" class="status"></div>
+
+      <div id="authStatus" class="status"></div>
     </div>
 
-    <!-- ---------- STEP 2 ---------- -->
-    <div id="wizStep2" class="card hidden">
-      <h1>Step 2 — Categories</h1>
-      <p class="status" style="margin-top:0;">Enter 1–10 categories with starting budgets.</p>
+    <!-- ================= APP ================= -->
+    <div id="appView" class="hidden">
+      <p id="appStatus" class="status"></p>
 
-      <div id="wizCatList"></div>
+      <div id="hasCategoriesView" class="hidden">
+        <p class="ok">Budget categories loaded.</p>
+        <pre class="mono" id="categoriesPreview"></pre>
+      </div>
+
+      <div id="noCategoriesView" class="hidden">
+        <p class="ok">Welcome. Let’s initialize your budget.</p>
+
+        <!-- ---------- STEP 1 ---------- -->
+        <div id="wizStep1" class="card">
+          <h1>Step 1 — Budget period</h1>
+
+          <label for="wizPeriodType">Period Type</label>
+          <select id="wizPeriodType">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="biweekly" selected>Every Two Weeks</option>
+            <option value="semi_monthly">Twice a Month</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+          </select>
+
+          <label for="wizStartDate">Start Date (MM-DD-YYYY)</label>
+          <input id="wizStartDate" type="text" placeholder="MM-DD-YYYY" />
+
+          <div class="row">
+            <button id="wizNext1" type="button">Next</button>
+          </div>
+          <div id="wizStatus1" class="status"></div>
+        </div>
+
+        <!-- ---------- STEP 2 ---------- -->
+        <div id="wizStep2" class="card hidden">
+          <h1>Step 2 — Categories</h1>
+          <p class="status" style="margin-top:0;">Enter 1–10 categories with starting budgets.</p>
+
+          <div id="wizCatList"></div>
+
+          <div class="row">
+            <button id="wizAddCat" class="secondary" type="button">Add Category</button>
+            <button id="wizBack2" class="secondary" type="button">Back</button>
+            <button id="wizNext2" type="button">Next</button>
+          </div>
+          <div id="wizStatus2" class="status"></div>
+        </div>
+
+        <!-- ---------- STEP 3 ---------- -->
+        <div id="wizStep3" class="card hidden">
+          <h1>Step 3 — Review</h1>
+          <p class="status" style="margin-top:0;">Review and submit your initialization payload.</p>
+          <pre id="wizReviewJson" class="mono" style="white-space:pre-wrap;"></pre>
+
+          <div class="row">
+            <button id="wizBack3" class="secondary" type="button">Back</button>
+            <button id="wizSubmit" type="button">Initialize</button>
+          </div>
+          <div id="wizStatus3" class="status"></div>
+        </div>
+      </div>
 
       <div class="row">
-        <button id="wizAddCat" class="secondary" type="button">Add Category</button>
-        <button id="wizBack2" class="secondary" type="button">Back</button>
-        <button id="wizNext2" type="button">Next</button>
+        <button id="logoutBtn" class="secondary" type="button">Log Out</button>
+        <button id="retryBtn" class="secondary" type="button">Retry</button>
       </div>
-      <div id="wizStatus2" class="status"></div>
     </div>
 
-    <!-- ---------- STEP 3 ---------- -->
-    <div id="wizStep3" class="card hidden">
-      <h1>Step 3 — Review</h1>
-      <p class="status" style="margin-top:0;">Review and submit your initialization payload.</p>
-      <pre id="wizReviewJson" class="mono" style="white-space:pre-wrap;"></pre>
-
-      <div class="row">
-        <button id="wizBack3" class="secondary" type="button">Back</button>
-        <button id="wizSubmit" type="button">Initialize</button>
-      </div>
-      <div id="wizStatus3" class="status"></div>
-    </div>
+    <div id="globalStatus" class="status"></div>
   </div>
-
-  <div class="row">
-    <button id="logoutBtn" class="secondary" type="button">Log Out</button>
-    <button id="retryBtn" class="secondary" type="button">Retry</button>
-  </div>
-</div>
-
-<div id="globalStatus" class="status"></div>
-</div>
 </div>
 
 <script>
@@ -433,18 +454,6 @@ function showStep(stepIndex) {
   });
 }
 
-function addWizCategoryRow(name = "", dollars = "") {
-  const row = document.createElement("div");
-  row.className = "catRow";
-  row.innerHTML = `
-    <input class="catName" type="text" placeholder="Category" value="${escapeHtml(name)}" />
-    <input class="catBudget" type="text" placeholder="Budget (e.g., 250.00)" value="${escapeHtml(dollars)}" />
-    <button class="secondary wizRemoveCat" type="button">Remove</button>
-  `;
-  row.querySelector(".wizRemoveCat").addEventListener("click", () => row.remove());
-  wizCatList.appendChild(row);
-}
-
 function escapeHtml(s) {
   return String(s)
     .replaceAll("&", "&amp;")
@@ -452,6 +461,18 @@ function escapeHtml(s) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function addWizCategoryRow(name = "", dollars = "") {
+  const row = document.createElement("div");
+  row.className = "catRow";
+  row.innerHTML = `
+    <input class="catName" type="text" placeholder="Category" value="${escapeHtml(name)}" />
+    <input class="catBudget" type="text" inputmode="decimal" placeholder="Budget (e.g., 250.00)" value="${escapeHtml(dollars)}" />
+    <button class="secondary wizRemoveCat" type="button">Remove</button>
+  `;
+  row.querySelector(".wizRemoveCat").addEventListener("click", () => row.remove());
+  wizCatList.appendChild(row);
 }
 
 function readCategoriesFromUI() {
@@ -494,7 +515,7 @@ function validateStep2() {
 
 function effectiveStartDateYmd() {
   const pt = (wizPeriodType.value || "").trim();
-  if (!periodUsesStartDate(pt)) return todayYMD(); // backend requires YYYY-MM-DD but ignores it for these types
+  if (!periodUsesStartDate(pt)) return todayYMD();
   return mdyToYmd(wizStartDate.value);
 }
 
@@ -516,12 +537,10 @@ function renderReview() {
 }
 
 function initWizardDefaults() {
-  // Default Start Date (MM-DD-YYYY)
   if (!wizStartDate.value || wizStartDate.value === "MM-DD-YYYY") {
     wizStartDate.value = ymdToMdy(todayYMD());
   }
 
-  // Seed a couple rows only if empty
   if (wizCatList.children.length === 0) {
     addWizCategoryRow("Groceries", "300.00");
     addWizCategoryRow("Gas", "120.00");
