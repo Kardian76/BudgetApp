@@ -3,1098 +3,420 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Purrfect Budget</title>
-
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.webmanifest" />
-  <meta name="theme-color" content="#ffffff" />
-
-  <!-- iOS install friendliness -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <link rel="apple-touch-icon" href="Icon_192.png" />
-
+  <meta name="theme-color" content="#0b1320" />
+  <title>PWA Budget App</title>
   <style>
-    :root{
-      --bg:#f6f7fb;
-      --card:#ffffff;
-      --text:#0f172a;
-      --muted:#64748b;
-      --border:#e2e8f0;
-      --danger:#b91c1c;
-      --accent:#0f172a;
-      --shadow: 0 2px 18px rgba(15,23,42,.08);
-      --radius: 14px;
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body { margin: 0; padding: 0; background: #0b1320; color: #e9eef7; }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 24px; }
+    .card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 18px; }
+    h1 { font-size: 18px; margin: 0 0 12px; }
+    p { margin: 10px 0; line-height: 1.35; color: rgba(233,238,247,0.9); }
+    label { display: block; margin: 12px 0 6px; font-size: 13px; color: rgba(233,238,247,0.85); }
+    input[type="password"], input[type="text"] {
+      width: 100%; box-sizing: border-box;
+      padding: 10px 12px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(0,0,0,0.25); color: #e9eef7;
+      outline: none;
     }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
-      background:var(--bg);
-      color:var(--text);
+    input:focus { border-color: rgba(130,190,255,0.6); }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+    button {
+      appearance: none; border: 0; border-radius: 10px;
+      padding: 10px 12px; cursor: pointer;
+      background: #2d6cdf; color: white; font-weight: 600;
     }
-    header{
-      position:sticky; top:0; z-index:5;
-      background:rgba(246,247,251,.9);
-      backdrop-filter: blur(10px);
-      border-bottom:1px solid var(--border);
-    }
-    .wrap{max-width:960px;margin:0 auto;padding:14px 14px 86px}
-    .titleRow{
-      display:flex; align-items:center; justify-content:space-between; gap:12px;
-    }
-    h1{font-size:18px;margin:0}
-    .meta{
-      font-size:12px;color:var(--muted);line-height:1.3;margin-top:4px
-    }
-    .pill{
-      display:inline-flex; gap:8px; align-items:center;
-      font-size:12px;color:var(--muted);
-      border:1px solid var(--border); background:#fff;
-      padding:6px 10px; border-radius:999px;
-    }
-
-    .grid{display:grid; gap:12px; margin-top:12px}
-    .card{
-      background:var(--card);
-      border:1px solid var(--border);
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      padding:14px;
-    }
-    .card h2{
-      font-size:14px;margin:0 0 10px 0;color:var(--text);
-      display:flex; justify-content:space-between; align-items:baseline; gap:10px;
-    }
-    .small{font-size:12px;color:var(--muted)}
-    .row{
-      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
-    }
-    .row > *{flex:1}
-    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
-    input, select, button, textarea{
-      font:inherit;
-    }
-    input, select, textarea{
-      width:100%;
-      padding:10px 10px;
-      border-radius:10px;
-      border:1px solid var(--border);
-      background:#fff;
-      outline:none;
-    }
-    textarea{min-height:80px;resize:vertical}
-    button{
-      border:1px solid var(--border);
-      background:#fff;
-      padding:10px 12px;
-      border-radius:10px;
-      cursor:pointer;
-    }
-    button.primary{
-      background:var(--accent);
-      color:#fff;
-      border-color:var(--accent);
-    }
-    button.danger{
-      background:var(--danger);
-      color:#fff;
-      border-color:var(--danger);
-    }
-    button:disabled{
-      opacity:.55; cursor:not-allowed;
-    }
-
-    .table{
-      display:grid;
-      grid-template-columns: 1.4fr 1fr 1fr;
-      gap:8px;
-      align-items:center;
-    }
-    .th{font-size:12px;color:var(--muted)}
-    .cell{
-      padding:8px 10px;
-      border:1px solid var(--border);
-      border-radius:10px;
-      background:#fff;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-    }
-    .nameCell{font-weight:600}
-    .neg{color:var(--danger); font-variant-numeric: tabular-nums;}
-    .num{font-variant-numeric: tabular-nums;}
-    .divider{height:1px;background:var(--border);margin:12px 0}
-
-    /* Bottom buttons */
-    .dock{
-      position:fixed; left:0; right:0; bottom:0; z-index:6;
-      pointer-events:none;
-    }
-    .dockInner{
-      max-width:960px;
-      margin:0 auto;
-      padding:12px 14px;
-      display:flex;
-      justify-content:space-between;
-      pointer-events:none;
-    }
-    .dockInner button{
-      pointer-events:auto;
-      box-shadow:var(--shadow);
-      background:#fff;
-    }
-
-    /* Modal */
-    .modalOverlay{
-      position:fixed; inset:0; z-index:50;
-      background:rgba(15,23,42,.35);
-      display:none; align-items:flex-end; justify-content:center;
-      padding:14px;
-    }
-    .modal{
-      width:min(960px, 100%);
-      max-height:86vh;
-      overflow:auto;
-      background:#fff;
-      border-radius:18px;
-      border:1px solid var(--border);
-      box-shadow:var(--shadow);
-      padding:14px;
-    }
-    .modalTop{
-      display:flex; justify-content:space-between; align-items:center; gap:10px;
-      margin-bottom:6px;
-    }
-    .modalTop h3{margin:0;font-size:14px}
-    .modalOverlay.show{display:flex}
-    .hint{font-size:12px;color:var(--muted);line-height:1.35}
-    .error{
-      background:#fff1f2;
-      border:1px solid #fecdd3;
-      color:#9f1239;
-      padding:10px;
-      border-radius:10px;
-      font-size:12px;
-      margin-top:10px;
-      white-space:pre-wrap;
-    }
-    .success{
-      background:#ecfeff;
-      border:1px solid #a5f3fc;
-      color:#155e75;
-      padding:10px;
-      border-radius:10px;
-      font-size:12px;
-      margin-top:10px;
-      white-space:pre-wrap;
-    }
-
-    .miniGrid{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:10px;
-    }
-    @media (max-width:720px){
-      .table{grid-template-columns: 1.2fr 1fr 1fr}
-      .miniGrid{grid-template-columns: 1fr}
-      .row > *{flex:unset;width:100%}
-    }
-    .chipRow{
-      display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;
-    }
-    .chip{
-      font-size:12px;
-      border:1px solid var(--border);
-      border-radius:999px;
-      padding:6px 10px;
-      background:#fff;
-      color:var(--muted);
-    }
-    .mutedLink{
-      color:var(--muted);
-      text-decoration:underline;
-      cursor:pointer;
-      font-size:12px;
-    }
+    button.secondary { background: rgba(255,255,255,0.10); color: #e9eef7; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .status { margin-top: 12px; font-size: 13px; color: rgba(233,238,247,0.85); }
+    .error { color: #ffb4b4; }
+    .ok { color: #b6ffcf; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .hidden { display: none; }
   </style>
 </head>
+
 <body>
-  <header>
-    <div class="wrap" style="padding-bottom:12px">
-      <div class="titleRow">
-        <div>
-          <h1>Purrfect Budget</h1>
-          <div class="meta" id="periodMeta">Loading…</div>
-        </div>
-        <div class="pill" id="connPill">Not connected</div>
-      </div>
-      <div class="chipRow" id="statusChips"></div>
-    </div>
-  </header>
+  <div class="wrap">
+    <div class="card">
+      <h1>PWA Budget App</h1>
 
-  <main class="wrap">
-    <!-- INIT FLOW -->
-    <div class="card" id="initCard" style="display:none">
-      <h2>
-        <span>First-time setup</span>
-        <span class="small">Server authoritative</span>
-      </h2>
-      <div class="hint">
-        Define the budget period and up to 10 categories. This writes to the server. Clients only display values and submit changes.
+      <!-- Auth / Token Prompt -->
+      <div id="authView" class="hidden">
+        <p>This app requires a bearer token on first launch. The token will be stored locally in IndexedDB.</p>
+
+        <label for="tokenInput">Bearer Token</label>
+        <input id="tokenInput" type="password" autocomplete="off" placeholder="Paste token…" />
+
+        <div class="row">
+          <button id="saveTokenBtn">Save Token</button>
+          <button id="toggleTokenBtn" class="secondary" type="button">Show</button>
+        </div>
+
+        <div id="authStatus" class="status"></div>
       </div>
 
-      <div class="divider"></div>
+      <!-- App Views -->
+      <div id="appView" class="hidden">
+        <p id="appStatus" class="status"></p>
 
-      <div class="miniGrid">
-        <div>
-          <label>Budget period type</label>
-          <select id="initPeriodType">
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="biweekly">Biweekly</option>
-            <option value="semi_monthly">Semi-monthly (1–14, 15–end)</option>
-            <option value="monthly" selected>Monthly</option>
-            <option value="quarterly">Quarterly</option>
-          </select>
+        <div id="hasCategoriesView" class="hidden">
+          <p class="ok">Existing budget categories found. Loading your dashboard…</p>
+          <p class="mono" id="categoriesPreview"></p>
         </div>
-        <div>
-          <label>Period anchor date (YYYY-MM-DD)</label>
-          <input id="initAnchorDate" placeholder="2026-01-01" />
+
+        <div id="noCategoriesView" class="hidden">
+          <p class="ok">No budget categories found yet. Starting onboarding…</p>
+          <p class="mono">Next step: show “Create Categories” flow.</p>
+        </div>
+
+        <div class="row">
+          <button id="logoutBtn" class="secondary" type="button">Log Out</button>
+          <button id="retryBtn" class="secondary" type="button">Retry</button>
         </div>
       </div>
 
-      <div class="divider"></div>
-
-      <h2 style="margin-top:0">
-        <span>Categories (1–10)</span>
-        <span class="small">Budget dollars</span>
-      </h2>
-
-      <div id="initCats"></div>
-
-      <div class="row" style="margin-top:10px">
-        <button id="btnAddCat" type="button">Add category</button>
-        <button class="primary" id="btnInit" type="button">Initialize</button>
-      </div>
-
-      <div id="initMsg"></div>
-    </div>
-
-    <!-- MAIN UI -->
-    <div class="grid" id="mainUi" style="display:none">
-      <div class="card">
-        <h2>
-          <span>Current period</span>
-          <span class="small" id="curPeriodKey"></span>
-        </h2>
-        <div class="table">
-          <div class="th">Category</div>
-          <div class="th">Remaining</div>
-          <div class="th">Spent</div>
-        </div>
-        <div style="height:8px"></div>
-        <div id="summaryRows" class="table" style="grid-template-columns: 1.4fr 1fr 1fr"></div>
-      </div>
-
-      <div class="card">
-        <h2>
-          <span>Enter deductions / refunds</span>
-          <span class="small">Posts to server</span>
-        </h2>
-
-        <div class="hint">
-          Enter amounts to deduct per category. Check “Refund” to add back (server applies negative spent). Budgets may go negative.
-        </div>
-
-        <div class="divider"></div>
-
-        <div id="txnRows"></div>
-
-        <div class="row" style="margin-top:12px">
-          <button id="btnClearTxn" type="button">Clear</button>
-          <button class="primary" id="btnSubmitTxn" type="button">Submit</button>
-        </div>
-
-        <div id="txnMsg"></div>
-      </div>
-    </div>
-  </main>
-
-  <!-- Bottom dock buttons -->
-  <div class="dock">
-    <div class="dockInner">
-      <button id="btnPrior" type="button">Prior period</button>
-      <button id="btnSettings" type="button">Settings</button>
-    </div>
-  </div>
-
-  <!-- Prior period modal -->
-  <div class="modalOverlay" id="priorModal">
-    <div class="modal">
-      <div class="modalTop">
-        <h3>Prior period summary</h3>
-        <button type="button" data-close="priorModal">Close</button>
-      </div>
-      <div class="hint" id="priorMeta">—</div>
-      <div class="divider"></div>
-      <div class="table">
-        <div class="th">Category</div>
-        <div class="th">Spent</div>
-        <div class="th">Rolled over</div>
-      </div>
-      <div style="height:8px"></div>
-      <div id="priorRows" class="table" style="grid-template-columns: 1.4fr 1fr 1fr"></div>
-      <div id="priorMsg" style="margin-top:10px"></div>
-    </div>
-  </div>
-
-  <!-- Settings modal -->
-  <div class="modalOverlay" id="settingsModal">
-    <div class="modal">
-      <div class="modalTop">
-        <h3>Settings</h3>
-        <button type="button" data-close="settingsModal">Close</button>
-      </div>
-
-      <div class="card" style="box-shadow:none; margin:10px 0; border-radius:12px">
-        <h2>
-          <span>Connection</span>
-          <span class="small">Stored locally</span>
-        </h2>
-
-        <div class="miniGrid">
-          <div>
-            <label>API base URL</label>
-            <input id="cfgBaseUrl" placeholder="https://purrfect-budget-api.kardian.workers.dev" />
-          </div>
-          <div>
-            <label>Bearer token</label>
-            <input id="cfgToken" placeholder="Your token" />
-          </div>
-        </div>
-
-        <div class="row" style="margin-top:10px">
-          <button class="primary" id="btnSaveCfg" type="button">Save</button>
-          <button id="btnTestCfg" type="button">Test</button>
-        </div>
-        <div class="hint" style="margin-top:6px">
-          Security note: the token controls access. Treat it like a password.
-        </div>
-        <div id="cfgMsg"></div>
-      </div>
-
-      <div class="card" style="box-shadow:none; margin:10px 0; border-radius:12px">
-        <h2>
-          <span>Adjust budgets (next period)</span>
-          <span class="small">Takes effect next period</span>
-        </h2>
-        <div class="hint">
-          Saves next-period amounts only. Current period is never altered.
-        </div>
-        <div class="divider"></div>
-        <div id="nextBudgetRows"></div>
-        <div class="row" style="margin-top:10px">
-          <button class="primary" id="btnSaveNextBudgets" type="button">Save next-period budgets</button>
-        </div>
-        <div id="nextBudgetMsg"></div>
-      </div>
-
-      <div class="card" style="box-shadow:none; margin:10px 0; border-radius:12px">
-        <h2>
-          <span>Categories (current period)</span>
-          <span class="small">Affects current period</span>
-        </h2>
-
-        <div class="miniGrid">
-          <div>
-            <label>Add category name</label>
-            <input id="catAddName" placeholder="Dining" />
-          </div>
-          <div>
-            <label>Budget dollars</label>
-            <input id="catAddBudget" placeholder="120.00" />
-          </div>
-        </div>
-        <div class="miniGrid" style="margin-top:10px">
-          <div>
-            <label>Sort order (optional)</label>
-            <input id="catAddSort" placeholder="99" />
-          </div>
-          <div style="display:flex; align-items:flex-end; gap:10px">
-            <button class="primary" id="btnAddCategory" type="button" style="width:100%">Add category</button>
-          </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div>
-          <label>Remove category</label>
-          <select id="catRemoveSelect"></select>
-          <div class="row" style="margin-top:10px">
-            <button class="danger" id="btnRemoveCategory" type="button">Remove selected</button>
-          </div>
-        </div>
-
-        <div id="catMsg"></div>
-      </div>
-
-      <div class="card" style="box-shadow:none; margin:10px 0; border-radius:12px; border-color:#fecdd3">
-        <h2>
-          <span style="color:var(--danger)">Reset everything</span>
-          <span class="small">Destructive</span>
-        </h2>
-        <div class="hint">
-          Deletes all categories, budgets, periods, and history, and clears initialization.
-        </div>
-        <div class="row" style="margin-top:10px">
-          <button class="danger" id="btnReset" type="button">Reset</button>
-          <span class="mutedLink" id="resetHint">Requires confirm</span>
-        </div>
-        <div id="resetMsg"></div>
-      </div>
+      <!-- Global Status -->
+      <div id="globalStatus" class="status"></div>
     </div>
   </div>
 
   <script>
-    // ---------------------------------------------------------------------
-    // Storage / config
-    // ---------------------------------------------------------------------
-    const LS_BASE = "purrfectbudget.baseUrl";
-    const LS_TOKEN = "purrfectbudget.token";
+    /**
+     * CONFIGURATION
+     * Update these endpoints to match your backend.
+     *
+     * - validate: a lightweight endpoint that verifies token validity.
+     *   Expected: 200 OK if valid. 401/403 if invalid/expired.
+     *
+     * - categories: an endpoint that returns user's budget categories.
+     *   Expected: 200 OK with JSON array: [{...}, ...]
+     *             404/200 [] for none (depends on your API)
+     */
+    const API = {
+      baseUrl: "", // e.g. "https://api.yourdomain.com"
+      validatePath: "/api/auth/validate",
+      categoriesPath: "/api/budget/categories",
+      timeoutMs: 12000
+    };
 
-    function getConfig() {
-      const baseUrl = (localStorage.getItem(LS_BASE) || "").trim().replace(/\/+$/,"");
-      const token = (localStorage.getItem(LS_TOKEN) || "").trim();
-      return { baseUrl, token };
-    }
-    function setConfig(baseUrl, token) {
-      localStorage.setItem(LS_BASE, (baseUrl || "").trim().replace(/\/+$/,""));
-      localStorage.setItem(LS_TOKEN, (token || "").trim());
-    }
+    /**
+     * IndexedDB settings
+     */
+    const DB = {
+      name: "pwa-budget-app",
+      version: 1,
+      store: "auth",
+      tokenKey: "bearerToken"
+    };
 
-    // ---------------------------------------------------------------------
-    // DOM helpers
-    // ---------------------------------------------------------------------
-    const $ = (id) => document.getElementById(id);
+    // ---------- DOM ----------
+    const authView = document.getElementById("authView");
+    const tokenInput = document.getElementById("tokenInput");
+    const saveTokenBtn = document.getElementById("saveTokenBtn");
+    const toggleTokenBtn = document.getElementById("toggleTokenBtn");
+    const authStatus = document.getElementById("authStatus");
 
-    function showModal(id) { $(id).classList.add("show"); }
-    function hideModal(id) { $(id).classList.remove("show"); }
+    const appView = document.getElementById("appView");
+    const appStatus = document.getElementById("appStatus");
+    const hasCategoriesView = document.getElementById("hasCategoriesView");
+    const noCategoriesView = document.getElementById("noCategoriesView");
+    const categoriesPreview = document.getElementById("categoriesPreview");
 
-    document.addEventListener("click", (e) => {
-      const btn = e.target.closest("[data-close]");
-      if (btn) hideModal(btn.getAttribute("data-close"));
-      // Click outside modal closes
-      if (e.target.classList.contains("modalOverlay")) e.target.classList.remove("show");
-    });
+    const logoutBtn = document.getElementById("logoutBtn");
+    const retryBtn = document.getElementById("retryBtn");
 
-    // ---------------------------------------------------------------------
-    // Formatting
-    // ---------------------------------------------------------------------
-    function centsToDollars(cents) {
-      const n = Number(cents || 0);
-      const sign = n < 0 ? "-" : "";
-      const abs = Math.abs(n);
-      const dollars = (abs / 100).toFixed(2);
-      return sign + "$" + dollars;
-    }
+    const globalStatus = document.getElementById("globalStatus");
 
-    function isoToMmDdYyyy(iso) {
-      // API returns ISO with offset; we only display date portion.
-      if (!iso || typeof iso !== "string" || iso.length < 10) return "";
-      const d = iso.slice(0,10); // YYYY-MM-DD
-      const [y,m,dd] = d.split("-");
-      return `${m}-${dd}-${y}`;
-    }
-
-    // ---------------------------------------------------------------------
-    // API
-    // ---------------------------------------------------------------------
-    async function api(path, options = {}) {
-      const { baseUrl, token } = getConfig();
-      if (!baseUrl || !token) throw new Error("Missing API base URL or token. Open Settings and set Connection.");
-
-      const url = baseUrl.replace(/\/+$/,"") + path;
-      const headers = new Headers(options.headers || {});
-      headers.set("Authorization", `Bearer ${token}`);
-
-      const init = {
-        method: options.method || "GET",
-        headers,
-        body: options.body,
-      };
-
-      if (options.json !== undefined) {
-        headers.set("Content-Type", "application/json");
-        init.body = JSON.stringify(options.json);
-      }
-
-      const res = await fetch(url, init);
-      const text = await res.text();
-      let data = null;
-      try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
-
-      if (!res.ok) {
-        const msg = (data && (data.detail || data.error)) ? `${data.error || "Error"}: ${data.detail || ""}` : `HTTP ${res.status}`;
-        const err = new Error(msg);
-        err.status = res.status;
-        err.data = data;
-        throw err;
-      }
-      return data;
+    // ---------- Utilities ----------
+    function setStatus(el, msg, kind) {
+      el.textContent = msg || "";
+      el.classList.remove("error", "ok");
+      if (kind) el.classList.add(kind);
     }
 
-    // ---------------------------------------------------------------------
-    // State
-    // ---------------------------------------------------------------------
-    let state = null;
+    function show(el) { el.classList.remove("hidden"); }
+    function hide(el) { el.classList.add("hidden"); }
 
-    async function refreshState() {
-      state = await api("/api/budget/state");
-      renderAll();
+    function setBusy(isBusy) {
+      saveTokenBtn.disabled = isBusy;
+      retryBtn.disabled = isBusy;
+      logoutBtn.disabled = isBusy;
     }
 
-    function renderAll() {
-      renderConnection();
-      if (!state || state.initialized === false) {
-        $("mainUi").style.display = "none";
-        $("initCard").style.display = "block";
-        renderInitRows();
-        $("periodMeta").textContent = "Not initialized";
-        $("curPeriodKey").textContent = "";
-        $("btnPrior").disabled = true;
-        return;
-      }
-
-      $("initCard").style.display = "none";
-      $("mainUi").style.display = "grid";
-      $("btnPrior").disabled = !state.prior_period;
-
-      const p = state.period;
-      $("curPeriodKey").textContent = p.period_key;
-      $("periodMeta").textContent =
-        `Period: ${isoToMmDdYyyy(p.start_ts)} to ${isoToMmDdYyyy(p.end_ts)} (ET)`;
-
-      renderSummary();
-      renderTxnInputs();
-      renderPrior();
-      renderSettingsBudgets();
-      renderSettingsCategories();
+    function joinUrl(base, path) {
+      if (!base) return path;
+      return base.replace(/\/+$/, "") + "/" + path.replace(/^\/+/, "");
     }
 
-    function renderConnection() {
-      const { baseUrl, token } = getConfig();
-      const ok = !!(baseUrl && token);
-      $("connPill").textContent = ok ? "Connected" : "Not connected";
-      $("connPill").style.borderColor = ok ? "#a7f3d0" : "var(--border)";
-      $("connPill").style.color = ok ? "#065f46" : "var(--muted)";
+    // ---------- IndexedDB Token Storage ----------
+    function openDb() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB.name, DB.version);
 
-      const chips = $("statusChips");
-      chips.innerHTML = "";
-      if (baseUrl) chips.appendChild(chip(`API: ${baseUrl}`));
-      if (token) chips.appendChild(chip(`Token: ${"*".repeat(Math.min(8, token.length))}`));
-      if (!baseUrl || !token) chips.appendChild(chip("Open Settings → Connection"));
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(DB.store)) {
+            db.createObjectStore(DB.store);
+          }
+        };
+
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
     }
 
-    function chip(text) {
-      const d = document.createElement("div");
-      d.className = "chip";
-      d.textContent = text;
-      return d;
-    }
-
-    // ---------------------------------------------------------------------
-    // Summary UI
-    // ---------------------------------------------------------------------
-    function renderSummary() {
-      const wrap = $("summaryRows");
-      wrap.innerHTML = "";
-      const cats = state.categories || [];
-      for (const c of cats) {
-        wrap.appendChild(cell(c.name, "cell nameCell"));
-        wrap.appendChild(cellMoney(c.remaining_cents));
-        wrap.appendChild(cellMoney(c.spent_cents));
-      }
-    }
-
-    function cell(text, cls="cell") {
-      const d = document.createElement("div");
-      d.className = cls;
-      d.textContent = text;
-      return d;
-    }
-
-    function cellMoney(cents) {
-      const d = document.createElement("div");
-      const n = Number(cents || 0);
-      d.className = "cell num" + (n < 0 ? " neg" : "");
-      d.textContent = centsToDollars(n);
-      return d;
-    }
-
-    // ---------------------------------------------------------------------
-    // Transaction inputs
-    // ---------------------------------------------------------------------
-    function renderTxnInputs() {
-      const wrap = $("txnRows");
-      wrap.innerHTML = "";
-
-      const cats = state.categories || [];
-      for (const c of cats) {
-        const row = document.createElement("div");
-        row.className = "card";
-        row.style.boxShadow = "none";
-        row.style.borderRadius = "12px";
-        row.style.margin = "0 0 10px 0";
-
-        row.innerHTML = `
-          <div class="row">
-            <div style="flex:2">
-              <div style="font-weight:700">${escapeHtml(c.name)}</div>
-              <div class="small">Remaining: <span class="${Number(c.remaining_cents)<0?'neg':''}">${escapeHtml(centsToDollars(c.remaining_cents))}</span>
-                · Spent: ${escapeHtml(centsToDollars(c.spent_cents))}
-              </div>
-            </div>
-            <div style="flex:1">
-              <label>Amount</label>
-              <input inputmode="decimal" placeholder="0.00" data-txn-amt="${c.category_id}" />
-            </div>
-            <div style="flex:1">
-              <label style="display:flex;align-items:center;gap:10px">
-                <input type="checkbox" data-txn-ref="${c.category_id}" style="width:18px;height:18px;margin:0" />
-                Refund
-              </label>
-              <div class="small">Checks subtract from spent</div>
-            </div>
-          </div>
-        `;
-        wrap.appendChild(row);
-      }
-    }
-
-    function clearTxnInputs() {
-      document.querySelectorAll("[data-txn-amt]").forEach(i => i.value = "");
-      document.querySelectorAll("[data-txn-ref]").forEach(i => i.checked = false);
-      $("txnMsg").innerHTML = "";
-    }
-
-    async function submitTransactions() {
-      $("txnMsg").innerHTML = "";
-      const items = [];
-      const cats = state.categories || [];
-
-      for (const c of cats) {
-        const amtEl = document.querySelector(`[data-txn-amt="${c.category_id}"]`);
-        const refEl = document.querySelector(`[data-txn-ref="${c.category_id}"]`);
-        if (!amtEl) continue;
-
-        const raw = (amtEl.value || "").trim();
-        if (!raw) continue;
-
-        // Client does not do budget math; it only parses dollars to send.
-        if (!/^\d+(\.\d{1,2})?$/.test(raw)) {
-          throw new Error(`Invalid amount for ${c.name}: "${raw}" (use 0.00 format)`);
-        }
-
-        items.push({
-          category_id: c.category_id,
-          amount_dollars: raw,
-          is_refund: !!(refEl && refEl.checked)
+    async function idbGet(key) {
+      const db = await openDb();
+      try {
+        return await new Promise((resolve, reject) => {
+          const tx = db.transaction(DB.store, "readonly");
+          const store = tx.objectStore(DB.store);
+          const req = store.get(key);
+          req.onsuccess = () => resolve(req.result ?? null);
+          req.onerror = () => reject(req.error);
         });
-      }
-
-      if (items.length === 0) {
-        $("txnMsg").innerHTML = `<div class="error">Enter at least one amount.</div>`;
-        return;
-      }
-
-      $("btnSubmitTxn").disabled = true;
-      try {
-        const data = await api("/api/budget/transactions", { method:"POST", json:{ items } });
-        state = data;
-        $("txnMsg").innerHTML = `<div class="success">Saved.</div>`;
-        renderAll();
-        // keep inputs for reference; user can clear manually
-      } catch (e) {
-        $("txnMsg").innerHTML = `<div class="error">${escapeHtml(e.message)}</div>`;
       } finally {
-        $("btnSubmitTxn").disabled = false;
+        db.close();
       }
     }
 
-    // ---------------------------------------------------------------------
-    // Prior period modal
-    // ---------------------------------------------------------------------
-    function renderPrior() {
-      const prior = state.prior_period;
-      if (!prior) {
-        $("priorMeta").textContent = "No prior period available yet.";
-        $("priorRows").innerHTML = "";
-        return;
-      }
-      $("priorMeta").textContent = `Period: ${isoToMmDdYyyy(prior.start_ts)} to ${isoToMmDdYyyy(prior.end_ts)} (ET)`;
-
-      const wrap = $("priorRows");
-      wrap.innerHTML = "";
-      for (const c of prior.categories || []) {
-        wrap.appendChild(cell(c.name, "cell nameCell"));
-        wrap.appendChild(cellMoney(c.spent_cents));
-        wrap.appendChild(cellMoney(c.rollover_cents));
-      }
-    }
-
-    // ---------------------------------------------------------------------
-    // Settings: next budgets
-    // ---------------------------------------------------------------------
-    function renderSettingsBudgets() {
-      const wrap = $("nextBudgetRows");
-      wrap.innerHTML = "";
-
-      const cats = (state.categories || []).map(c => ({ category_id: c.category_id, name: c.name }));
-      for (const c of cats) {
-        const row = document.createElement("div");
-        row.className = "row";
-        row.style.marginBottom = "10px";
-        row.innerHTML = `
-          <div style="flex:2">
-            <label>${escapeHtml(c.name)}</label>
-            <input inputmode="decimal" placeholder="e.g., 500.00" data-nextbudget="${c.category_id}" />
-          </div>
-        `;
-        wrap.appendChild(row);
-      }
-
-      $("nextBudgetMsg").innerHTML = "";
-    }
-
-    async function saveNextBudgets() {
-      $("nextBudgetMsg").innerHTML = "";
-      const cats = state.categories || [];
-      const budgets = [];
-
-      for (const c of cats) {
-        const el = document.querySelector(`[data-nextbudget="${c.category_id}"]`);
-        if (!el) continue;
-        const raw = (el.value || "").trim();
-        if (!raw) continue;
-
-        if (!/^-?\d+(\.\d{1,2})?$/.test(raw)) {
-          $("nextBudgetMsg").innerHTML = `<div class="error">Invalid amount for ${escapeHtml(c.name)}: "${escapeHtml(raw)}"</div>`;
-          return;
-        }
-        budgets.push({ category_id: c.category_id, budget_dollars: raw });
-      }
-
-      if (budgets.length === 0) {
-        $("nextBudgetMsg").innerHTML = `<div class="error">Enter at least one next-period amount.</div>`;
-        return;
-      }
-
-      $("btnSaveNextBudgets").disabled = true;
+    async function idbSet(key, value) {
+      const db = await openDb();
       try {
-        const data = await api("/api/budget/adjust-next", { method:"POST", json:{ budgets } });
-        state = data;
-        $("nextBudgetMsg").innerHTML = `<div class="success">Saved for next period.</div>`;
-        renderAll();
-      } catch (e) {
-        $("nextBudgetMsg").innerHTML = `<div class="error">${escapeHtml(e.message)}</div>`;
+        return await new Promise((resolve, reject) => {
+          const tx = db.transaction(DB.store, "readwrite");
+          const store = tx.objectStore(DB.store);
+          const req = store.put(value, key);
+          req.onsuccess = () => resolve(true);
+          req.onerror = () => reject(req.error);
+        });
       } finally {
-        $("btnSaveNextBudgets").disabled = false;
+        db.close();
       }
     }
 
-    // ---------------------------------------------------------------------
-    // Settings: categories add/remove
-    // ---------------------------------------------------------------------
-    function renderSettingsCategories() {
-      const sel = $("catRemoveSelect");
-      sel.innerHTML = "";
-      for (const c of state.categories || []) {
-        const opt = document.createElement("option");
-        opt.value = String(c.category_id);
-        opt.textContent = c.name;
-        sel.appendChild(opt);
-      }
-      $("catMsg").innerHTML = "";
-    }
-
-    async function addCategory() {
-      $("catMsg").innerHTML = "";
-      const name = ($("catAddName").value || "").trim();
-      const budget = ($("catAddBudget").value || "").trim();
-      const sort = ($("catAddSort").value || "").trim();
-
-      if (!name) {
-        $("catMsg").innerHTML = `<div class="error">Enter a category name.</div>`;
-        return;
-      }
-      if (budget && !/^-?\d+(\.\d{1,2})?$/.test(budget)) {
-        $("catMsg").innerHTML = `<div class="error">Invalid budget dollars.</div>`;
-        return;
-      }
-      if (sort && !/^\d+$/.test(sort)) {
-        $("catMsg").innerHTML = `<div class="error">Sort order must be an integer.</div>`;
-        return;
-      }
-
-      const add = [{ name, budget_dollars: budget || "0.00" }];
-      if (sort) add[0].sort_order = Number(sort);
-
-      $("btnAddCategory").disabled = true;
+    async function idbDel(key) {
+      const db = await openDb();
       try {
-        const data = await api("/api/budget/categories", { method:"POST", json:{ add } });
-        state = data;
-        $("catMsg").innerHTML = `<div class="success">Category added.</div>`;
-        $("catAddName").value = "";
-        $("catAddBudget").value = "";
-        $("catAddSort").value = "";
-        renderAll();
-      } catch (e) {
-        $("catMsg").innerHTML = `<div class="error">${escapeHtml(e.message)}</div>`;
+        return await new Promise((resolve, reject) => {
+          const tx = db.transaction(DB.store, "readwrite");
+          const store = tx.objectStore(DB.store);
+          const req = store.delete(key);
+          req.onsuccess = () => resolve(true);
+          req.onerror = () => reject(req.error);
+        });
       } finally {
-        $("btnAddCategory").disabled = false;
+        db.close();
       }
     }
 
-    async function removeCategory() {
-      $("catMsg").innerHTML = "";
-      const id = Number(($("catRemoveSelect").value || "").trim());
-      if (!Number.isInteger(id) || id <= 0) {
-        $("catMsg").innerHTML = `<div class="error">Select a category to remove.</div>`;
-        return;
-      }
+    // ---------- Fetch Helpers ----------
+    function fetchWithTimeout(url, options = {}) {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), API.timeoutMs);
 
-      $("btnRemoveCategory").disabled = true;
-      try {
-        const data = await api("/api/budget/categories", { method:"POST", json:{ remove: [{ category_id: id }] } });
-        state = data;
-        $("catMsg").innerHTML = `<div class="success">Category removed.</div>`;
-        renderAll();
-      } catch (e) {
-        $("catMsg").innerHTML = `<div class="error">${escapeHtml(e.message)}</div>`;
-      } finally {
-        $("btnRemoveCategory").disabled = false;
-      }
+      return fetch(url, { ...options, signal: controller.signal })
+        .finally(() => clearTimeout(id));
     }
 
-    // ---------------------------------------------------------------------
-    // Reset
-    // ---------------------------------------------------------------------
-    async function resetAll() {
-      $("resetMsg").innerHTML = "";
-      const ok = window.confirm("This will delete ALL categories, periods, and history. Type RESET in the next prompt to confirm.");
-      if (!ok) return;
-      const confirmStr = window.prompt('Type RESET to confirm:', '');
-      if (confirmStr !== "RESET") {
-        $("resetMsg").innerHTML = `<div class="error">Reset canceled.</div>`;
-        return;
-      }
-
-      $("btnReset").disabled = true;
-      try {
-        await api("/api/budget/reset", { method:"POST", json:{ confirm:"RESET" } });
-        $("resetMsg").innerHTML = `<div class="success">Reset complete. Reloading state…</div>`;
-        state = null;
-        await safeInitialLoad();
-        hideModal("settingsModal");
-      } catch (e) {
-        $("resetMsg").innerHTML = `<div class="error">${escapeHtml(e.message)}</div>`;
-      } finally {
-        $("btnReset").disabled = false;
-      }
+    function authHeaders(token) {
+      return {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      };
     }
 
-    // ---------------------------------------------------------------------
-    // Init flow UI helpers
-    // ---------------------------------------------------------------------
-    function renderInitRows() {
-      const wrap = $("initCats");
-      if (wrap.childElementCount === 0) {
-        // Default 2 rows
-        addInitRow();
-        addInitRow();
-      }
-      // no-op otherwise (preserve user input)
-    }
+    // ---------- API Calls ----------
+    async function validateToken(token) {
+      const url = joinUrl(API.baseUrl, API.validatePath);
 
-    function addInitRow() {
-      const wrap = $("initCats");
-      const idx = wrap.childElementCount + 1;
-      if (idx > 10) return;
-
-      const row = document.createElement("div");
-      row.className = "miniGrid";
-      row.style.marginBottom = "10px";
-      row.innerHTML = `
-        <div>
-          <label>Category name</label>
-          <input placeholder="Groceries" data-init-name="${idx}" />
-        </div>
-        <div>
-          <label>Budget dollars</label>
-          <input inputmode="decimal" placeholder="500.00" data-init-budget="${idx}" />
-        </div>
-      `;
-      wrap.appendChild(row);
-      $("btnAddCat").disabled = wrap.childElementCount >= 10;
-    }
-
-    async function submitInit() {
-      $("initMsg").innerHTML = "";
-
-      const period_type = $("initPeriodType").value;
-      const period_anchor_date = ($("initAnchorDate").value || "").trim();
-
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(period_anchor_date)) {
-        $("initMsg").innerHTML = `<div class="error">Anchor date must be YYYY-MM-DD.</div>`;
-        return;
-      }
-
-      const rows = $("initCats").querySelectorAll("[data-init-name]");
-      const categories = [];
-      const seen = new Set();
-
-      rows.forEach((nameEl) => {
-        const i = nameEl.getAttribute("data-init-name");
-        const budgetEl = document.querySelector(`[data-init-budget="${i}"]`);
-        const name = (nameEl.value || "").trim();
-        const budget = (budgetEl?.value || "").trim();
-
-        if (!name && !budget) return; // allow empty trailing rows
-        if (!name) throw new Error("Each category row needs a name.");
-        if (!budget) throw new Error(`Category "${name}" needs a budget.`);
-
-        if (!/^-?\d+(\.\d{1,2})?$/.test(budget)) throw new Error(`Invalid budget for "${name}".`);
-
-        const key = name.toLowerCase();
-        if (seen.has(key)) throw new Error(`Duplicate category name: "${name}".`);
-        seen.add(key);
-
-        categories.push({ name, budget_dollars: budget, sort_order: categories.length + 1 });
+      // If you do not have a dedicated endpoint, you can treat a call to
+      // the categories endpoint as your validation check instead.
+      const resp = await fetchWithTimeout(url, {
+        method: "GET",
+        headers: authHeaders(token)
       });
 
-      if (categories.length < 1 || categories.length > 10) {
-        $("initMsg").innerHTML = `<div class="error">Provide 1–10 categories.</div>`;
-        return;
-      }
+      if (resp.ok) return true;
 
-      $("btnInit").disabled = true;
-      try {
-        const data = await api("/api/budget/init", {
-          method: "POST",
-          json: { period_type, period_anchor_date, categories }
-        });
-        state = data;
-        $("initMsg").innerHTML = `<div class="success">Initialized.</div>`;
-        renderAll();
-      } catch (e) {
-        $("initMsg").innerHTML = `<div class="error">${escapeHtml(e.message)}</div>`;
-      } finally {
-        $("btnInit").disabled = false;
-      }
+      if (resp.status === 401 || resp.status === 403) return false;
+
+      // Other failures are treated as transient (network/server).
+      const text = await safeReadText(resp);
+      throw new Error(`Token validation failed (${resp.status}): ${text || resp.statusText}`);
     }
 
-    // ---------------------------------------------------------------------
-    // Settings: connection save/test
-    // ---------------------------------------------------------------------
-    function hydrateSettingsConnection() {
-      const { baseUrl, token } = getConfig();
-      $("cfgBaseUrl").value = baseUrl || "";
-      $("cfgToken").value = token || "";
-    }
+    async function fetchCategories(token) {
+      const url = joinUrl(API.baseUrl, API.categoriesPath);
+      const resp = await fetchWithTimeout(url, {
+        method: "GET",
+        headers: authHeaders(token)
+      });
 
-    async function saveConfig() {
-      $("cfgMsg").innerHTML = "";
-      const baseUrl = ($("cfgBaseUrl").value || "").trim().replace(/\/+$/,"");
-      const token = ($("cfgToken").value || "").trim();
-
-      if (!baseUrl || !/^https?:\/\//.test(baseUrl)) {
-        $("cfgMsg").innerHTML = `<div class="error">Enter a valid base URL (https://...).</div>`;
-        return;
-      }
-      if (!token) {
-        $("cfgMsg").innerHTML = `<div class="error">Enter the Bearer token.</div>`;
-        return;
-      }
-
-      setConfig(baseUrl, token);
-      renderConnection();
-
-      $("cfgMsg").innerHTML = `<div class="success">Saved.</div>`;
-    }
-
-    async function testConfig() {
-      $("cfgMsg").innerHTML = "";
-      await saveConfig();
-      try {
-        const s = await api("/api/budget/state");
-        $("cfgMsg").innerHTML = `<div class="success">Connected. initialized=${String(s.initialized)}</div>`;
-        state = s;
-        renderAll();
-      } catch (e) {
-        $("cfgMsg").innerHTML = `<div class="error">${escapeHtml(e.message)}</div>`;
-      }
-    }
-
-    // ---------------------------------------------------------------------
-    // Boot
-    // ---------------------------------------------------------------------
-    async function safeInitialLoad() {
-      try {
-        const { baseUrl, token } = getConfig();
-        if (!baseUrl || !token) {
-          // Prompt user to set connection first
-          state = { initialized: false };
-          renderAll();
-          return;
+      if (!resp.ok) {
+        if (resp.status === 401 || resp.status === 403) {
+          // Token invalid/expired.
+          return { authFailed: true, categories: null };
         }
-        await refreshState();
-      } catch (e) {
-        // If connection fails, show settings guidance
-        state = { initialized: false };
-        renderAll();
-        $("periodMeta").textContent = "Connection failed. Open Settings → Connection.";
+        const text = await safeReadText(resp);
+        throw new Error(`Categories request failed (${resp.status}): ${text || resp.statusText}`);
+      }
+
+      const data = await resp.json().catch(() => null);
+      const categories = Array.isArray(data) ? data : (data?.categories ?? []);
+      return { authFailed: false, categories };
+    }
+
+    async function safeReadText(resp) {
+      try { return await resp.text(); } catch { return ""; }
+    }
+
+    // ---------- App State Machine (Launch Flow) ----------
+    async function bootstrap() {
+      setBusy(true);
+      setStatus(globalStatus, "Starting…");
+      hide(authView);
+      hide(appView);
+
+      const token = await idbGet(DB.tokenKey);
+
+      if (!token) {
+        // No token stored: prompt once.
+        setBusy(false);
+        setStatus(globalStatus, "");
+        return showAuth("No token found. Enter your bearer token to continue.");
+      }
+
+      // Token exists: validate then continue.
+      try {
+        setStatus(globalStatus, "Validating token…");
+        const isValid = await validateToken(token);
+
+        if (!isValid) {
+          await idbDel(DB.tokenKey);
+          setBusy(false);
+          setStatus(globalStatus, "");
+          return showAuth("Stored token is invalid or expired. Please enter a new token.", true);
+        }
+
+        // Token is valid: proceed to categories check.
+        setStatus(globalStatus, "Loading your data…");
+        await showAppWithCategories(token);
+
+        setStatus(globalStatus, "");
+        setBusy(false);
+      } catch (err) {
+        // Network/server error: don't destroy token; allow retry.
+        setBusy(false);
+        show(appView);
+        hide(authView);
+
+        setStatus(appStatus, `Unable to complete startup: ${err.message}`, "error");
+        hide(hasCategoriesView);
+        hide(noCategoriesView);
+        setStatus(globalStatus, "Startup encountered an error. You can Retry.", "error");
       }
     }
 
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+    function showAuth(message, isError = false) {
+      show(authView);
+      hide(appView);
+      setStatus(authStatus, message, isError ? "error" : "");
+      tokenInput.value = "";
+      tokenInput.focus();
     }
 
-    // ---------------------------------------------------------------------
-    // Event wiring
-    // ---------------------------------------------------------------------
-    $("btnSettings").addEventListener("click", () => {
-      hydrateSettingsConnection();
-      showModal("settingsModal");
+    async function showAppWithCategories(token) {
+      show(appView);
+      hide(authView);
+      setStatus(appStatus, "Connected. Checking budget categories…");
+
+      hide(hasCategoriesView);
+      hide(noCategoriesView);
+      categoriesPreview.textContent = "";
+
+      const result = await fetchCategories(token);
+
+      if (result.authFailed) {
+        // Token no longer valid mid-flight (revoked/expired)
+        await idbDel(DB.tokenKey);
+        return showAuth("Your token is no longer valid. Please enter a new token.", true);
+      }
+
+      const categories = result.categories || [];
+      if (categories.length > 0) {
+        show(hasCategoriesView);
+        hide(noCategoriesView);
+        setStatus(appStatus, "Categories found.");
+        // Preview limited to keep UI simple
+        categoriesPreview.textContent = JSON.stringify(categories.slice(0, 5), null, 2) +
+          (categories.length > 5 ? `\n… (${categories.length - 5} more)` : "");
+      } else {
+        hide(hasCategoriesView);
+        show(noCategoriesView);
+        setStatus(appStatus, "No categories found.");
+      }
+    }
+
+    // ---------- Event Handlers ----------
+    saveTokenBtn.addEventListener("click", async () => {
+      const token = (tokenInput.value || "").trim();
+      if (!token) return setStatus(authStatus, "Please enter a token.", "error");
+
+      setBusy(true);
+      setStatus(authStatus, "Validating token…");
+      setStatus(globalStatus, "");
+
+      try {
+        const isValid = await validateToken(token);
+        if (!isValid) {
+          setBusy(false);
+          return setStatus(authStatus, "Token is invalid or expired. Please try again.", "error");
+        }
+
+        await idbSet(DB.tokenKey, token);
+        setStatus(authStatus, "Token saved.", "ok");
+
+        // Proceed to categories check immediately.
+        await showAppWithCategories(token);
+
+        setBusy(false);
+      } catch (err) {
+        setBusy(false);
+        setStatus(authStatus, `Unable to validate token: ${err.message}`, "error");
+      }
     });
-    $("btnPrior").addEventListener("click", () => showModal("priorModal"));
-    $("btnClearTxn").addEventListener("click", clearTxnInputs);
-    $("btnSubmitTxn").addEventListener("click", () => submitTransactions().catch(e => {
-      $("txnMsg").innerHTML = `<div class="error">${escapeHtml(e.message)}</div>`;
-    }));
 
-    $("btnAddCat").addEventListener("click", () => addInitRow());
-    $("btnInit").addEventListener("click", () => submitInit().catch(e => {
-      $("initMsg").innerHTML = `<div class="error">${escapeHtml(e.message)}</div>`;
-    }));
-
-    $("btnSaveCfg").addEventListener("click", () => saveConfig());
-    $("btnTestCfg").addEventListener("click", () => testConfig());
-
-    $("btnSaveNextBudgets").addEventListener("click", () => saveNextBudgets());
-    $("btnAddCategory").addEventListener("click", () => addCategory());
-    $("btnRemoveCategory").addEventListener("click", () => removeCategory());
-    $("btnReset").addEventListener("click", () => resetAll());
-
-    $("resetHint").addEventListener("click", () => {
-      $("resetMsg").innerHTML = `<div class="hint">This calls POST /api/budget/reset with {"confirm":"RESET"}.</div>`;
+    toggleTokenBtn.addEventListener("click", () => {
+      const isPassword = tokenInput.type === "password";
+      tokenInput.type = isPassword ? "text" : "password";
+      toggleTokenBtn.textContent = isPassword ? "Hide" : "Show";
+      tokenInput.focus();
     });
 
-    // PWA service worker: intentionally not used (server authoritative; no offline requirement).
-    // If you later want install prompts only, keep SW disabled.
+    logoutBtn.addEventListener("click", async () => {
+      setBusy(true);
+      await idbDel(DB.tokenKey);
+      setBusy(false);
+      showAuth("Logged out. Enter your bearer token to continue.");
+    });
 
-    safeInitialLoad();
+    retryBtn.addEventListener("click", async () => {
+      await bootstrap();
+    });
+
+    // ---------- Init ----------
+    // Optional: basic service worker registration (safe to remove if handled elsewhere)
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+      });
+    }
+
+    // Start the app
+    bootstrap();
   </script>
 </body>
 </html>
