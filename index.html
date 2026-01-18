@@ -81,26 +81,18 @@
       <div id="globalStatus" class="status"></div>
     </div>
   </div>
-
   <script>
     /**
      * CONFIGURATION
-     * Update these endpoints to match your backend.
-     *
-     * - validate: a lightweight endpoint that verifies token validity.
-     *   Expected: 200 OK if valid. 401/403 if invalid/expired.
-     *
-     * - categories: an endpoint that returns user's budget categories.
-     *   Expected: 200 OK with JSON array: [{...}, ...]
-     *             404/200 [] for none (depends on your API)
+     * - validate: GET /api/auth/validate  (200 ok, 401/403 invalid)
+     * - state:    GET /api/budget/state  (returns initialized + categories array)
      */
     const API = {
-  baseUrl: "https://purrfect-budget-api.kardian.workers.dev",
-  validatePath: "/api/auth/validate",
-  categoriesPath: "/api/budget/categories",
-  timeoutMs: 12000
-};
-
+      baseUrl: "https://purrfect-budget-api.kardian.workers.dev",
+      validatePath: "/api/auth/validate",
+      statePath: "/api/budget/state",
+      timeoutMs: 12000
+    };
 
     /**
      * IndexedDB settings
@@ -212,7 +204,6 @@
         db.close();
       }
     }
-
     // ---------- Fetch Helpers ----------
     function fetchWithTimeout(url, options = {}) {
       const controller = new AbortController();
@@ -229,28 +220,30 @@
       };
     }
 
+    async function safeReadText(resp) {
+      try { return await resp.text(); } catch { return ""; }
+    }
+
     // ---------- API Calls ----------
     async function validateToken(token) {
       const url = joinUrl(API.baseUrl, API.validatePath);
 
-      // If you do not have a dedicated endpoint, you can treat a call to
-      // the categories endpoint as your validation check instead.
       const resp = await fetchWithTimeout(url, {
         method: "GET",
         headers: authHeaders(token)
       });
 
       if (resp.ok) return true;
-
       if (resp.status === 401 || resp.status === 403) return false;
 
-      // Other failures are treated as transient (network/server).
       const text = await safeReadText(resp);
       throw new Error(`Token validation failed (${resp.status}): ${text || resp.statusText}`);
     }
 
-    async function fetchCategories(token) {
-      const url = joinUrl(API.baseUrl, API.categoriesPath);
+    // Uses GET /api/budget/state as the category existence check
+    async function fetchState(token) {
+      const url = joinUrl(API.baseUrl, API.statePath);
+
       const resp = await fetchWithTimeout(url, {
         method: "GET",
         headers: authHeaders(token)
@@ -258,20 +251,14 @@
 
       if (!resp.ok) {
         if (resp.status === 401 || resp.status === 403) {
-          // Token invalid/expired.
-          return { authFailed: true, categories: null };
+          return { authFailed: true, state: null };
         }
         const text = await safeReadText(resp);
-        throw new Error(`Categories request failed (${resp.status}): ${text || resp.statusText}`);
+        throw new Error(`State request failed (${resp.status}): ${text || resp.statusText}`);
       }
 
       const data = await resp.json().catch(() => null);
-      const categories = Array.isArray(data) ? data : (data?.categories ?? []);
-      return { authFailed: false, categories };
-    }
-
-    async function safeReadText(resp) {
-      try { return await resp.text(); } catch { return ""; }
+      return { authFailed: false, state: data };
     }
 
     // ---------- App State Machine (Launch Flow) ----------
@@ -284,13 +271,11 @@
       const token = await idbGet(DB.tokenKey);
 
       if (!token) {
-        // No token stored: prompt once.
         setBusy(false);
         setStatus(globalStatus, "");
         return showAuth("No token found. Enter your bearer token to continue.");
       }
 
-      // Token exists: validate then continue.
       try {
         setStatus(globalStatus, "Validating token…");
         const isValid = await validateToken(token);
@@ -302,14 +287,12 @@
           return showAuth("Stored token is invalid or expired. Please enter a new token.", true);
         }
 
-        // Token is valid: proceed to categories check.
         setStatus(globalStatus, "Loading your data…");
-        await showAppWithCategories(token);
+        await showAppWithState(token);
 
         setStatus(globalStatus, "");
         setBusy(false);
       } catch (err) {
-        // Network/server error: don't destroy token; allow retry.
         setBusy(false);
         show(appView);
         hide(authView);
@@ -329,7 +312,7 @@
       tokenInput.focus();
     }
 
-    async function showAppWithCategories(token) {
+    async function showAppWithState(token) {
       show(appView);
       hide(authView);
       setStatus(appStatus, "Connected. Checking budget categories…");
@@ -338,29 +321,33 @@
       hide(noCategoriesView);
       categoriesPreview.textContent = "";
 
-      const result = await fetchCategories(token);
+      const result = await fetchState(token);
 
       if (result.authFailed) {
-        // Token no longer valid mid-flight (revoked/expired)
         await idbDel(DB.tokenKey);
         return showAuth("Your token is no longer valid. Please enter a new token.", true);
       }
 
-      const categories = result.categories || [];
-      if (categories.length > 0) {
-        show(hasCategoriesView);
-        hide(noCategoriesView);
-        setStatus(appStatus, "Categories found.");
-        // Preview limited to keep UI simple
-        categoriesPreview.textContent = JSON.stringify(categories.slice(0, 5), null, 2) +
-          (categories.length > 5 ? `\n… (${categories.length - 5} more)` : "");
-      } else {
+      const state = result.state || {};
+      const categories = Array.isArray(state.categories) ? state.categories : [];
+      const initialized = Boolean(state.initialized);
+
+      // If not initialized, there cannot be categories yet (by your API semantics)
+      if (!initialized || categories.length === 0) {
         hide(hasCategoriesView);
         show(noCategoriesView);
-        setStatus(appStatus, "No categories found.");
+        setStatus(appStatus, initialized ? "No categories found." : "Not initialized yet.");
+        return;
       }
-    }
 
+      show(hasCategoriesView);
+      hide(noCategoriesView);
+      setStatus(appStatus, "Categories found.");
+
+      categoriesPreview.textContent =
+        JSON.stringify(categories.slice(0, 5), null, 2) +
+        (categories.length > 5 ? `\n… (${categories.length - 5} more)` : "");
+    }
     // ---------- Event Handlers ----------
     saveTokenBtn.addEventListener("click", async () => {
       const token = (tokenInput.value || "").trim();
@@ -380,8 +367,7 @@
         await idbSet(DB.tokenKey, token);
         setStatus(authStatus, "Token saved.", "ok");
 
-        // Proceed to categories check immediately.
-        await showAppWithCategories(token);
+        await showAppWithState(token);
 
         setBusy(false);
       } catch (err) {
@@ -408,8 +394,7 @@
       await bootstrap();
     });
 
-    // ---------- Init ----------
-    // Optional: basic service worker registration (safe to remove if handled elsewhere)
+    // Optional: SW registration (safe to remove if handled elsewhere)
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker.register("./service-worker.js").catch(() => {});
