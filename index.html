@@ -5,7 +5,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0b1320" />
-  <title>PWA Budget App</title>
+  <title>Purrfect Budget</title>
   <style>
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
     body { margin: 0; padding: 0; background: #0b1320; color: #e9eef7; }
@@ -14,13 +14,17 @@
     h1 { font-size: 18px; margin: 0 0 12px; }
     p { margin: 10px 0; line-height: 1.35; color: rgba(233,238,247,0.9); }
     label { display: block; margin: 12px 0 6px; font-size: 13px; color: rgba(233,238,247,0.85); }
-    input[type="password"], input[type="text"] {
-      width: 100%; box-sizing: border-box;
-      padding: 10px 12px; border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.15);
-      background: rgba(0,0,0,0.25); color: #e9eef7;
-      outline: none;
-    }
+    
+input[type="password"], input[type="text"], select {
+  width: 100%; box-sizing: border-box;
+  padding: 10px 12px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.25); color: #e9eef7;
+  outline: none;
+}
+select:focus { border-color: rgba(130,190,255,0.6); }
+
+    
     input:focus { border-color: rgba(130,190,255,0.6); }
     .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
     button {
@@ -81,9 +85,16 @@
             <div id="wizStep1" class="card subcard">
               <h1 style="margin:0 0 10px;">Step 1 — Budget period</h1>
 
-              <label for="wizPeriodType">Period Type</label>
-              <input id="wizPeriodType" type="text" value="semi_monthly"
-                     placeholder="daily / weekly / biweekly / semi_monthly / monthly / quarterly" />
+<label for="wizPeriodType">Period Type</label>
+<select id="wizPeriodType">
+  <option value="daily">daily</option>
+  <option value="weekly">weekly</option>
+  <option value="biweekly">biweekly</option>
+  <option value="semi_monthly" selected>semi_monthly</option>
+  <option value="monthly">monthly</option>
+  <option value="quarterly">quarterly</option>
+</select>
+
 
               <label for="wizAnchorDate">Anchor Date (YYYY-MM-DD)</label>
               <input id="wizAnchorDate" type="text" placeholder="2026-01-01" />
