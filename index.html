@@ -1,730 +1,135 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#0b1320" />
-  <title>Purrfect Budget</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Purrfect Budget</title>
 
-  <style>
-    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    body { margin: 0; padding: 0; background: #0b1320; color: #e9eef7; }
-    .wrap { max-width: 820px; margin: 0 auto; padding: 24px; }
-    .card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 18px; }
-    h1 { font-size: 18px; margin: 0 0 12px; }
-    p { margin: 10px 0; line-height: 1.35; }
-    label { display: block; margin: 12px 0 6px; font-size: 13px; }
+<style>
+:root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+body { margin:0; background:#0b1320; color:#e9eef7; }
+.wrap { max-width:820px; margin:0 auto; padding:14px; }
+.card { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:14px; padding:18px; }
+h1 { font-size:18px; margin:0 0 12px; }
+label { font-size:13px; margin:12px 0 6px; display:block; }
 
-    /* Global form styles */
-    input[type="text"], input[type="password"], select {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.15);
-      background: rgba(0,0,0,0.25);
-      color: #e9eef7;
-    }
-    input:disabled { opacity: .7; cursor: not-allowed; }
-    input:focus, select:focus { border-color: rgba(130,190,255,.6); outline: none; }
+input[type="text"], input[type="password"], select {
+  width:100%;
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.15);
+  background:rgba(0,0,0,.25);
+  color:#e9eef7;
+}
 
-    .row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
-    button {
-      border: 0; border-radius: 10px;
-      padding: 10px 14px; font-weight: 600;
-      background: #2d6cdf; color: #fff; cursor: pointer;
-    }
-    button.secondary { background: rgba(255,255,255,0.12); }
-    button:disabled { opacity: .6; cursor: not-allowed; }
+.row { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+button { border:0; border-radius:10px; padding:10px 14px; font-weight:600; background:#2d6cdf; color:#fff; }
+button.secondary { background:rgba(255,255,255,.12); }
 
-    .status { margin-top: 12px; font-size: 13px; opacity: .85; }
-    .error { color: #ffb4b4; }
-    .ok { color: #b6ffcf; }
-    .hidden { display: none; }
-    .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+.hidden { display:none; }
+.status { font-size:13px; opacity:.85; margin-top:10px; }
+.error { color:#ffb4b4; }
+.ok { color:#b6ffcf; }
 
-    /* ---------- Step 2 compact rows (phone-first: always single-line) ---------- */
-    .catRow{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      margin-top:10px;
-      flex-wrap:nowrap;      /* keep on one line */
-    }
+/* ---------- STEP 2 CATEGORY ROWS ---------- */
+.catRow {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:10px;
+  flex-wrap:nowrap;
+}
 
-    /* Override global width:100% so flex can size fields side-by-side */
-    .catRow input{
-      width:auto;
-      min-width:0;           /* allow shrinking on small screens */
-    }
+.catRow input { width:auto; min-width:0; }
 
-    /* Category name (left): phone-first shrinkable, desktop capped */
-    .catRow .catName{
-      flex: 1 1 260px;       /* grows as needed, but shrinkable */
-      max-width: 420px;      /* prevents "too long" on large screens */
-      min-width: 0;
-    }
+/* Category is dominant */
+.catRow .catName {
+  flex: 1 1 65%;
+}
 
-    /* Budget (right): fixed width, right aligned */
-    .catRow .catBudget{
-      flex: 0 0 120px;
-      width: 120px;
-      text-align: right;
-    }
+/* Budget is compact */
+.catRow .catBudget {
+  flex: 0 0 110px;
+  width:110px;
+  text-align:right;
+}
 
-    .catRow button{
-      flex: 0 0 auto;
-      padding: 10px 12px;
-      white-space: nowrap;
-    }
-
-    /* Small phones: slightly narrower budget field to preserve one-line layout */
-    @media (max-width: 420px){
-      .catRow .catBudget{
-        flex-basis: 105px;
-        width: 105px;
-      }
-    }
-
-    /* General mobile ergonomics: reduce side padding */
-    @media (max-width: 520px){
-      .wrap { padding: 14px; }
-    }
-  </style>
+.catRow button {
+  flex:0 0 auto;
+  padding:10px 12px;
+}
+</style>
 </head>
 
 <body>
 <div class="wrap">
-  <div class="card">
-    <h1>Purrfect Budget</h1>
+<div class="card">
+<h1>Purrfect Budget</h1>
 
-    <!-- ================= AUTH ================= -->
-    <div id="authView" class="hidden">
-      <p class="status">Enter your bearer token. It will be stored locally in IndexedDB.</p>
+<div id="noCategoriesView">
+  <div id="wizStep2">
+    <h1>Step 2 — Categories</h1>
+    <div id="wizCatList"></div>
 
-      <label for="tokenInput">Bearer Token</label>
-      <input id="tokenInput" type="password" placeholder="Paste token…" autocomplete="off" />
-
-      <div class="row">
-        <button id="saveTokenBtn" type="button">Save Token</button>
-        <button id="toggleTokenBtn" class="secondary" type="button">Show</button>
-      </div>
-
-      <div id="authStatus" class="status"></div>
+    <div class="row">
+      <button id="wizAddCat" class="secondary">Add Category</button>
     </div>
-
-    <!-- ================= APP ================= -->
-    <div id="appView" class="hidden">
-      <p id="appStatus" class="status"></p>
-
-      <div id="hasCategoriesView" class="hidden">
-        <p class="ok">Budget categories loaded.</p>
-        <pre class="mono" id="categoriesPreview"></pre>
-      </div>
-
-      <div id="noCategoriesView" class="hidden">
-        <p class="ok">Welcome. Let’s initialize your budget.</p>
-
-        <!-- ---------- STEP 1 ---------- -->
-        <div id="wizStep1" class="card">
-          <h1>Step 1 — Budget period</h1>
-
-          <label for="wizPeriodType">Period Type</label>
-          <select id="wizPeriodType">
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="biweekly" selected>Every Two Weeks</option>
-            <option value="semi_monthly">Twice a Month</option>
-            <option value="monthly">Monthly</option>
-            <option value="quarterly">Quarterly</option>
-          </select>
-
-          <label for="wizStartDate">Start Date (MM-DD-YYYY)</label>
-          <input id="wizStartDate" type="text" placeholder="MM-DD-YYYY" inputmode="numeric" />
-
-          <div class="row">
-            <button id="wizNext1" type="button">Next</button>
-          </div>
-          <div id="wizStatus1" class="status"></div>
-        </div>
-
-        <!-- ---------- STEP 2 ---------- -->
-        <div id="wizStep2" class="card hidden">
-          <h1>Step 2 — Categories</h1>
-          <p class="status" style="margin-top:0;">Enter 1–10 categories with starting budgets.</p>
-
-          <div id="wizCatList"></div>
-
-          <div class="row">
-            <button id="wizAddCat" class="secondary" type="button">Add Category</button>
-            <button id="wizBack2" class="secondary" type="button">Back</button>
-            <button id="wizNext2" type="button">Next</button>
-          </div>
-          <div id="wizStatus2" class="status"></div>
-        </div>
-
-        <!-- ---------- STEP 3 ---------- -->
-        <div id="wizStep3" class="card hidden">
-          <h1>Step 3 — Review</h1>
-          <p class="status" style="margin-top:0;">Review and submit your initialization payload.</p>
-          <pre id="wizReviewJson" class="mono" style="white-space:pre-wrap;"></pre>
-
-          <div class="row">
-            <button id="wizBack3" class="secondary" type="button">Back</button>
-            <button id="wizSubmit" type="button">Initialize</button>
-          </div>
-          <div id="wizStatus3" class="status"></div>
-        </div>
-      </div>
-
-      <div class="row">
-        <button id="logoutBtn" class="secondary" type="button">Log Out</button>
-        <button id="retryBtn" class="secondary" type="button">Retry</button>
-      </div>
-    </div>
-
-    <div id="globalStatus" class="status"></div>
   </div>
 </div>
 
+</div>
+</div>
+
 <script>
-/* ================= CONFIG ================= */
-const API = {
-  baseUrl: "https://purrfect-budget-api.kardian.workers.dev",
-  validatePath: "/api/auth/validate",
-  statePath: "/api/budget/state",
-  initPath: "/api/budget/init",
-  timeoutMs: 12000
-};
+const wizCatList = document.getElementById("wizCatList");
 
-/* ================= INDEXEDDB ================= */
-const IDB = {
-  name: "pwa-budget-app",
-  version: 1,
-  store: "auth",
-  key: "bearerToken"
-};
-
-function openDb() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(IDB.name, IDB.version);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(IDB.store)) db.createObjectStore(IDB.store);
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+/* ---------- $ FORMATTING ---------- */
+function formatCurrencyInput(el) {
+  let raw = el.value.replace(/[^0-9.]/g, "");
+  if (!raw) { el.value = ""; return; }
+  const num = Number(raw);
+  if (isNaN(num)) return;
+  el.value = "$" + num.toFixed(2);
 }
 
-async function idbGet(key) {
-  const db = await openDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB.store, "readonly");
-      const store = tx.objectStore(IDB.store);
-      const req = store.get(key);
-      req.onsuccess = () => resolve(req.result ?? null);
-      req.onerror = () => reject(req.error);
-    });
-  } finally { db.close(); }
+function stripCurrency(val) {
+  return val.replace(/[^0-9.]/g, "");
 }
 
-async function idbSet(key, value) {
-  const db = await openDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB.store, "readwrite");
-      const store = tx.objectStore(IDB.store);
-      const req = store.put(value, key);
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => reject(req.error);
-    });
-  } finally { db.close(); }
-}
-
-async function idbDel(key) {
-  const db = await openDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB.store, "readwrite");
-      const store = tx.objectStore(IDB.store);
-      const req = store.delete(key);
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => reject(req.error);
-    });
-  } finally { db.close(); }
-}
-
-/* ================= DOM ================= */
-const $ = (id) => document.getElementById(id);
-
-const authView = $("authView");
-const tokenInput = $("tokenInput");
-const saveTokenBtn = $("saveTokenBtn");
-const toggleTokenBtn = $("toggleTokenBtn");
-const authStatus = $("authStatus");
-
-const appView = $("appView");
-const appStatus = $("appStatus");
-const hasCategoriesView = $("hasCategoriesView");
-const noCategoriesView = $("noCategoriesView");
-const categoriesPreview = $("categoriesPreview");
-
-const logoutBtn = $("logoutBtn");
-const retryBtn = $("retryBtn");
-const globalStatus = $("globalStatus");
-
-const wizStep1 = $("wizStep1");
-const wizStep2 = $("wizStep2");
-const wizStep3 = $("wizStep3");
-
-const wizPeriodType = $("wizPeriodType");
-const wizStartDate = $("wizStartDate");
-
-const wizCatList = $("wizCatList");
-const wizReviewJson = $("wizReviewJson");
-
-const wizNext1 = $("wizNext1");
-const wizBack2 = $("wizBack2");
-const wizNext2 = $("wizNext2");
-const wizAddCat = $("wizAddCat");
-
-const wizBack3 = $("wizBack3");
-const wizSubmit = $("wizSubmit");
-
-const wizStatus1 = $("wizStatus1");
-const wizStatus2 = $("wizStatus2");
-const wizStatus3 = $("wizStatus3");
-
-/* ================= UI HELPERS ================= */
-function show(el) { if (el) el.classList.remove("hidden"); }
-function hide(el) { if (el) el.classList.add("hidden"); }
-
-function setStatus(el, msg, kind) {
-  if (!el) return;
-  el.textContent = msg || "";
-  el.classList.remove("error", "ok");
-  if (kind) el.classList.add(kind);
-}
-
-function setBusy(isBusy) {
-  const btns = [
-    saveTokenBtn, toggleTokenBtn, logoutBtn, retryBtn,
-    wizNext1, wizBack2, wizNext2, wizAddCat, wizBack3, wizSubmit
-  ].filter(Boolean);
-  for (const b of btns) b.disabled = !!isBusy;
-}
-
-function showAuth(message = "", isError = false) {
-  show(authView);
-  hide(appView);
-  setStatus(authStatus, message, isError ? "error" : "");
-  setStatus(globalStatus, "");
-  tokenInput?.focus();
-}
-
-function showApp(message = "") {
-  hide(authView);
-  show(appView);
-  setStatus(appStatus, message);
-}
-
-/* ================= URL + FETCH ================= */
-function joinUrl(base, path) {
-  return base.replace(/\/+$/, "") + "/" + path.replace(/^\/+/, "");
-}
-
-function authHeaders(token) {
-  return {
-    "Authorization": `Bearer ${token}`,
-    "Content-Type": "application/json"
-  };
-}
-
-function fetchWithTimeout(url, options = {}) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), API.timeoutMs);
-  return fetch(url, { ...options, signal: controller.signal })
-    .finally(() => clearTimeout(id));
-}
-
-async function safeText(resp) {
-  try { return await resp.text(); } catch { return ""; }
-}
-
-/* ================= API ================= */
-async function validateToken(token) {
-  const url = joinUrl(API.baseUrl, API.validatePath);
-  const resp = await fetchWithTimeout(url, { method: "GET", headers: authHeaders(token) });
-  if (resp.ok) return true;
-  if (resp.status === 401 || resp.status === 403) return false;
-  const t = await safeText(resp);
-  throw new Error(`Token validate failed (${resp.status}): ${t || resp.statusText}`);
-}
-
-async function fetchState(token) {
-  const url = joinUrl(API.baseUrl, API.statePath);
-  const resp = await fetchWithTimeout(url, { method: "GET", headers: authHeaders(token) });
-
-  if (!resp.ok) {
-    if (resp.status === 401 || resp.status === 403) return { authFailed: true, state: null };
-    const t = await safeText(resp);
-    throw new Error(`State failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed: false, state: await resp.json().catch(() => ({})) };
-}
-
-async function postInit(token, payload) {
-  const url = joinUrl(API.baseUrl, API.initPath);
-  const resp = await fetchWithTimeout(url, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify(payload)
-  });
-
-  if (!resp.ok) {
-    if (resp.status === 401 || resp.status === 403) return { authFailed: true, result: null };
-    const t = await safeText(resp);
-    throw new Error(`Init failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed: false, result: await resp.json().catch(() => ({})) };
-}
-
-/* ================= DATE HELPERS (UI MM-DD-YYYY) ================= */
-const pad2 = (n) => String(n).padStart(2, "0");
-
-function todayYMD() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
-}
-
-function ymdToMdy(ymd) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
-  if (!m) return "";
-  return `${m[2]}-${m[3]}-${m[1]}`;
-}
-
-function mdyToYmd(mdy) {
-  const s = String(mdy || "").trim();
-  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s);
-  if (!m) return null;
-
-  const mm = Number(m[1]), dd = Number(m[2]), yyyy = Number(m[3]);
-  if (yyyy < 1900 || yyyy > 2100) return null;
-  if (mm < 1 || mm > 12) return null;
-  if (dd < 1 || dd > 31) return null;
-
-  const dt = new Date(yyyy, mm - 1, dd);
-  if (dt.getFullYear() !== yyyy || dt.getMonth() !== (mm - 1) || dt.getDate() !== dd) return null;
-
-  return `${yyyy}-${pad2(mm)}-${pad2(dd)}`;
-}
-
-function periodUsesStartDate(periodType) {
-  return periodType === "weekly" || periodType === "biweekly" || periodType === "quarterly";
-}
-
-function disabledStartDateMessage(periodType) {
-  switch (periodType) {
-    case "daily": return "Not needed for Daily budgets";
-    case "monthly": return "Not needed for Monthly budgets";
-    case "semi_monthly": return "Not needed for Twice-a-Month budgets";
-    default: return "Not needed for this period type";
-  }
-}
-
-function updateStartDateAvailability() {
-  const pt = (wizPeriodType?.value || "").trim();
-  const uses = periodUsesStartDate(pt);
-
-  if (!wizStartDate) return;
-
-  if (uses) {
-    const prev = wizStartDate.dataset.prevValue;
-    wizStartDate.disabled = false;
-    wizStartDate.placeholder = "MM-DD-YYYY";
-    if (prev && wizStartDate.value.startsWith("Not needed")) {
-      wizStartDate.value = prev;
-    }
-    if (!wizStartDate.value || wizStartDate.value.startsWith("Not needed")) {
-      wizStartDate.value = ymdToMdy(todayYMD());
-    }
-  } else {
-    if (wizStartDate.value && !wizStartDate.value.startsWith("Not needed")) {
-      wizStartDate.dataset.prevValue = wizStartDate.value;
-    }
-    wizStartDate.disabled = true;
-    wizStartDate.value = disabledStartDateMessage(pt);
-  }
-}
-
-/* ================= WIZARD ================= */
-function showStep(stepIndex) {
-  [wizStep1, wizStep2, wizStep3].forEach((el, idx) => {
-    if (!el) return;
-    el.classList.toggle("hidden", idx !== stepIndex);
-  });
-}
-
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function addWizCategoryRow(name = "", dollars = "") {
+/* ---------- ADD CATEGORY ROW ---------- */
+function addWizCategoryRow(name="", dollars="") {
   const row = document.createElement("div");
   row.className = "catRow";
   row.innerHTML = `
-    <input class="catName" type="text" placeholder="Category" value="${escapeHtml(name)}" />
-    <input class="catBudget" type="text" inputmode="decimal" placeholder="Budget" value="${escapeHtml(dollars)}" />
-    <button class="secondary wizRemoveCat" type="button">Remove</button>
+    <input class="catName" placeholder="Category" value="${name}">
+    <input class="catBudget"
+           placeholder="$0.00"
+           inputmode="decimal"
+           value="${dollars ? "$"+Number(dollars).toFixed(2) : ""}">
+    <button class="secondary">Remove</button>
   `;
-  row.querySelector(".wizRemoveCat").addEventListener("click", () => row.remove());
+
+  const budgetInput = row.querySelector(".catBudget");
+  budgetInput.addEventListener("blur", () => formatCurrencyInput(budgetInput));
+
+  row.querySelector("button").onclick = () => row.remove();
   wizCatList.appendChild(row);
 }
 
-function readCategoriesFromUI() {
-  const rows = Array.from(wizCatList.querySelectorAll(".catRow"));
-  return rows.map((r, idx) => {
-    const name = r.querySelector(".catName")?.value?.trim() || "";
-    const budget_dollars = r.querySelector(".catBudget")?.value?.trim() || "";
-    return { name, budget_dollars, sort_order: idx + 1 };
-  }).filter(c => c.name.length > 0);
+/* ---------- READ CLEAN VALUES ---------- */
+function readCategories() {
+  return [...wizCatList.children].map((r,i)=>({
+    name: r.querySelector(".catName").value.trim(),
+    budget_dollars: stripCurrency(r.querySelector(".catBudget").value),
+    sort_order: i+1
+  })).filter(c=>c.name);
 }
 
-function validateStep1() {
-  const pt = (wizPeriodType.value || "").trim();
-  const allowed = new Set(["daily", "weekly", "biweekly", "semi_monthly", "monthly", "quarterly"]);
-  if (!allowed.has(pt)) return "Invalid period type.";
+/* Defaults */
+addWizCategoryRow("Groceries","300");
+addWizCategoryRow("Gas","120");
 
-  if (periodUsesStartDate(pt)) {
-    const ymd = mdyToYmd(wizStartDate.value);
-    if (!ymd) return "Start Date must be MM-DD-YYYY.";
-  }
-  return null;
-}
-
-function validateStep2() {
-  const cats = readCategoriesFromUI();
-  if (cats.length < 1 || cats.length > 10) return "Please provide 1 to 10 categories.";
-
-  const seen = new Set();
-  for (const c of cats) {
-    if (!c.name) return "Category name cannot be blank.";
-    if (c.name.length > 64) return `Category name too long: ${c.name}`;
-    if (!c.budget_dollars || !String(c.budget_dollars).trim()) return `Please enter a budget for: ${c.name}`;
-
-    const k = c.name.toLowerCase();
-    if (seen.has(k)) return `Duplicate category name: ${c.name}`;
-    seen.add(k);
-  }
-  return null;
-}
-
-function effectiveStartDateYmd() {
-  const pt = (wizPeriodType.value || "").trim();
-  if (!periodUsesStartDate(pt)) return todayYMD();
-  return mdyToYmd(wizStartDate.value);
-}
-
-function buildInitPayload() {
-  return {
-    period_type: (wizPeriodType.value || "").trim(),
-    period_anchor_date: effectiveStartDateYmd(),
-    categories: readCategoriesFromUI().map(c => ({
-      name: c.name,
-      sort_order: c.sort_order,
-      budget_dollars: c.budget_dollars
-    }))
-  };
-}
-
-function renderReview() {
-  const payload = buildInitPayload();
-  wizReviewJson.textContent = JSON.stringify(payload, null, 2);
-}
-
-function initWizardDefaults() {
-  if (!wizStartDate.value || wizStartDate.value === "MM-DD-YYYY") {
-    wizStartDate.value = ymdToMdy(todayYMD());
-  }
-
-  if (wizCatList.children.length === 0) {
-    addWizCategoryRow("Groceries", "300.00");
-    addWizCategoryRow("Gas", "120.00");
-  }
-
-  updateStartDateAvailability();
-  showStep(0);
-}
-
-/* ================= APP FLOW ================= */
-async function loadAppState(token) {
-  showApp("Connected. Loading budget state…");
-  hide(hasCategoriesView);
-  hide(noCategoriesView);
-  categoriesPreview.textContent = "";
-
-  const result = await fetchState(token);
-  if (result.authFailed) {
-    await idbDel(IDB.key);
-    return showAuth("Stored token is invalid/expired. Please re-enter.", true);
-  }
-
-  const state = result.state || {};
-  const categories = Array.isArray(state.categories) ? state.categories : [];
-
-  if (state.initialized === false) {
-    show(noCategoriesView);
-    setStatus(appStatus, "Budget not yet initialized.");
-    initWizardDefaults();
-    return;
-  }
-
-  if (categories.length > 0) {
-    show(hasCategoriesView);
-    setStatus(appStatus, "Categories found.");
-    categoriesPreview.textContent = JSON.stringify(categories, null, 2);
-  } else {
-    show(noCategoriesView);
-    setStatus(appStatus, "Initialized, but no categories found. Starting setup.");
-    initWizardDefaults();
-  }
-}
-
-async function bootstrap() {
-  setBusy(true);
-  setStatus(globalStatus, "Starting…");
-  hide(authView);
-  hide(appView);
-
-  const token = await idbGet(IDB.key);
-
-  if (!token) {
-    setBusy(false);
-    return showAuth("No token saved. Enter your bearer token to continue.");
-  }
-
-  try {
-    setStatus(globalStatus, "Validating token…");
-    const ok = await validateToken(token);
-    if (!ok) {
-      await idbDel(IDB.key);
-      setBusy(false);
-      return showAuth("Saved token is invalid or expired. Please enter a new token.", true);
-    }
-
-    await loadAppState(token);
-    setStatus(globalStatus, "");
-    setBusy(false);
-  } catch (e) {
-    setBusy(false);
-    showAuth(`Startup error: ${e.message}`, true);
-  }
-}
-
-/* ================= EVENTS ================= */
-saveTokenBtn.addEventListener("click", async () => {
-  const token = (tokenInput.value || "").trim();
-  if (!token) return setStatus(authStatus, "Please enter a token.", "error");
-
-  setBusy(true);
-  setStatus(authStatus, "Validating token…");
-  try {
-    const ok = await validateToken(token);
-    if (!ok) {
-      setBusy(false);
-      return setStatus(authStatus, "Token is invalid or expired.", "error");
-    }
-    await idbSet(IDB.key, token);
-    setStatus(authStatus, "Token saved. Loading…", "ok");
-    await loadAppState(token);
-    setBusy(false);
-  } catch (e) {
-    setBusy(false);
-    setStatus(authStatus, `Unable to validate token: ${e.message}`, "error");
-  }
-});
-
-toggleTokenBtn.addEventListener("click", () => {
-  const isPw = tokenInput.type === "password";
-  tokenInput.type = isPw ? "text" : "password";
-  toggleTokenBtn.textContent = isPw ? "Hide" : "Show";
-  tokenInput.focus();
-});
-
-logoutBtn.addEventListener("click", async () => {
-  setBusy(true);
-  await idbDel(IDB.key);
-  setBusy(false);
-  showAuth("Logged out. Enter your bearer token to continue.");
-});
-
-retryBtn.addEventListener("click", async () => {
-  await bootstrap();
-});
-
-wizPeriodType.addEventListener("change", updateStartDateAvailability);
-
-wizNext1.addEventListener("click", () => {
-  const err = validateStep1();
-  if (err) return setStatus(wizStatus1, err, "error");
-  setStatus(wizStatus1, "", "");
-  showStep(1);
-});
-
-wizBack2.addEventListener("click", () => showStep(0));
-
-wizAddCat.addEventListener("click", () => addWizCategoryRow());
-
-wizNext2.addEventListener("click", () => {
-  const err = validateStep2();
-  if (err) return setStatus(wizStatus2, err, "error");
-  setStatus(wizStatus2, "", "");
-  renderReview();
-  showStep(2);
-});
-
-wizBack3.addEventListener("click", () => showStep(1));
-
-wizSubmit.addEventListener("click", async () => {
-  const err1 = validateStep1();
-  if (err1) { showStep(0); return setStatus(wizStatus1, err1, "error"); }
-
-  const err2 = validateStep2();
-  if (err2) { showStep(1); return setStatus(wizStatus2, err2, "error"); }
-
-  const token = await idbGet(IDB.key);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-
-  const payload = buildInitPayload();
-
-  setBusy(true);
-  setStatus(wizStatus3, "Initializing…");
-
-  try {
-    const res = await postInit(token, payload);
-    if (res.authFailed) {
-      await idbDel(IDB.key);
-      setBusy(false);
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-    setStatus(wizStatus3, "Initialized. Reloading…", "ok");
-    await loadAppState(token);
-    setBusy(false);
-  } catch (e) {
-    setBusy(false);
-    setStatus(wizStatus3, e.message, "error");
-  }
-});
-
-/* ================= START ================= */
-bootstrap();
+document.getElementById("wizAddCat").onclick = () => addWizCategoryRow();
 </script>
 </body>
 </html>
