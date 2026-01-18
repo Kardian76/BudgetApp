@@ -5,16 +5,17 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0b1320" />
   <title>Purrfect Budget</title>
+
   <style>
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
     body { margin: 0; padding: 0; background: #0b1320; color: #e9eef7; }
     .wrap { max-width: 820px; margin: 0 auto; padding: 24px; }
     .card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 18px; }
     h1 { font-size: 18px; margin: 0 0 12px; }
-    p { margin: 10px 0; line-height: 1.35; color: rgba(233,238,247,0.9); }
-    label { display: block; margin: 12px 0 6px; font-size: 13px; color: rgba(233,238,247,0.85); }
+    p { margin: 10px 0; line-height: 1.35; }
+    label { display: block; margin: 12px 0 6px; font-size: 13px; }
 
-    input[type="password"], input[type="text"], select {
+    input[type="text"], input[type="password"], select {
       width: 100%;
       box-sizing: border-box;
       padding: 10px 12px;
@@ -22,785 +23,213 @@
       border: 1px solid rgba(255,255,255,0.15);
       background: rgba(0,0,0,0.25);
       color: #e9eef7;
-      outline: none;
     }
-    input:focus, select:focus { border-color: rgba(130,190,255,0.6); }
+    input:disabled { opacity: .7; cursor: not-allowed; }
+    input:focus, select:focus { border-color: rgba(130,190,255,.6); outline: none; }
 
-    /* Disabled inputs: show that it's intentionally inactive */
-    input:disabled {
-      opacity: 0.75;
-      cursor: not-allowed;
-    }
-
-    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+    .row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
     button {
-      appearance: none; border: 0; border-radius: 10px;
-      padding: 10px 12px; cursor: pointer;
-      background: #2d6cdf; color: white; font-weight: 600;
+      border: 0; border-radius: 10px;
+      padding: 10px 14px; font-weight: 600;
+      background: #2d6cdf; color: #fff; cursor: pointer;
     }
-    button.secondary { background: rgba(255,255,255,0.10); color: #e9eef7; }
+    button.secondary { background: rgba(255,255,255,0.12); }
     button:disabled { opacity: .6; cursor: not-allowed; }
-    .status { margin-top: 12px; font-size: 13px; color: rgba(233,238,247,0.85); }
+
+    .status { margin-top: 12px; font-size: 13px; opacity: .85; }
     .error { color: #ffb4b4; }
     .ok { color: #b6ffcf; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     .hidden { display: none; }
-    pre { margin: 10px 0 0; padding: 12px; border-radius: 12px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.10); }
-    .subcard { margin-top: 12px; }
+    .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+    /* ---------- Step 2 compact rows ---------- */
+    .catRow {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    .catName { flex: 1 1 auto; min-width: 220px; }
+    .catBudget { width: 180px; }
+
+    @media (max-width: 520px) {
+      .catRow { flex-wrap: wrap; }
+      .catBudget { width: 100%; }
+    }
   </style>
 </head>
 
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>Purrfect Budget</h1>
+<div class="wrap">
+<div class="card">
+<h1>Purrfect Budget</h1>
 
-      <!-- Auth / Token Prompt -->
-      <div id="authView" class="hidden">
-        <p>This app requires a bearer token on first launch. The token will be stored locally in IndexedDB.</p>
+<!-- ================= AUTH ================= -->
+<div id="authView" class="hidden">
+  <label>Bearer Token</label>
+  <input id="tokenInput" type="password" placeholder="Paste token…" />
+  <div class="row">
+    <button id="saveTokenBtn">Save Token</button>
+    <button id="toggleTokenBtn" class="secondary">Show</button>
+  </div>
+  <div id="authStatus" class="status"></div>
+</div>
 
-        <label for="tokenInput">Bearer Token</label>
-        <input id="tokenInput" type="password" autocomplete="off" placeholder="Paste token…" />
+<!-- ================= APP ================= -->
+<div id="appView" class="hidden">
+  <p id="appStatus" class="status"></p>
 
-        <div class="row">
-          <button id="saveTokenBtn" type="button">Save Token</button>
-          <button id="toggleTokenBtn" class="secondary" type="button">Show</button>
-        </div>
+  <div id="hasCategoriesView" class="hidden">
+    <pre class="mono" id="categoriesPreview"></pre>
+  </div>
 
-        <div id="authStatus" class="status"></div>
+  <div id="noCategoriesView" class="hidden">
+    <p class="ok">Welcome. Let’s initialize your budget.</p>
+
+    <!-- ---------- STEP 1 ---------- -->
+    <div id="wizStep1" class="card">
+      <h1>Step 1 — Budget period</h1>
+
+      <label>Period Type</label>
+      <select id="wizPeriodType">
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="biweekly" selected>Every Two Weeks</option>
+        <option value="semi_monthly">Twice a Month</option>
+        <option value="monthly">Monthly</option>
+        <option value="quarterly">Quarterly</option>
+      </select>
+
+      <label>Start Date (MM-DD-YYYY)</label>
+      <input id="wizStartDate" type="text" placeholder="MM-DD-YYYY" />
+
+      <div class="row">
+        <button id="wizNext1">Next</button>
       </div>
+      <div id="wizStatus1" class="status"></div>
+    </div>
 
-      <!-- App Views -->
-      <div id="appView" class="hidden">
-        <p id="appStatus" class="status"></p>
+    <!-- ---------- STEP 2 ---------- -->
+    <div id="wizStep2" class="card hidden">
+      <h1>Step 2 — Categories</h1>
+      <div id="wizCatList"></div>
 
-        <div id="hasCategoriesView" class="hidden">
-          <p class="ok">Budget categories loaded. (Stub dashboard preview)</p>
-          <pre class="mono" id="categoriesPreview"></pre>
-        </div>
-
-        <!-- Wizard container (shown when state.initialized === false, or no categories) -->
-        <div id="noCategoriesView" class="hidden">
-          <div id="wizard">
-            <p class="ok" style="margin-top:0;">Welcome. Let’s initialize your budget.</p>
-
-            <!-- Step indicator -->
-            <p class="status" id="wizStepLabel"></p>
-
-            <!-- STEP 1: Period -->
-            <div id="wizStep1" class="card subcard">
-              <h1 style="margin:0 0 10px;">Step 1 — Budget period</h1>
-
-              <label for="wizPeriodType">Period Type</label>
-              <select id="wizPeriodType">
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="biweekly" selected>Every Two Weeks</option>
-                <option value="semi_monthly">Twice a Month (1–14, 15–end)</option>
-                <option value="monthly">Monthly</option>
-                <option value="quarterly">Quarterly (Every 3 Months)</option>
-              </select>
-
-              <!-- Renamed + UI date format: MM-DD-YYYY -->
-              <label for="wizStartDate">Start Date (MM-DD-YYYY)</label>
-              <input id="wizStartDate" type="text" placeholder="MM-DD-YYYY" />
-
-              <div class="row">
-                <button id="wizNext1" type="button">Next</button>
-              </div>
-
-              <div id="wizStatus1" class="status"></div>
-            </div>
-
-            <!-- STEP 2: Categories -->
-            <div id="wizStep2" class="card subcard hidden">
-              <h1 style="margin:0 0 10px;">Step 2 — Categories (1–10)</h1>
-
-              <p class="status" style="margin:0 0 10px;">
-                Enter a name and a starting budget amount for each category.
-              </p>
-
-              <div id="wizCatList"></div>
-
-              <div class="row">
-                <button id="wizAddCat" class="secondary" type="button">Add Category</button>
-                <button id="wizBack2" class="secondary" type="button">Back</button>
-                <button id="wizNext2" type="button">Next</button>
-              </div>
-
-              <div id="wizStatus2" class="status"></div>
-            </div>
-
-            <!-- STEP 3: Review + Submit -->
-            <div id="wizStep3" class="card subcard hidden">
-              <h1 style="margin:0 0 10px;">Step 3 — Review</h1>
-
-              <p class="status" id="wizReviewText"></p>
-              <pre class="mono" id="wizReviewJson" style="white-space:pre-wrap;"></pre>
-
-              <div class="row">
-                <button id="wizBack3" class="secondary" type="button">Back</button>
-                <button id="wizSubmit" type="button">Initialize Budget</button>
-              </div>
-
-              <div id="wizStatus3" class="status"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="row">
-          <button id="logoutBtn" class="secondary" type="button">Log Out</button>
-          <button id="retryBtn" class="secondary" type="button">Retry</button>
-        </div>
+      <div class="row">
+        <button id="wizAddCat" class="secondary">Add Category</button>
+        <button id="wizBack2" class="secondary">Back</button>
+        <button id="wizNext2">Next</button>
       </div>
+      <div id="wizStatus2" class="status"></div>
+    </div>
 
-      <!-- Global Status -->
-      <div id="globalStatus" class="status"></div>
+    <!-- ---------- STEP 3 ---------- -->
+    <div id="wizStep3" class="card hidden">
+      <h1>Step 3 — Review</h1>
+      <pre id="wizReviewJson" class="mono"></pre>
+
+      <div class="row">
+        <button id="wizBack3" class="secondary">Back</button>
+        <button id="wizSubmit">Initialize</button>
+      </div>
+      <div id="wizStatus3" class="status"></div>
     </div>
   </div>
 
-  <script>
-    // -------------------- Configuration --------------------
-    const API = {
-      baseUrl: "https://purrfect-budget-api.kardian.workers.dev",
-      validatePath: "/api/auth/validate",
-      statePath: "/api/budget/state",
-      initPath: "/api/budget/init",
-      timeoutMs: 12000
-    };
-
-    // -------------------- IndexedDB settings --------------------
-    const DB = {
-      name: "pwa-budget-app",
-      version: 1,
-      store: "auth",
-      tokenKey: "bearerToken"
-    };
-
-    // -------------------- DOM --------------------
-    const authView = document.getElementById("authView");
-    const tokenInput = document.getElementById("tokenInput");
-    const saveTokenBtn = document.getElementById("saveTokenBtn");
-    const toggleTokenBtn = document.getElementById("toggleTokenBtn");
-    const authStatus = document.getElementById("authStatus");
-
-    const appView = document.getElementById("appView");
-    const appStatus = document.getElementById("appStatus");
-    const hasCategoriesView = document.getElementById("hasCategoriesView");
-    const noCategoriesView = document.getElementById("noCategoriesView");
-    const categoriesPreview = document.getElementById("categoriesPreview");
-
-    const logoutBtn = document.getElementById("logoutBtn");
-    const retryBtn = document.getElementById("retryBtn");
-    const globalStatus = document.getElementById("globalStatus");
-
-    // Wizard DOM
-    const wizStepLabel = document.getElementById("wizStepLabel");
-    const wizStep1 = document.getElementById("wizStep1");
-    const wizStep2 = document.getElementById("wizStep2");
-    const wizStep3 = document.getElementById("wizStep3");
-
-    const wizStatus1 = document.getElementById("wizStatus1");
-    const wizStatus2 = document.getElementById("wizStatus2");
-    const wizStatus3 = document.getElementById("wizStatus3");
-
-    const wizPeriodType = document.getElementById("wizPeriodType");
-    const wizStartDate = document.getElementById("wizStartDate");
-
-    const wizCatList = document.getElementById("wizCatList");
-
-    const wizReviewText = document.getElementById("wizReviewText");
-    const wizReviewJson = document.getElementById("wizReviewJson");
-
-    const wizNext1 = document.getElementById("wizNext1");
-    const wizBack2 = document.getElementById("wizBack2");
-    const wizNext2 = document.getElementById("wizNext2");
-    const wizAddCat = document.getElementById("wizAddCat");
-
-    const wizBack3 = document.getElementById("wizBack3");
-    const wizSubmit = document.getElementById("wizSubmit");
-
-    // -------------------- Utilities --------------------
-    function setStatus(el, msg, kind) {
-      if (!el) return;
-      el.textContent = msg || "";
-      el.classList.remove("error", "ok");
-      if (kind) el.classList.add(kind);
-    }
-
-    function show(el) { if (el) el.classList.remove("hidden"); }
-    function hide(el) { if (el) el.classList.add("hidden"); }
-
-    function setBusy(isBusy) {
-      saveTokenBtn.disabled = isBusy;
-      retryBtn.disabled = isBusy;
-      logoutBtn.disabled = isBusy;
-      if (wizNext1) wizNext1.disabled = isBusy;
-      if (wizBack2) wizBack2.disabled = isBusy;
-      if (wizNext2) wizNext2.disabled = isBusy;
-      if (wizAddCat) wizAddCat.disabled = isBusy;
-      if (wizBack3) wizBack3.disabled = isBusy;
-      if (wizSubmit) wizSubmit.disabled = isBusy;
-    }
-
-    function joinUrl(base, path) {
-      if (!base) return path;
-      return base.replace(/\/+$/, "") + "/" + path.replace(/^\/+/, "");
-    }
-
-    function escapeHtml(s) {
-      return String(s)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
-    // -------------------- Date helpers (UI MM-DD-YYYY, DB YYYY-MM-DD) --------------------
-    function pad2(n) { return String(n).padStart(2, "0"); }
-
-    function todayYMD() {
-      const d = new Date();
-      const y = d.getFullYear();
-      const m = d.getMonth() + 1;
-      const day = d.getDate();
-      return `${y}-${pad2(m)}-${pad2(day)}`;
-    }
-
-    function ymdToMdy(ymd) {
-      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
-      if (!m) return "";
-      return `${m[2]}-${m[3]}-${m[1]}`;
-    }
-
-    function mdyToYmd(mdy) {
-      const s = String(mdy || "").trim();
-      const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s);
-      if (!m) return null;
-
-      const mm = Number(m[1]);
-      const dd = Number(m[2]);
-      const yyyy = Number(m[3]);
-
-      // Basic range checks
-      if (yyyy < 1900 || yyyy > 2100) return null;
-      if (mm < 1 || mm > 12) return null;
-      if (dd < 1 || dd > 31) return null;
-
-      // Calendar-valid check
-      const dt = new Date(yyyy, mm - 1, dd);
-      if (dt.getFullYear() !== yyyy || dt.getMonth() !== (mm - 1) || dt.getDate() !== dd) return null;
-
-      return `${yyyy}-${pad2(mm)}-${pad2(dd)}`;
-    }
-
-    // -------------------- Start Date behavior (disable when not needed) --------------------
-    function periodUsesStartDate(periodType) {
-      // Matches your Worker behavior: anchor/start date affects weekly/biweekly/quarterly
-      return periodType === "weekly" || periodType === "biweekly" || periodType === "quarterly";
-    }
-
-    function disabledStartDateMessage(periodType) {
-      // User-facing message shown in the disabled field (MM-DD-YYYY UI is not applicable here)
-      switch (periodType) {
-        case "daily": return "Not needed for Daily budgets";
-        case "monthly": return "Not needed for Monthly budgets";
-        case "semi_monthly": return "Not needed for Twice-a-Month budgets";
-        default: return "Not needed for this budget period type";
-      }
-    }
-
-    function updateStartDateAvailability() {
-      const pt = (wizPeriodType?.value || "").trim();
-      const uses = periodUsesStartDate(pt);
-
-      if (!wizStartDate) return;
-
-      if (uses) {
-        // Re-enable and restore prior value if we saved it
-        const prev = wizStartDate.dataset.prevValue;
-        wizStartDate.disabled = false;
-        wizStartDate.placeholder = "MM-DD-YYYY";
-        if (prev && wizStartDate.value === disabledStartDateMessage(pt)) {
-          wizStartDate.value = prev;
-        }
-        if (!wizStartDate.value || wizStartDate.value.startsWith("Not needed")) {
-          // Ensure there is a valid default UI date
-          wizStartDate.value = ymdToMdy(todayYMD());
-        }
-      } else {
-        // Save the last real date so we can restore it later
-        if (wizStartDate.value && !wizStartDate.value.startsWith("Not needed")) {
-          wizStartDate.dataset.prevValue = wizStartDate.value;
-        }
-        wizStartDate.disabled = true;
-        wizStartDate.value = disabledStartDateMessage(pt);
-      }
-    }
-
-    // -------------------- IndexedDB Token Storage --------------------
-    function openDb() {
-      return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB.name, DB.version);
-
-        req.onupgradeneeded = () => {
-          const db = req.result;
-          if (!db.objectStoreNames.contains(DB.store)) {
-            db.createObjectStore(DB.store);
-          }
-        };
-
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-    }
-
-    async function idbGet(key) {
-      const db = await openDb();
-      try {
-        return await new Promise((resolve, reject) => {
-          const tx = db.transaction(DB.store, "readonly");
-          const store = tx.objectStore(DB.store);
-          const req = store.get(key);
-          req.onsuccess = () => resolve(req.result ?? null);
-          req.onerror = () => reject(req.error);
-        });
-      } finally {
-        db.close();
-      }
-    }
-
-    async function idbSet(key, value) {
-      const db = await openDb();
-      try {
-        return await new Promise((resolve, reject) => {
-          const tx = db.transaction(DB.store, "readwrite");
-          const store = tx.objectStore(DB.store);
-          const req = store.put(value, key);
-          req.onsuccess = () => resolve(true);
-          req.onerror = () => reject(req.error);
-        });
-      } finally {
-        db.close();
-      }
-    }
-
-    async function idbDel(key) {
-      const db = await openDb();
-      try {
-        return await new Promise((resolve, reject) => {
-          const tx = db.transaction(DB.store, "readwrite");
-          const store = tx.objectStore(DB.store);
-          const req = store.delete(key);
-          req.onsuccess = () => resolve(true);
-          req.onerror = () => reject(req.error);
-        });
-      } finally {
-        db.close();
-      }
-    }
-
-    // -------------------- Fetch Helpers --------------------
-    function fetchWithTimeout(url, options = {}) {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), API.timeoutMs);
-
-      return fetch(url, { ...options, signal: controller.signal })
-        .finally(() => clearTimeout(id));
-    }
-
-    function authHeaders(token) {
-      return {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json"
-      };
-    }
-
-    async function safeReadText(resp) {
-      try { return await resp.text(); } catch { return ""; }
-    }
-
-    // -------------------- API Calls --------------------
-    async function validateToken(token) {
-      const url = joinUrl(API.baseUrl, API.validatePath);
-      const resp = await fetchWithTimeout(url, { method: "GET", headers: authHeaders(token) });
-
-      if (resp.ok) return true;
-      if (resp.status === 401 || resp.status === 403) return false;
-
-      const text = await safeReadText(resp);
-      throw new Error(`Token validation failed (${resp.status}): ${text || resp.statusText}`);
-    }
-
-    async function fetchState(token) {
-      const url = joinUrl(API.baseUrl, API.statePath);
-      const resp = await fetchWithTimeout(url, { method: "GET", headers: authHeaders(token) });
-
-      if (!resp.ok) {
-        if (resp.status === 401 || resp.status === 403) return { authFailed: true, state: null };
-        const text = await safeReadText(resp);
-        throw new Error(`State request failed (${resp.status}): ${text || resp.statusText}`);
-      }
-
-      const data = await resp.json().catch(() => null);
-      return { authFailed: false, state: data };
-    }
-
-    async function postInit(token, payload) {
-      const url = joinUrl(API.baseUrl, API.initPath);
-      const resp = await fetchWithTimeout(url, {
-        method: "POST",
-        headers: authHeaders(token),
-        body: JSON.stringify(payload)
-      });
-
-      if (!resp.ok) {
-        if (resp.status === 401 || resp.status === 403) return { authFailed: true, result: null };
-        const text = await safeReadText(resp);
-        throw new Error(`Init failed (${resp.status}): ${text || resp.statusText}`);
-      }
-
-      const data = await resp.json().catch(() => ({}));
-      return { authFailed: false, result: data };
-    }
-
-    // -------------------- Wizard logic --------------------
-    const wizardState = { step: 1 };
-
-    function setWizStep(n) {
-      wizardState.step = n;
-
-      hide(wizStep1); hide(wizStep2); hide(wizStep3);
-      if (n === 1) show(wizStep1);
-      if (n === 2) show(wizStep2);
-      if (n === 3) show(wizStep3);
-
-      setStatus(wizStatus1, "");
-      setStatus(wizStatus2, "");
-      setStatus(wizStatus3, "");
-
-      const label = (n === 1) ? "Step 1 of 3" : (n === 2) ? "Step 2 of 3" : "Step 3 of 3";
-      setStatus(wizStepLabel, label);
-    }
-
-    function addWizCategoryRow(name = "", dollars = "") {
-      const row = document.createElement("div");
-      row.className = "row";
-      row.style.marginTop = "10px";
-      row.innerHTML = `
-        <input class="wizCatName" type="text" placeholder="Category name"
-               value="${escapeHtml(name)}" style="flex:1; min-width:180px;" />
-        <input class="wizCatBudget" type="text" placeholder="Budget (e.g., 250.00)"
-               value="${escapeHtml(dollars)}" style="width:180px;" />
-        <button class="secondary wizRemoveCat" type="button">Remove</button>
-      `;
-      row.querySelector(".wizRemoveCat").addEventListener("click", () => row.remove());
-      wizCatList.appendChild(row);
-    }
-
-    function readCategoriesFromUI() {
-      const rows = Array.from(wizCatList.querySelectorAll(".row"));
-      return rows.map((r, idx) => {
-        const name = r.querySelector(".wizCatName")?.value?.trim() || "";
-        const budget_dollars = r.querySelector(".wizCatBudget")?.value?.trim() || "";
-        return { name, budget_dollars, sort_order: idx + 1 };
-      }).filter(c => c.name.length > 0);
-    }
-
-    function effectiveStartDateYmd() {
-      const pt = (wizPeriodType.value || "").trim();
-      if (!periodUsesStartDate(pt)) {
-        // Backend requires a valid YYYY-MM-DD even if it won't be used
-        return todayYMD();
-      }
-      const ymd = mdyToYmd(wizStartDate.value);
-      return ymd;
-    }
-
-    function validateStep1() {
-      const pt = (wizPeriodType.value || "").trim();
-
-      const allowed = new Set(["daily", "weekly", "biweekly", "semi_monthly", "monthly", "quarterly"]);
-      if (!allowed.has(pt)) return `Period type must be one of: ${Array.from(allowed).join(", ")}`;
-
-      // Only require/validate Start Date when it is used
-      if (periodUsesStartDate(pt)) {
-        const ymd = mdyToYmd(wizStartDate.value);
-        if (!ymd) return "Start Date must be MM-DD-YYYY.";
-      }
-
-      return null;
-    }
-
-    function validateStep2() {
-      const cats = readCategoriesFromUI();
-      if (cats.length < 1 || cats.length > 10) return "Please provide 1 to 10 categories.";
-
-      for (const c of cats) {
-        if (c.name.length > 64) return `Category name too long: ${c.name}`;
-        if (!c.budget_dollars || !String(c.budget_dollars).trim()) return `Please enter a budget for: ${c.name}`;
-      }
-
-      const seen = new Set();
-      for (const c of cats) {
-        const k = c.name.toLowerCase();
-        if (seen.has(k)) return `Duplicate category name: ${c.name}`;
-        seen.add(k);
-      }
-      return null;
-    }
-
-    function buildInitPayloadForReview() {
-      const period_type = (wizPeriodType.value || "").trim();
-      const period_anchor_date = effectiveStartDateYmd(); // DB format, even if UI is MM-DD-YYYY
-      const categories = readCategoriesFromUI().map(c => ({
-        name: c.name,
-        sort_order: c.sort_order,
-        budget_dollars: c.budget_dollars
-      }));
-      return { period_type, period_anchor_date, categories };
-    }
-
-    function renderReview() {
-      const payload = buildInitPayloadForReview();
-      const uiStartDate = periodUsesStartDate(payload.period_type)
-        ? (wizStartDate.value || "").trim()
-        : "(not applicable)";
-
-      wizReviewText.textContent =
-        `You are about to initialize a ${payload.period_type} budget starting from ${uiStartDate} with ${payload.categories.length} categories.`;
-
-      // Show UI date in the review JSON for readability, while still sending YYYY-MM-DD in payload
-      const reviewPayload = {
-        ...payload,
-        start_date_ui: periodUsesStartDate(payload.period_type) ? uiStartDate : null
-      };
-      wizReviewJson.textContent = JSON.stringify(reviewPayload, null, 2);
-    }
-
-    function initWizardDefaults() {
-      // Default period type (biweekly). Select already defaults; this is defensive.
-      if (wizPeriodType && !wizPeriodType.value) wizPeriodType.value = "biweekly";
-
-      // Default Start Date in UI format MM-DD-YYYY
-      if (wizStartDate && (!wizStartDate.value || wizStartDate.value === "MM-DD-YYYY")) {
-        wizStartDate.value = ymdToMdy(todayYMD());
-      }
-
-      if (wizCatList && wizCatList.children.length === 0) {
-        addWizCategoryRow("Groceries", "300.00");
-        addWizCategoryRow("Gas", "120.00");
-        addWizCategoryRow("Dining Out", "150.00");
-      }
-
-      setWizStep(1);
-      updateStartDateAvailability();
-    }
-
-    // -------------------- App Views --------------------
-    function showAuth(message, isError = false) {
-      show(authView);
-      hide(appView);
-      setStatus(authStatus, message, isError ? "error" : "");
-      tokenInput.value = "";
-      tokenInput.focus();
-    }
-
-    async function showAppWithState(token) {
-      show(appView);
-      hide(authView);
-      setStatus(appStatus, "Connected. Loading budget state…");
-
-      hide(hasCategoriesView);
-      hide(noCategoriesView);
-      categoriesPreview.textContent = "";
-
-      const result = await fetchState(token);
-
-      if (result.authFailed) {
-        await idbDel(DB.tokenKey);
-        return showAuth("Your token is no longer valid. Please enter a new token.", true);
-      }
-
-      const state = result.state || {};
-      if (state.initialized === false) {
-        hide(hasCategoriesView);
-        show(noCategoriesView);
-        setStatus(appStatus, "Budget not yet initialized.");
-        initWizardDefaults();
-        return;
-      }
-
-      const categories = Array.isArray(state.categories) ? state.categories : [];
-      if (categories.length > 0) {
-        show(hasCategoriesView);
-        hide(noCategoriesView);
-        setStatus(appStatus, "Categories found.");
-        categoriesPreview.textContent =
-          JSON.stringify(categories.slice(0, 10), null, 2) +
-          (categories.length > 10 ? `\n… (${categories.length - 10} more)` : "");
-      } else {
-        hide(hasCategoriesView);
-        show(noCategoriesView);
-        setStatus(appStatus, "Initialized, but no active categories found.");
-        initWizardDefaults();
-      }
-    }
-
-    async function bootstrap() {
-      setBusy(true);
-      setStatus(globalStatus, "Starting…");
-      hide(authView);
-      hide(appView);
-
-      const token = await idbGet(DB.tokenKey);
-
-      if (!token) {
-        setBusy(false);
-        setStatus(globalStatus, "");
-        return showAuth("No token found. Enter your bearer token to continue.");
-      }
-
-      try {
-        setStatus(globalStatus, "Validating token…");
-        const isValid = await validateToken(token);
-
-        if (!isValid) {
-          await idbDel(DB.tokenKey);
-          setBusy(false);
-          setStatus(globalStatus, "");
-          return showAuth("Stored token is invalid or expired. Please enter a new token.", true);
-        }
-
-        setStatus(globalStatus, "Loading your data…");
-        await showAppWithState(token);
-
-        setStatus(globalStatus, "");
-        setBusy(false);
-      } catch (err) {
-        setBusy(false);
-        show(appView);
-        hide(authView);
-
-        setStatus(appStatus, `Unable to complete startup: ${err.message}`, "error");
-        hide(hasCategoriesView);
-        hide(noCategoriesView);
-        setStatus(globalStatus, "Startup encountered an error. You can Retry.", "error");
-      }
-    }
-
-    // -------------------- Event Handlers --------------------
-    saveTokenBtn.addEventListener("click", async () => {
-      const token = (tokenInput.value || "").trim();
-      if (!token) return setStatus(authStatus, "Please enter a token.", "error");
-
-      setBusy(true);
-      setStatus(authStatus, "Validating token…");
-      setStatus(globalStatus, "");
-
-      try {
-        const isValid = await validateToken(token);
-        if (!isValid) {
-          setBusy(false);
-          return setStatus(authStatus, "Token is invalid or expired. Please try again.", "error");
-        }
-
-        await idbSet(DB.tokenKey, token);
-        setStatus(authStatus, "Token saved.", "ok");
-
-        await showAppWithState(token);
-        setBusy(false);
-      } catch (err) {
-        setBusy(false);
-        setStatus(authStatus, `Unable to validate token: ${err.message}`, "error");
-      }
-    });
-
-    toggleTokenBtn.addEventListener("click", () => {
-      const isPassword = tokenInput.type === "password";
-      tokenInput.type = isPassword ? "text" : "password";
-      toggleTokenBtn.textContent = isPassword ? "Hide" : "Show";
-      tokenInput.focus();
-    });
-
-    logoutBtn.addEventListener("click", async () => {
-      setBusy(true);
-      await idbDel(DB.tokenKey);
-      setBusy(false);
-      showAuth("Logged out. Enter your bearer token to continue.");
-    });
-
-    retryBtn.addEventListener("click", async () => {
-      await bootstrap();
-    });
-
-    // Wizard wiring
-    wizPeriodType?.addEventListener("change", () => {
-      updateStartDateAvailability();
-      // Also update review text in case user is on step 3 and changes type
-      if (wizardState.step === 3) renderReview();
-    });
-
-    wizNext1?.addEventListener("click", () => {
-      const err = validateStep1();
-      if (err) return setStatus(wizStatus1, err, "error");
-      setWizStep(2);
-    });
-
-    wizBack2?.addEventListener("click", () => setWizStep(1));
-    wizAddCat?.addEventListener("click", () => addWizCategoryRow());
-
-    wizNext2?.addEventListener("click", () => {
-      const err = validateStep2();
-      if (err) return setStatus(wizStatus2, err, "error");
-      renderReview();
-      setWizStep(3);
-    });
-
-    wizBack3?.addEventListener("click", () => setWizStep(2));
-
-    wizSubmit?.addEventListener("click", async () => {
-      const err1 = validateStep1();
-      if (err1) { setWizStep(1); return setStatus(wizStatus1, err1, "error"); }
-
-      const err2 = validateStep2();
-      if (err2) { setWizStep(2); return setStatus(wizStatus2, err2, "error"); }
-
-      const token = await idbGet(DB.tokenKey);
-      if (!token) return showAuth("Missing token. Please re-enter your bearer token.", true);
-
-      const payload = buildInitPayloadForReview();
-
-      setBusy(true);
-      setStatus(wizStatus3, "Initializing…");
-
-      try {
-        const res = await postInit(token, payload);
-        if (res.authFailed) {
-          await idbDel(DB.tokenKey);
-          setBusy(false);
-          return showAuth("Token invalid/expired. Please enter a new token.", true);
-        }
-
-        setStatus(wizStatus3, "Initialized. Loading dashboard…", "ok");
-        await showAppWithState(token);
-        setBusy(false);
-      } catch (e) {
-        setBusy(false);
-        setStatus(wizStatus3, e.message, "error");
-      }
-    });
-
-    // Optional: service worker registration (safe to remove if handled elsewhere)
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./service-worker.js").catch(() => {});
-      });
-    }
-
-    // Start
-    bootstrap();
-  </script>
+  <div class="row">
+    <button id="logoutBtn" class="secondary">Log Out</button>
+  </div>
+</div>
+
+<div id="globalStatus" class="status"></div>
+</div>
+</div>
+
+<script>
+/* ================= CONFIG ================= */
+const API = {
+  baseUrl: "https://purrfect-budget-api.kardian.workers.dev",
+  validatePath: "/api/auth/validate",
+  statePath: "/api/budget/state",
+  initPath: "/api/budget/init"
+};
+const DBKEY = "bearerToken";
+
+/* ================= DOM ================= */
+const $ = id => document.getElementById(id);
+const authView = $("authView"), appView = $("appView");
+const wizStep1 = $("wizStep1"), wizStep2 = $("wizStep2"), wizStep3 = $("wizStep3");
+const wizPeriodType = $("wizPeriodType"), wizStartDate = $("wizStartDate");
+const wizCatList = $("wizCatList");
+
+/* ================= DATE HELPERS ================= */
+const pad = n => String(n).padStart(2,"0");
+const todayYMD = () => {
+  const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+};
+const ymdToMdy = y => y ? `${y.slice(5,7)}-${y.slice(8,10)}-${y.slice(0,4)}` : "";
+const mdyToYmd = m => {
+  const r=/^(\d{2})-(\d{2})-(\d{4})$/.exec(m||"");
+  return r ? `${r[3]}-${r[1]}-${r[2]}` : null;
+};
+const usesStartDate = p => ["weekly","biweekly","quarterly"].includes(p);
+
+/* ================= STEP 2 ================= */
+function addWizCategoryRow(name="", budget="") {
+  const d=document.createElement("div");
+  d.className="catRow";
+  d.innerHTML=`
+    <input class="catName" placeholder="Category" value="${name}">
+    <input class="catBudget" placeholder="Budget" value="${budget}">
+    <button class="secondary">Remove</button>`;
+  d.querySelector("button").onclick=()=>d.remove();
+  wizCatList.appendChild(d);
+}
+function readCategories(){
+  return [...wizCatList.children].map((r,i)=>({
+    name:r.querySelector(".catName").value.trim(),
+    budget_dollars:r.querySelector(".catBudget").value.trim(),
+    sort_order:i+1
+  })).filter(c=>c.name);
+}
+
+/* ================= START DATE LOGIC ================= */
+function updateStartDate(){
+  const p=wizPeriodType.value;
+  if(usesStartDate(p)){
+    wizStartDate.disabled=false;
+    wizStartDate.value ||= ymdToMdy(todayYMD());
+  }else{
+    wizStartDate.disabled=true;
+    wizStartDate.value="Not required for this period type";
+  }
+}
+
+/* ================= WIZARD NAV ================= */
+function showStep(n){
+  [wizStep1,wizStep2,wizStep3].forEach((s,i)=>s.classList.toggle("hidden",i!==n));
+}
+$("wizNext1").onclick=()=>{
+  if(usesStartDate(wizPeriodType.value)&&!mdyToYmd(wizStartDate.value))
+    return $("wizStatus1").textContent="Invalid start date";
+  showStep(1);
+};
+$("wizBack2").onclick=()=>showStep(0);
+$("wizNext2").onclick=()=>{ $("wizReviewJson").textContent=
+  JSON.stringify({
+    period_type:wizPeriodType.value,
+    period_anchor_date:usesStartDate(wizPeriodType.value)?mdyToYmd(wizStartDate.value):todayYMD(),
+    categories:readCategories()
+  },null,2);
+  showStep(2);
+};
+$("wizBack3").onclick=()=>showStep(1);
+$("wizAddCat").onclick=()=>addWizCategoryRow();
+
+/* ================= INIT ================= */
+wizPeriodType.onchange=updateStartDate;
+updateStartDate();
+addWizCategoryRow("Groceries","300.00");
+addWizCategoryRow("Gas","120.00");
+</script>
 </body>
 </html>
