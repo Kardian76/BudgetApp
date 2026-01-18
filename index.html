@@ -161,20 +161,20 @@
       min-width:0; /* allow shrink */
     }
 
-    /* CHANGE #1: Category always takes remaining space (dominant) */
+    /* Category always dominates */
     .catRow .catName{
       flex: 1 1 auto;
       min-width: 0;
       max-width: 520px;
     }
 
-    /* CHANGE #2: Budget stays truly compact (fixed), never grows */
+    /* Budget stays compact */
     .catRow .catBudget{
-      flex: 0 0 96px;     /* smaller fixed width than before */
+      flex: 0 0 96px;
       width: 96px;
       max-width: 96px;
       text-align:right;
-      padding-left: 10px; /* slightly tighter to look shorter */
+      padding-left: 10px;
       padding-right: 10px;
     }
 
@@ -184,7 +184,6 @@
       padding: 11px 12px;
     }
 
-    /* CHANGE #3: smaller phones get an even tighter budget field */
     @media (max-width: 420px){
       .wrap{ padding: 14px; }
       .catRow .catBudget{
@@ -275,9 +274,35 @@
 
         <!-- ---------- STEP 3 ---------- -->
         <div id="wizStep3" class="card subcard hidden">
-          <h1>Step 3 — Review</h1>
-          <p class="status" style="margin-top:0;">Review and submit your initialization payload.</p>
-          <pre id="wizReviewJson" class="mono" style="white-space:pre-wrap;"></pre>
+          <h1>Step 3 — Confirm your setup</h1>
+
+          <p class="status" style="margin-top:0;">
+            Please confirm these details before saving your initial budget.
+          </p>
+
+          <!-- Friendly review (no code) -->
+          <div id="wizReviewCard" style="margin-top:10px;">
+            <div class="status" id="wizReviewSummary" style="margin-top:0;"></div>
+
+            <div class="card subcard" style="margin-top:10px;">
+              <h1 style="margin:0 0 10px;">Budget period</h1>
+              <div class="status" id="wizReviewPeriod"></div>
+              <div class="status" id="wizReviewStartDate"></div>
+            </div>
+
+            <div class="card subcard" style="margin-top:10px;">
+              <h1 style="margin:0 0 10px;">Categories</h1>
+              <div id="wizReviewCategories"></div>
+              <div class="status" id="wizReviewTotal" style="margin-top:10px;"></div>
+            </div>
+
+            <div class="status" style="margin-top:12px;">
+              Note: You can change categories and amounts later. This is just your starting setup.
+            </div>
+          </div>
+
+          <!-- Optional: keep JSON for debugging only (hidden) -->
+          <pre id="wizReviewJson" class="mono hidden" style="white-space:pre-wrap;"></pre>
 
           <div class="row">
             <button id="wizBack3" class="secondary" type="button">Back</button>
@@ -394,6 +419,13 @@ const wizStartDate = $("wizStartDate");
 
 const wizCatList = $("wizCatList");
 const wizReviewJson = $("wizReviewJson");
+
+/* Friendly Step 3 review DOM */
+const wizReviewSummary = $("wizReviewSummary");
+const wizReviewPeriod = $("wizReviewPeriod");
+const wizReviewStartDate = $("wizReviewStartDate");
+const wizReviewCategories = $("wizReviewCategories");
+const wizReviewTotal = $("wizReviewTotal");
 
 const wizNext1 = $("wizNext1");
 const wizBack2 = $("wizBack2");
@@ -682,9 +714,90 @@ function buildInitPayload() {
   };
 }
 
+function periodLabel(pt) {
+  switch (pt) {
+    case "daily": return "Daily";
+    case "weekly": return "Weekly";
+    case "biweekly": return "Every Two Weeks";
+    case "semi_monthly": return "Twice a Month";
+    case "monthly": return "Monthly";
+    case "quarterly": return "Quarterly";
+    default: return pt || "—";
+  }
+}
+
+function fmtUsdFromDollarsString(d) {
+  const n = Number(d);
+  if (!Number.isFinite(n)) return "—";
+  return `$${n.toFixed(2)}`;
+}
+
 function renderReview() {
   const payload = buildInitPayload();
-  wizReviewJson.textContent = JSON.stringify(payload, null, 2);
+
+  // Keep hidden JSON available for debugging if desired
+  if (wizReviewJson) {
+    wizReviewJson.textContent = JSON.stringify(payload, null, 2);
+  }
+
+  const pt = payload.period_type;
+  const uses = periodUsesStartDate(pt);
+
+  // Summary
+  const catCount = payload.categories?.length || 0;
+  if (wizReviewSummary) {
+    wizReviewSummary.textContent = `You’re about to initialize your budget with ${catCount} ${catCount === 1 ? "category" : "categories"}.`;
+  }
+
+  // Period
+  if (wizReviewPeriod) {
+    wizReviewPeriod.textContent = `Period type: ${periodLabel(pt)}`;
+  }
+
+  // Start date (user-friendly, only when relevant)
+  if (wizReviewStartDate) {
+    if (uses) {
+      wizReviewStartDate.textContent = `Start date: ${ymdToMdy(payload.period_anchor_date)}`;
+      wizReviewStartDate.classList.remove("hidden");
+    } else {
+      wizReviewStartDate.textContent = `Start date: Not required for ${periodLabel(pt)} budgets`;
+      wizReviewStartDate.classList.remove("hidden");
+    }
+  }
+
+  // Categories list
+  let total = 0;
+  if (wizReviewCategories) {
+    wizReviewCategories.innerHTML = "";
+    for (const c of (payload.categories || [])) {
+      const amt = Number(c.budget_dollars);
+      if (Number.isFinite(amt)) total += amt;
+
+      const row = document.createElement("div");
+      row.className = "row";
+      row.style.marginTop = "8px";
+      row.style.justifyContent = "space-between";
+      row.style.flexWrap = "nowrap";
+
+      const left = document.createElement("div");
+      left.textContent = c.name || "—";
+      left.style.color = "var(--text)";
+      left.style.fontWeight = "650";
+
+      const right = document.createElement("div");
+      right.textContent = fmtUsdFromDollarsString(c.budget_dollars);
+      right.style.color = "var(--text)";
+      right.style.fontVariantNumeric = "tabular-nums";
+
+      row.appendChild(left);
+      row.appendChild(right);
+      wizReviewCategories.appendChild(row);
+    }
+  }
+
+  if (wizReviewTotal) {
+    wizReviewTotal.textContent = `Total starting budget: $${total.toFixed(2)}`;
+  }
 }
 
 function initWizardDefaults() {
