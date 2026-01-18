@@ -87,12 +87,12 @@ select:focus { border-color: rgba(130,190,255,0.6); }
 
 <label for="wizPeriodType">Period Type</label>
 <select id="wizPeriodType">
-  <option value="daily">daily</option>
-  <option value="weekly">weekly</option>
-  <option value="biweekly">biweekly</option>
-  <option value="semi_monthly" selected>semi_monthly</option>
-  <option value="monthly">monthly</option>
-  <option value="quarterly">quarterly</option>
+  <option value="daily">Daily</option>
+  <option value="weekly">Weekly</option>
+  <option value="biweekly">Biweekly</option>
+  <option value="semi_monthly" selected>Semi-Monthly</option>
+  <option value="monthly">Monthly</option>
+  <option value="quarterly">Quarterly</option>
 </select>
 
 
@@ -540,7 +540,7 @@ select:focus { border-color: rgba(130,190,255,0.6); }
       if (state.initialized === false) {
         hide(hasCategoriesView);
         show(noCategoriesView);
-        setStatus(appStatus, "Budget not initialized.");
+        setStatus(appStatus, "Budget not yet initialized.");
         initWizardDefaults();
         return;
       }
