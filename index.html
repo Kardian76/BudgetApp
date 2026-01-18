@@ -16,13 +16,19 @@
     label { display: block; margin: 12px 0 6px; font-size: 13px; color: rgba(233,238,247,0.85); }
     
 input[type="password"], input[type="text"], select {
-  width: 100%; box-sizing: border-box;
-  padding: 10px 12px; border-radius: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
   border: 1px solid rgba(255,255,255,0.15);
-  background: rgba(0,0,0,0.25); color: #e9eef7;
+  background: rgba(0,0,0,0.25);
+  color: #e9eef7;
   outline: none;
 }
-select:focus { border-color: rgba(130,190,255,0.6); }
+
+select:focus {
+  border-color: rgba(130,190,255,0.6);
+}
 
     
     input:focus { border-color: rgba(130,190,255,0.6); }
@@ -85,19 +91,32 @@ select:focus { border-color: rgba(130,190,255,0.6); }
             <div id="wizStep1" class="card subcard">
               <h1 style="margin:0 0 10px;">Step 1 — Budget period</h1>
 
+<!-- 1) HTML change: replace the Period Type <input> with this <select> (defaults to Every Two Weeks) -->
+
 <label for="wizPeriodType">Period Type</label>
 <select id="wizPeriodType">
   <option value="daily">Daily</option>
   <option value="weekly">Weekly</option>
-  <option value="biweekly">Biweekly</option>
-  <option value="semi_monthly" selected>Semi-Monthly</option>
+  <option value="biweekly" selected>Every Two Weeks</option>
+  <option value="semi_monthly">Twice a Month (1–14, 15–end)</option>
   <option value="monthly">Monthly</option>
-  <option value="quarterly">Quarterly</option>
+  <option value="quarterly">Quarterly (Every 3 Months)</option>
 </select>
+
+<!-- Optional enhancement: helper text shown under the dropdown -->
+<p class="status" id="periodTypeHelp">
+  Anchor date only affects Weekly, Every Two Weeks, and Quarterly budgets.
+</p>
+
 
 
               <label for="wizAnchorDate">Anchor Date (YYYY-MM-DD)</label>
-              <input id="wizAnchorDate" type="text" placeholder="2026-01-01" />
+<input id="wizAnchorDate" type="text" placeholder="2026-01-01" />
+
+<p class="status" id="anchorDateHelp">
+  Anchor date is used to align Weekly, Every Two Weeks, and Quarterly budgets.
+</p>
+
 
               <div class="row">
                 <button id="wizNext1" type="button">Next</button>
@@ -219,6 +238,25 @@ select:focus { border-color: rgba(130,190,255,0.6); }
     const wizBack3 = document.getElementById("wizBack3");
     const wizSubmit = document.getElementById("wizSubmit");
 
+const anchorDateHelp = document.getElementById("anchorDateHelp");
+
+function updateAnchorDateHelpText() {
+  const pt = (wizPeriodType?.value || "").trim();
+
+  if (!anchorDateHelp) return;
+
+  if (pt === "weekly" || pt === "biweekly" || pt === "quarterly") {
+    anchorDateHelp.textContent =
+      "Anchor date determines how this budget period is aligned.";
+  } else {
+    anchorDateHelp.textContent =
+      "Anchor date is stored but does not affect this period type.";
+  }
+}
+
+
+
+    
     // ---------- Utilities ----------
     function setStatus(el, msg, kind) {
       if (!el) return;
@@ -500,7 +538,7 @@ select:focus { border-color: rgba(130,190,255,0.6); }
       const dd = String(d.getDate()).padStart(2, "0");
       if (wizAnchorDate && !wizAnchorDate.value) wizAnchorDate.value = `${yyyy}-${mm}-${dd}`;
 
-      if (wizPeriodType && !wizPeriodType.value) wizPeriodType.value = "semi_monthly";
+      if (wizPeriodType && !wizPeriodType.value) wizPeriodType.value = "biweekly";
 
       if (wizCatList && wizCatList.children.length === 0) {
         addWizCategoryRow("Groceries", "300.00");
@@ -509,6 +547,8 @@ select:focus { border-color: rgba(130,190,255,0.6); }
       }
 
       setWizStep(1);
+      updateAnchorDateHelpText();
+
     }
 
     // ---------- App State / Views ----------
@@ -650,6 +690,7 @@ select:focus { border-color: rgba(130,190,255,0.6); }
     });
 
     // ---------- Wizard Button Wiring ----------
+    wizPeriodType?.addEventListener("change", updateAnchorDateHelpText);
     wizNext1?.addEventListener("click", () => {
       const err = validateStep1();
       if (err) return setStatus(wizStatus1, err, "error");
