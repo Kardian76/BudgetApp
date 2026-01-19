@@ -848,7 +848,6 @@ function budgetDisplayToNumeric(s) {
 }
 
 function dollarsStringToNumberMaybe(v) {
-  // Accept numbers or numeric strings with $/commas
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
   const raw = String(v ?? "").trim().replace(/[^0-9.-]/g, "");
   if (!raw) return null;
@@ -883,6 +882,74 @@ function fmtTs(ts) {
   const hh = pad2(d.getHours());
   const mi = pad2(d.getMinutes());
   return `${mm}-${dd}-${yyyy} ${hh}:${mi}`;
+}
+
+/* === Robust budget extraction from API category objects === */
+function extractBudgetNumber(cat) {
+  const tryNumber = (v) => {
+    const n = dollarsStringToNumberMaybe(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const tryCents = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return null;
+
+    // Heuristic: treat big integers as cents (e.g., 30000 => $300.00)
+    if (Number.isInteger(n) && Math.abs(n) >= 1000) return n / 100;
+    return null;
+  };
+
+  if (!cat || typeof cat !== "object") return 0;
+
+  const directCandidates = [
+    cat.budget_dollars,
+    cat.budgetDollars,
+    cat.budget_amount,
+    cat.budgetAmount,
+    cat.amount_dollars,
+    cat.amountDollars,
+    cat.amount,
+    cat.budget,
+    cat.allocated_dollars,
+    cat.allocatedDollars,
+    cat.starting_budget_dollars,
+    cat.startingBudgetDollars,
+  ];
+
+  for (const v of directCandidates) {
+    const n = tryNumber(v);
+    if (n !== null) return n;
+  }
+
+  const centsCandidates = [
+    cat.budget_cents,
+    cat.budgetCents,
+    cat.amount_cents,
+    cat.amountCents,
+  ];
+  for (const v of centsCandidates) {
+    const n = tryCents(v);
+    if (n !== null) return n;
+  }
+
+  if (cat.budget && typeof cat.budget === "object") {
+    const nested = cat.budget;
+    const nestedCandidates = [
+      nested.dollars, nested.amount, nested.value, nested.budget_dollars, nested.budgetDollars
+    ];
+    for (const v of nestedCandidates) {
+      const n = tryNumber(v);
+      if (n !== null) return n;
+    }
+    const nestedCents = [nested.cents, nested.amount_cents, nested.amountCents, nested.budget_cents, nested.budgetCents];
+    for (const v of nestedCents) {
+      const n = tryCents(v);
+      if (n !== null) return n;
+    }
+  }
+
+  return 0;
 }
 
 /* ================= WIZARD ================= */
@@ -1065,14 +1132,14 @@ let CURRENT_TX = []; // local transactions
 
 function normalizeCategoriesFromState(state) {
   const catsRaw = Array.isArray(state?.categories) ? state.categories : [];
+
   const cats = catsRaw
     .map(c => ({
       name: String(c?.name ?? "").trim(),
-      budget: dollarsStringToNumberMaybe(c?.budget_dollars ?? c?.budget ?? c?.amount ?? 0) ?? 0
+      budget: extractBudgetNumber(c)
     }))
     .filter(c => c.name.length > 0);
 
-  // stable sort by name if no sort_order
   return cats;
 }
 
@@ -1109,7 +1176,6 @@ function computeTotals(categories, txList) {
     });
   }
 
-  // Prefer showing configured categories first, then any new categories from tx
   const configuredSet = new Set(categories.map(c => c.name));
   rows.sort((a, b) => {
     const aCfg = configuredSet.has(a.name) ? 0 : 1;
@@ -1168,7 +1234,6 @@ function renderTxTable(txList) {
 
   for (const t of txList) {
     const amt = dollarsStringToNumberMaybe(t.amount) ?? 0;
-    const sign = (t.type === "refund") ? 1 : -1; // show refunds as +, expenses as -
     const display = fmtUsd(Math.abs(amt));
     const signed = (t.type === "refund") ? `+${display}` : `-${display}`;
 
@@ -1185,7 +1250,6 @@ function renderTxTable(txList) {
 }
 
 async function renderDashboard() {
-  // load local tx
   CURRENT_TX = await idbListTx(50);
 
   const totals = computeTotals(CURRENT_CATEGORIES, CURRENT_TX);
@@ -1240,20 +1304,24 @@ async function loadAppState(token) {
   const initialized = (CURRENT_STATE.initialized !== false) && (CURRENT_STATE.initialized !== 0);
   const categories = normalizeCategoriesFromState(CURRENT_STATE);
 
-  // If the API explicitly says "not initialized", always route to setup
   if (CURRENT_STATE.initialized === false) {
     showSetup("Budget setup required.");
     return;
   }
 
-  // If "initialized" but categories are missing, treat as setup (defensive)
   if (!initialized || categories.length === 0) {
     showSetup("Budget setup required.");
     return;
   }
 
-  // MAIN UX CHANGE: go straight to Dashboard (no “categories loaded” debug view)
   CURRENT_CATEGORIES = categories;
+
+  // Optional debug (non-UI): add ?debug=1 to URL or run on localhost
+  if (location.hostname === "localhost" || location.search.includes("debug=1")) {
+    console.info("State.categories sample:", (CURRENT_STATE?.categories || [])[0]);
+    console.info("Normalized categories:", CURRENT_CATEGORIES);
+  }
+
   showDashboard("");
   await renderDashboard();
 }
@@ -1376,7 +1444,6 @@ wizSubmit.addEventListener("click", async () => {
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
 
-    // MAIN UX CHANGE: after init, route directly to Dashboard (not a “loaded categories” message)
     setStatus(wizStatus3, "Initialized. Loading your budget…", "ok");
     await loadAppState(token);
     setBusy(false);
