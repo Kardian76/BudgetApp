@@ -337,6 +337,7 @@
             <div class="row">
               <button id="txSubmitBtn" type="button">Save</button>
               <button id="txClearBtn" class="secondary" type="button">Clear</button>
+              <!-- Refresh button only (no automatic refresh) -->
               <button id="refreshBtn" class="secondary" type="button">Refresh</button>
             </div>
             <div id="txStatus" class="status"></div>
@@ -360,7 +361,7 @@
 
         <div class="card subcard">
           <h1 style="margin:0 0 10px;">Recent transactions</h1>
-          <div class="status" style="margin-top:0;">Shared ledger (current period). Refresh to pull updates from other devices.</div>
+          <div class="status" style="margin-top:0;">Shared ledger (current period). Press Refresh to pull updates from other devices.</div>
           <table class="table" id="txTable">
             <thead>
               <tr>
@@ -901,7 +902,6 @@ function readCategoriesFromUI() {
     const name = r.querySelector(".catName")?.value?.trim() || "";
     const budgetRaw = r.querySelector(".catBudget")?.value || "";
     const budgetCents = dollarsStringToCents(budgetRaw);
-    // Wizard sends dollars string to API (API converts to cents)
     const budgetDollars = (budgetCents === null) ? "" : (budgetCents / 100).toFixed(2);
     return { name, budget_dollars: budgetDollars, sort_order: idx + 1 };
   }).filter(c => c.name.length > 0);
@@ -975,7 +975,6 @@ function fmtUsdFromDollarsString(d) {
 function renderReview() {
   const payload = buildInitPayload();
 
-  // Keep hidden JSON available for debugging if desired
   if (wizReviewJson) {
     wizReviewJson.textContent = JSON.stringify(payload, null, 2);
   }
@@ -983,18 +982,15 @@ function renderReview() {
   const pt = payload.period_type;
   const uses = periodUsesStartDate(pt);
 
-  // Summary
   const catCount = payload.categories?.length || 0;
   if (wizReviewSummary) {
     wizReviewSummary.textContent = `You’re about to initialize your budget with ${catCount} ${catCount === 1 ? "category" : "categories"}.`;
   }
 
-  // Period
   if (wizReviewPeriod) {
     wizReviewPeriod.textContent = `Period type: ${periodLabel(pt)}`;
   }
 
-  // Start date (user-friendly, only when relevant)
   if (wizReviewStartDate) {
     if (uses) {
       wizReviewStartDate.textContent = `Start date: ${ymdToMdy(payload.period_anchor_date)}`;
@@ -1005,7 +1001,6 @@ function renderReview() {
     }
   }
 
-  // Categories list
   let total = 0;
   if (wizReviewCategories) {
     wizReviewCategories.innerHTML = "";
@@ -1056,7 +1051,7 @@ function initWizardDefaults() {
 
 /* ================= DASHBOARD STATE ================= */
 let CURRENT_STATE = null;
-let CURRENT_CATEGORIES = []; // normalized
+let CURRENT_CATEGORIES = [];
 let CATEGORY_NAME_BY_ID = new Map();
 
 function fmtPeriodRange(period) {
@@ -1068,8 +1063,6 @@ function fmtPeriodRange(period) {
 
 function normalizeCategoriesFromState(state) {
   const arr = Array.isArray(state?.categories) ? state.categories : [];
-  // State endpoint returns cents fields (budget_cents, spent_cents, remaining_cents, rollover_cents).
-  // Never treat missing fields as dollars; default to 0 cents.
   return arr.map(r => ({
     category_id: Number(r.category_id),
     name: String(r.name || "").trim(),
@@ -1086,20 +1079,16 @@ function renderDashboardFromState(state) {
 
   CATEGORY_NAME_BY_ID = new Map(CURRENT_CATEGORIES.map(c => [c.category_id, c.name]));
 
-  // Optional debug logging (does not show users)
   if (location.hostname === "localhost" || location.search.includes("debug=1")) {
     console.info("State.categories sample:", (CURRENT_STATE?.categories || [])[0]);
     console.info("Normalized categories:", CURRENT_CATEGORIES);
   }
 
-  // Header
   if (periodLabelEl) periodLabelEl.textContent = fmtPeriodRange(CURRENT_STATE.period);
 
-  // Contributor label preview
   const label = getContribLabel();
   if (contribLabelPreview) contribLabelPreview.textContent = label || "Not set";
 
-  // Summary
   let budgeted = 0, spent = 0, remaining = 0;
   for (const c of CURRENT_CATEGORIES) {
     budgeted += (c.budget_cents + c.rollover_cents);
@@ -1110,7 +1099,6 @@ function renderDashboardFromState(state) {
   if (sumSpentEl) sumSpentEl.textContent = centsToUsd(spent);
   if (sumRemainingEl) sumRemainingEl.textContent = centsToUsd(remaining);
 
-  // Category dropdown
   if (txCategory) {
     txCategory.innerHTML = "";
     for (const c of CURRENT_CATEGORIES) {
@@ -1121,7 +1109,6 @@ function renderDashboardFromState(state) {
     }
   }
 
-  // Category table
   if (catTableBody) {
     catTableBody.innerHTML = "";
     for (const c of CURRENT_CATEGORIES) {
@@ -1153,8 +1140,6 @@ function renderDashboardFromState(state) {
 
 function formatTxWhen(iso) {
   const s = String(iso || "");
-  // Expect ISO with offset. Show MM-DD-YYYY HH:MM (no seconds)
-  // If parsing fails, fallback to raw.
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(s);
   if (!m) return s || "—";
   return `${m[2]}-${m[3]}-${m[1]} ${m[4]}:${m[5]}`;
@@ -1231,29 +1216,39 @@ async function loadAppStateAndRender(token) {
     return;
   }
 
-  // Initialized: go straight to main UI
   hide(noCategoriesView);
   show(dashboardView);
 
   renderDashboardFromState(state);
   setStatus(appStatus, "Ready.");
 
-  // Pull shared ledger
-  await refreshTransactions(token, { quiet: true });
+  // No automatic transactions refresh here.
+  // User will press Refresh.
 }
 
-async function refreshTransactions(token, { quiet = false } = {}) {
-  if (!quiet) setStatus(txListStatus, "Loading transactions…");
+async function refreshAll(token) {
+  // Manual refresh button: pulls both state + ledger
+  setStatus(dashStatus, "Refreshing…");
+  setStatus(txListStatus, "Refreshing transactions…");
   try {
-    const res = await fetchTransactions(token, { limit: 200 });
-    if (res.authFailed) {
+    const st = await fetchState(token);
+    if (st.authFailed) {
       await idbDel(IDB.key);
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
-    const data = res.data || {};
-    renderTransactionsTable(data.items || []);
+    renderDashboardFromState(st.state || {});
+
+    const tx = await fetchTransactions(token, { limit: 200 });
+    if (tx.authFailed) {
+      await idbDel(IDB.key);
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+    renderTransactionsTable((tx.data || {}).items || []);
+
+    setStatus(dashStatus, "Up to date.", "ok");
     setStatus(txListStatus, "", "");
   } catch (e) {
+    setStatus(dashStatus, e.message || String(e), "error");
     setStatus(txListStatus, e.message || String(e), "error");
   }
 }
@@ -1264,7 +1259,6 @@ async function bootstrap() {
   hide(authView);
   hide(appView);
 
-  // Load contributor label into UI
   const label = getContribLabel();
   if (contribLabel) contribLabel.value = label;
   if (contribLabelPreview) contribLabelPreview.textContent = label || "Not set";
@@ -1355,7 +1349,9 @@ txClearBtn.addEventListener("click", () => {
 refreshBtn.addEventListener("click", async () => {
   const token = await idbGet(IDB.key);
   if (!token) return showAuth("Missing token. Please re-enter.", true);
-  await loadAppStateAndRender(token);
+  setBusy(true);
+  await refreshAll(token);
+  setBusy(false);
 });
 
 txSubmitBtn.addEventListener("click", async () => {
@@ -1373,7 +1369,6 @@ txSubmitBtn.addEventListener("click", async () => {
 
   const note = String(txNote.value || "").trim().slice(0, 240) || undefined;
 
-  // Logging fields (safe to start now; useful later)
   const created_by_label = getContribLabel() || undefined;
   const device_id = getOrCreateDeviceId();
   const client_ts = Date.now();
@@ -1404,15 +1399,12 @@ txSubmitBtn.addEventListener("click", async () => {
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
 
-    // POST returns state (per your API). Render immediately, then refresh ledger.
     renderDashboardFromState(res.result || {});
-    setStatus(txStatus, "Saved.", "ok");
+    setStatus(txStatus, "Saved. Press Refresh to see the shared ledger entry.", "ok");
 
-    // Clear just amount/note to encourage rapid entry
     txAmount.value = "";
     txNote.value = "";
 
-    await refreshTransactions(token, { quiet: true });
     setBusy(false);
   } catch (e) {
     setBusy(false);
@@ -1469,7 +1461,6 @@ wizSubmit.addEventListener("click", async () => {
 
     setStatus(wizStatus3, "Initialized. Loading…", "ok");
 
-    // Go straight to dashboard after init (no "categories loaded" dev output)
     await loadAppStateAndRender(token);
     setBusy(false);
   } catch (e) {
