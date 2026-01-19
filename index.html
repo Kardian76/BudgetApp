@@ -492,14 +492,31 @@ const IDB = {
 function openDb() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(IDB.name, IDB.version);
+
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(IDB.store)) db.createObjectStore(IDB.store);
     };
+
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+
+    req.onerror = async () => {
+      const err = req.error;
+
+      // If the stored DB is a higher version than requested, delete and recreate.
+      // This only stores your bearer token, so deleting is acceptable.
+      const msg = String(err?.message || err || "");
+      if (err?.name === "VersionError" || msg.toLowerCase().includes("higher version")) {
+        try {
+          indexedDB.deleteDatabase(IDB.name);
+        } catch {}
+      }
+
+      reject(err);
+    };
   });
 }
+
 
 async function idbGet(key) {
   const db = await openDb();
