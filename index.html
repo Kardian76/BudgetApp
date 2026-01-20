@@ -210,17 +210,6 @@
       .grid2{ grid-template-columns: 1fr; }
     }
 
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding: 8px 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.10);
-      color: var(--muted);
-    }
-
     .table{
       width:100%;
       border-collapse: collapse;
@@ -280,11 +269,24 @@
 
       <!-- ===== Main dashboard (shown when initialized) ===== -->
       <div id="dashboardView" class="hidden">
-        <div class="row" style="justify-content:space-between; align-items:center;">
-          <div class="pill">
-            <span class="muted2">Period</span>
-            <span id="periodLabel" style="color:var(--text); font-weight:650;"></span>
+
+        <!-- Budget Summary moved to top and renamed -->
+        <div class="card subcard" id="budgetSummaryCard">
+          <h1 style="margin:0 0 6px;">Budget Summary</h1>
+          <div class="status" style="margin-top:0;">
+            Period: <span id="periodLabel" style="color:var(--text); font-weight:650;"></span>
           </div>
+
+          <table class="table" id="catTable">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th class="right">Spent</th>
+                <th class="right">Remaining</th>
+              </tr>
+            </thead>
+            <tbody id="catTableBody"></tbody>
+          </table>
         </div>
 
         <div class="grid2">
@@ -314,21 +316,6 @@
             </div>
             <div id="txStatus" class="status"></div>
           </div>
-        </div>
-
-        <div class="card subcard">
-          <h1 style="margin:0 0 10px;">Categories</h1>
-          <table class="table" id="catTable">
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th class="right">Budget</th>
-                <th class="right">Spent</th>
-                <th class="right">Remaining</th>
-              </tr>
-            </thead>
-            <tbody id="catTableBody"></tbody>
-          </table>
         </div>
       </div>
 
@@ -628,6 +615,7 @@ function showApp(message = "") {
   show(appView);
   setStatus(appStatus, message);
 }
+
 /* ================= URL + FETCH ================= */
 function joinUrl(base, path) {
   return base.replace(/\/+$/, "") + "/" + path.replace(/^\/+/, "");
@@ -650,7 +638,6 @@ function fetchWithTimeout(url, options = {}) {
 async function safeText(resp) {
   try { return await resp.text(); } catch { return ""; }
 }
-
 /* ================= API ================= */
 async function validateToken(token) {
   const url = joinUrl(API.baseUrl, API.validatePath);
@@ -1029,6 +1016,7 @@ function renderDashboardFromState(state) {
     }
   }
 
+  // Budget Summary table: Category | Spent | Remaining (budget column removed)
   if (catTableBody) {
     catTableBody.innerHTML = "";
     for (const c of CURRENT_CATEGORIES) {
@@ -1036,10 +1024,6 @@ function renderDashboardFromState(state) {
 
       const tdName = document.createElement("td");
       tdName.textContent = c.name;
-
-      const tdBudget = document.createElement("td");
-      tdBudget.className = "right";
-      tdBudget.textContent = "$" + ((c.budget_cents + c.rollover_cents) / 100).toFixed(2);
 
       const tdSpent = document.createElement("td");
       tdSpent.className = "right";
@@ -1050,7 +1034,6 @@ function renderDashboardFromState(state) {
       tdRem.textContent = "$" + (c.remaining_cents / 100).toFixed(2);
 
       tr.appendChild(tdName);
-      tr.appendChild(tdBudget);
       tr.appendChild(tdSpent);
       tr.appendChild(tdRem);
       catTableBody.appendChild(tr);
@@ -1118,7 +1101,6 @@ async function bootstrap() {
   hide(appView);
 
   try {
-    // Pre-fill stored name if available
     if (userNameInput && !userNameInput.value) userNameInput.value = getUserName();
     getOrCreateDeviceId();
 
