@@ -1,929 +1,3 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#0b1320" />
-  <title>Purrfect Budget</title>
-
-  <style>
-    /* ---------------- Banking-app style theme ---------------- */
-    :root{
-      --bg0:#070b12;
-      --bg1:#0b1320;
-      --card:rgba(255,255,255,0.06);
-      --cardBorder:rgba(255,255,255,0.10);
-      --text:#e9eef7;
-      --muted:rgba(233,238,247,0.82);
-      --muted2:rgba(233,238,247,0.68);
-      --fieldBg:rgba(10,14,22,0.72);
-      --fieldBorder:rgba(255,255,255,0.12);
-      --fieldBorderHover:rgba(255,255,255,0.18);
-      --fieldBorderFocus:rgba(130,190,255,0.65);
-      --primary:#2d6cdf;
-      --primary2:#1f57c8;
-      --danger:#ffb4b4;
-      --success:#b6ffcf;
-      --shadow: 0 18px 46px rgba(0,0,0,0.38);
-      --shadow2: 0 10px 24px rgba(0,0,0,0.28);
-      --radius:16px;
-      --radiusField:12px;
-      --ring: 0 0 0 4px rgba(45,108,223,0.16);
-    }
-
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
-    body{
-      margin:0;
-      color:var(--text);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background:
-        radial-gradient(900px 480px at 10% 0%, rgba(45,108,223,0.22), transparent 60%),
-        radial-gradient(720px 360px at 90% 10%, rgba(182,255,207,0.10), transparent 60%),
-        linear-gradient(180deg, var(--bg0), var(--bg1));
-    }
-
-    .wrap{
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 18px;
-    }
-
-    .card{
-      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.045));
-      border: 1px solid var(--cardBorder);
-      border-radius: var(--radius);
-      padding: 18px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(8px);
-    }
-
-    .subcard{
-      margin-top: 12px;
-      box-shadow: var(--shadow2);
-      border-radius: var(--radius);
-    }
-
-    h1{
-      font-size: 18px;
-      margin: 0 0 10px;
-      letter-spacing: 0.2px;
-    }
-
-    p{ margin: 10px 0; line-height: 1.35; color: var(--muted); }
-    label{ display:block; margin: 12px 0 6px; font-size: 13px; color: var(--muted); }
-
-    /* Banking-style inputs: consistent everywhere */
-    input[type="text"], input[type="password"], select{
-      width: 100%;
-      padding: 11px 12px;
-      border-radius: var(--radiusField);
-      border: 1px solid var(--fieldBorder);
-      background: var(--fieldBg);
-      color: var(--text);
-      outline: none;
-      transition: border-color .16s ease, box-shadow .16s ease, transform .06s ease;
-    }
-
-    input[type="text"]:hover, input[type="password"]:hover, select:hover{
-      border-color: var(--fieldBorderHover);
-    }
-
-    input[type="text"]:focus, input[type="password"]:focus, select:focus{
-      border-color: var(--fieldBorderFocus);
-      box-shadow: var(--ring);
-    }
-
-    input:disabled{
-      opacity: .82;
-      cursor: not-allowed;
-    }
-
-    .row{
-      display:flex;
-      gap: 10px;
-      align-items:center;
-      flex-wrap: wrap;
-      margin-top: 12px;
-    }
-
-    button{
-      appearance:none;
-      border: 0;
-      border-radius: 12px;
-      padding: 11px 14px;
-      cursor: pointer;
-      color: #fff;
-      font-weight: 650;
-      background: linear-gradient(180deg, var(--primary), var(--primary2));
-      box-shadow: 0 10px 18px rgba(45,108,223,0.22);
-      transition: transform .06s ease, filter .16s ease, opacity .16s ease;
-    }
-
-    button:hover{ filter: brightness(1.05); }
-    button:active{ transform: translateY(1px); }
-    button.secondary{
-      background: rgba(255,255,255,0.10);
-      color: var(--text);
-      box-shadow: none;
-      border: 1px solid rgba(255,255,255,0.12);
-    }
-
-    button:disabled{ opacity: .55; cursor: not-allowed; }
-
-    .status{ margin-top: 12px; font-size: 13px; color: var(--muted2); }
-    .error{ color: var(--danger); }
-    .ok{ color: var(--success); }
-    .hidden{ display:none; }
-    .mono{ font-family: ui-monospace, Menlo, Consolas, monospace; }
-
-    pre{
-      margin: 10px 0 0;
-      padding: 12px;
-      border-radius: 14px;
-      background: rgba(0,0,0,0.22);
-      border: 1px solid rgba(255,255,255,0.10);
-      overflow:auto;
-    }
-
-    /* ---------------- Step 2: phone-first one-line rows ---------------- */
-    .catRow{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      margin-top:10px;
-      flex-wrap:nowrap; /* always attempt one line */
-    }
-
-    /* Critical override: cancel global width:100% for row inputs */
-    .catRow input{
-      width:auto;
-      min-width:0; /* allow shrink */
-    }
-
-    /* Category always dominates */
-    .catRow .catName{
-      flex: 1 1 auto;
-      min-width: 0;
-      max-width: 520px;
-    }
-
-    /* Budget stays compact */
-    .catRow .catBudget{
-      flex: 0 0 96px;
-      width: 96px;
-      max-width: 96px;
-      text-align:right;
-      padding-left: 10px;
-      padding-right: 10px;
-    }
-
-    .catRow .wizRemoveCat{
-      flex: 0 0 auto;
-      white-space: nowrap;
-      padding: 11px 12px;
-    }
-
-    @media (max-width: 420px){
-      .wrap{ padding: 14px; }
-      .catRow .catBudget{
-        flex-basis: 88px;
-        width: 88px;
-        max-width: 88px;
-        padding-left: 9px;
-        padding-right: 9px;
-      }
-    }
-
-    @media (max-width: 360px){
-      h1{ font-size: 17px; }
-    }
-
-    /* ---------------- Dashboard layout helpers (no font-size changes) ---------------- */
-    .grid2{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    @media (max-width: 680px){
-      .grid2{ grid-template-columns: 1fr; }
-    }
-
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding: 8px 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.10);
-      color: var(--muted);
-    }
-
-    .table{
-      width:100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-      overflow:hidden;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,0.10);
-      background: rgba(0,0,0,0.10);
-    }
-    .table th, .table td{
-      text-align:left;
-      padding: 10px 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      vertical-align: middle;
-      color: var(--text);
-      font-variant-numeric: tabular-nums;
-    }
-    .table th{
-      color: var(--muted);
-      background: rgba(255,255,255,0.05);
-      font-weight: 650;
-    }
-    .table tr:last-child td{ border-bottom: 0; }
-
-    .right{ text-align:right; }
-    .muted{ color: var(--muted); }
-    .muted2{ color: var(--muted2); }
-  </style>
-</head>
-
-<body>
-<div class="wrap">
-  <div class="card">
-    <h1>Purrfect Budget</h1>
-
-    <!-- ================= AUTH ================= -->
-    <div id="authView" class="hidden">
-      <p class="status">Enter your bearer token. It will be stored locally in IndexedDB.</p>
-
-      <label for="tokenInput">Bearer Token</label>
-      <input id="tokenInput" type="password" placeholder="Paste token…" autocomplete="off" />
-
-      <div class="row">
-        <button id="saveTokenBtn" type="button">Save Token</button>
-        <button id="toggleTokenBtn" class="secondary" type="button">Show</button>
-      </div>
-
-      <div id="authStatus" class="status"></div>
-    </div>
-
-    <!-- ================= APP ================= -->
-    <div id="appView" class="hidden">
-      <p id="appStatus" class="status"></p>
-
-      <!-- ===== Main dashboard (shown when initialized) ===== -->
-      <div id="dashboardView" class="hidden">
-        <div class="row" style="justify-content:space-between; align-items:center;">
-          <div class="pill">
-            <span class="muted2">Period</span>
-            <span id="periodLabel" style="color:var(--text); font-weight:650;"></span>
-          </div>
-
-          <div class="pill">
-            <span class="muted2">Contributor</span>
-            <span id="contribLabelPreview" style="color:var(--text); font-weight:650;"></span>
-          </div>
-        </div>
-
-        <div class="grid2">
-          <div class="card subcard">
-            <h1 style="margin:0 0 10px;">Summary</h1>
-            <div class="row" style="margin-top:0; justify-content:space-between; flex-wrap:nowrap;">
-              <div class="muted">Budgeted</div>
-              <div id="sumBudgeted" style="font-weight:650;"></div>
-            </div>
-            <div class="row" style="margin-top:8px; justify-content:space-between; flex-wrap:nowrap;">
-              <div class="muted">Spent</div>
-              <div id="sumSpent" style="font-weight:650;"></div>
-            </div>
-            <div class="row" style="margin-top:8px; justify-content:space-between; flex-wrap:nowrap;">
-              <div class="muted">Remaining</div>
-              <div id="sumRemaining" style="font-weight:650;"></div>
-            </div>
-            <div id="dashStatus" class="status" style="margin-top:10px;"></div>
-          </div>
-
-          <div class="card subcard">
-            <h1 style="margin:0 0 10px;">Add transaction</h1>
-
-            <label for="contribLabel">Your name / device label (saved locally)</label>
-            <input id="contribLabel" type="text" placeholder="e.g., Jeremy (iPhone)" />
-
-            <label for="txCategory">Category</label>
-            <select id="txCategory"></select>
-
-            <div class="row">
-              <div style="flex:1 1 160px; min-width: 160px;">
-                <label for="txAmount">Amount</label>
-                <input id="txAmount" type="text" inputmode="decimal" placeholder="$0.00" />
-              </div>
-
-              <div style="flex:1 1 160px; min-width: 160px;">
-                <label for="txType">Type</label>
-                <select id="txType">
-                  <option value="expense" selected>Expense</option>
-                  <option value="refund">Refund</option>
-                </select>
-              </div>
-            </div>
-
-            <label for="txNote">Note (optional)</label>
-            <input id="txNote" type="text" placeholder="e.g., Groceries at Target" />
-
-            <div class="row">
-              <button id="txSubmitBtn" type="button">Save</button>
-              <button id="txClearBtn" class="secondary" type="button">Clear</button>
-              <!-- Refresh button only (no automatic refresh) -->
-              <button id="refreshBtn" class="secondary" type="button">Refresh</button>
-            </div>
-            <div id="txStatus" class="status"></div>
-          </div>
-        </div>
-
-        <div class="card subcard">
-          <h1 style="margin:0 0 10px;">Categories</h1>
-          <table class="table" id="catTable">
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th class="right">Budget</th>
-                <th class="right">Spent</th>
-                <th class="right">Remaining</th>
-              </tr>
-            </thead>
-            <tbody id="catTableBody"></tbody>
-          </table>
-        </div>
-
-        <div class="card subcard">
-          <h1 style="margin:0 0 10px;">Recent transactions</h1>
-          <div class="status" style="margin-top:0;">Shared ledger (current period). Press Refresh to pull updates from other devices.</div>
-          <table class="table" id="txTable">
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>Who</th>
-                <th>Category</th>
-                <th>Note</th>
-                <th class="right">Amount</th>
-              </tr>
-            </thead>
-            <tbody id="txTableBody"></tbody>
-          </table>
-          <div id="txListStatus" class="status"></div>
-        </div>
-      </div>
-
-      <!-- ===== Wizard (shown when not initialized) ===== -->
-      <div id="noCategoriesView" class="hidden">
-        <p class="ok">Welcome. Let’s initialize your budget.</p>
-
-        <!-- ---------- STEP 1 ---------- -->
-        <div id="wizStep1" class="card subcard">
-          <h1>Step 1 — Budget period</h1>
-
-          <label for="wizPeriodType">Period Type</label>
-          <select id="wizPeriodType">
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="biweekly" selected>Every Two Weeks</option>
-            <option value="semi_monthly">Twice a Month</option>
-            <option value="monthly">Monthly</option>
-            <option value="quarterly">Quarterly</option>
-          </select>
-
-          <label for="wizStartDate">Start Date (MM-DD-YYYY)</label>
-          <input id="wizStartDate" type="text" placeholder="MM-DD-YYYY" inputmode="numeric" />
-
-          <div class="row">
-            <button id="wizNext1" type="button">Next</button>
-          </div>
-          <div id="wizStatus1" class="status"></div>
-        </div>
-
-        <!-- ---------- STEP 2 ---------- -->
-        <div id="wizStep2" class="card subcard hidden">
-          <h1>Step 2 — Categories</h1>
-          <p class="status" style="margin-top:0;">Enter 1–10 categories with starting budgets.</p>
-
-          <div id="wizCatList"></div>
-
-          <div class="row">
-            <button id="wizAddCat" class="secondary" type="button">Add Category</button>
-            <button id="wizBack2" class="secondary" type="button">Back</button>
-            <button id="wizNext2" type="button">Next</button>
-          </div>
-          <div id="wizStatus2" class="status"></div>
-        </div>
-
-        <!-- ---------- STEP 3 ---------- -->
-        <div id="wizStep3" class="card subcard hidden">
-          <h1>Step 3 — Confirm your setup</h1>
-
-          <p class="status" style="margin-top:0;">
-            Please confirm these details before saving your initial budget.
-          </p>
-
-          <!-- Friendly review (no code) -->
-          <div id="wizReviewCard" style="margin-top:10px;">
-            <div class="status" id="wizReviewSummary" style="margin-top:0;"></div>
-
-            <div class="card subcard" style="margin-top:10px;">
-              <h1 style="margin:0 0 10px;">Budget period</h1>
-              <div class="status" id="wizReviewPeriod"></div>
-              <div class="status" id="wizReviewStartDate"></div>
-            </div>
-
-            <div class="card subcard" style="margin-top:10px;">
-              <h1 style="margin:0 0 10px;">Categories</h1>
-              <div id="wizReviewCategories"></div>
-              <div class="status" id="wizReviewTotal" style="margin-top:10px;"></div>
-            </div>
-
-            <div class="status" style="margin-top:12px;">
-              Note: You can change categories and amounts later. This is just your starting setup.
-            </div>
-          </div>
-
-          <!-- Optional: keep JSON for debugging only (hidden) -->
-          <pre id="wizReviewJson" class="mono hidden" style="white-space:pre-wrap;"></pre>
-
-          <div class="row">
-            <button id="wizBack3" class="secondary" type="button">Back</button>
-            <button id="wizSubmit" type="button">Initialize</button>
-          </div>
-          <div id="wizStatus3" class="status"></div>
-        </div>
-      </div>
-
-      <div class="row">
-        <button id="logoutBtn" class="secondary" type="button">Log Out</button>
-        <button id="retryBtn" class="secondary" type="button">Retry</button>
-      </div>
-    </div>
-
-    <div id="globalStatus" class="status"></div>
-  </div>
-</div>
-
-<script>
-/* ================= CONFIG ================= */
-const API = {
-  baseUrl: "https://purrfect-budget-api.kardian.workers.dev",
-  validatePath: "/api/auth/validate",
-  statePath: "/api/budget/state",
-  initPath: "/api/budget/init",
-  txPath: "/api/budget/transactions",     // POST for save; GET for shared ledger
-  timeoutMs: 12000
-};
-
-/* ================= INDEXEDDB ================= */
-const IDB = {
-  name: "pwa-budget-app",
-  version: 2,
-  store: "auth",
-  key: "bearerToken"
-};
-
-function openDb() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(IDB.name, IDB.version);
-
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(IDB.store)) db.createObjectStore(IDB.store);
-    };
-
-    req.onsuccess = () => resolve(req.result);
-
-    req.onerror = async () => {
-      const err = req.error;
-
-      // If the stored DB is a higher version than requested, delete and recreate.
-      // This only stores your bearer token, so deleting is acceptable.
-      const msg = String(err?.message || err || "");
-      if (err?.name === "VersionError" || msg.toLowerCase().includes("higher version")) {
-        try {
-          indexedDB.deleteDatabase(IDB.name);
-        } catch {}
-      }
-
-      reject(err);
-    };
-  });
-}
-
-
-async function idbGet(key) {
-  const db = await openDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB.store, "readonly");
-      const store = tx.objectStore(IDB.store);
-      const req = store.get(key);
-      req.onsuccess = () => resolve(req.result ?? null);
-      req.onerror = () => reject(req.error);
-    });
-  } finally { db.close(); }
-}
-
-async function idbSet(key, value) {
-  const db = await openDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB.store, "readwrite");
-      const store = tx.objectStore(IDB.store);
-      const req = store.put(value, key);
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => reject(req.error);
-    });
-  } finally { db.close(); }
-}
-
-async function idbDel(key) {
-  const db = await openDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB.store, "readwrite");
-      const store = tx.objectStore(IDB.store);
-      const req = store.delete(key);
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => reject(req.error);
-    });
-  } finally { db.close(); }
-}
-
-/* ================= Local settings (non-sensitive) ================= */
-const LS = {
-  contribLabel: "purrfect_contrib_label",
-  deviceId: "purrfect_device_id"
-};
-
-function getOrCreateDeviceId() {
-  let v = localStorage.getItem(LS.deviceId);
-  if (v && v.length >= 8) return v;
-  v = (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + "_" + Math.random().toString(16).slice(2));
-  localStorage.setItem(LS.deviceId, v);
-  return v;
-}
-
-function getContribLabel() {
-  return (localStorage.getItem(LS.contribLabel) || "").trim();
-}
-
-function setContribLabel(v) {
-  localStorage.setItem(LS.contribLabel, String(v || "").trim().slice(0, 80));
-}
-
-/* ================= DOM ================= */
-const $ = (id) => document.getElementById(id);
-
-const authView = $("authView");
-const tokenInput = $("tokenInput");
-const saveTokenBtn = $("saveTokenBtn");
-const toggleTokenBtn = $("toggleTokenBtn");
-const authStatus = $("authStatus");
-
-const appView = $("appView");
-const appStatus = $("appStatus");
-const dashboardView = $("dashboardView");
-const noCategoriesView = $("noCategoriesView");
-
-const logoutBtn = $("logoutBtn");
-const retryBtn = $("retryBtn");
-const globalStatus = $("globalStatus");
-
-/* Dashboard DOM */
-const periodLabelEl = $("periodLabel");
-const sumBudgetedEl = $("sumBudgeted");
-const sumSpentEl = $("sumSpent");
-const sumRemainingEl = $("sumRemaining");
-const dashStatus = $("dashStatus");
-
-const txCategory = $("txCategory");
-const txAmount = $("txAmount");
-const txType = $("txType");
-const txNote = $("txNote");
-const txSubmitBtn = $("txSubmitBtn");
-const txClearBtn = $("txClearBtn");
-const refreshBtn = $("refreshBtn");
-const txStatus = $("txStatus");
-
-const catTableBody = $("catTableBody");
-const txTableBody = $("txTableBody");
-const txListStatus = $("txListStatus");
-
-const contribLabel = $("contribLabel");
-const contribLabelPreview = $("contribLabelPreview");
-
-/* Wizard DOM */
-const wizStep1 = $("wizStep1");
-const wizStep2 = $("wizStep2");
-const wizStep3 = $("wizStep3");
-
-const wizPeriodType = $("wizPeriodType");
-const wizStartDate = $("wizStartDate");
-
-const wizCatList = $("wizCatList");
-const wizReviewJson = $("wizReviewJson");
-
-/* Friendly Step 3 review DOM */
-const wizReviewSummary = $("wizReviewSummary");
-const wizReviewPeriod = $("wizReviewPeriod");
-const wizReviewStartDate = $("wizReviewStartDate");
-const wizReviewCategories = $("wizReviewCategories");
-const wizReviewTotal = $("wizReviewTotal");
-
-const wizNext1 = $("wizNext1");
-const wizBack2 = $("wizBack2");
-const wizNext2 = $("wizNext2");
-const wizAddCat = $("wizAddCat");
-
-const wizBack3 = $("wizBack3");
-const wizSubmit = $("wizSubmit");
-
-const wizStatus1 = $("wizStatus1");
-const wizStatus2 = $("wizStatus2");
-const wizStatus3 = $("wizStatus3");
-
-/* ================= UI HELPERS ================= */
-function show(el) { if (el) el.classList.remove("hidden"); }
-function hide(el) { if (el) el.classList.add("hidden"); }
-
-function setStatus(el, msg, kind) {
-  if (!el) return;
-  el.textContent = msg || "";
-  el.classList.remove("error", "ok");
-  if (kind) el.classList.add(kind);
-}
-
-function setBusy(isBusy) {
-  const btns = [
-    saveTokenBtn, toggleTokenBtn, logoutBtn, retryBtn,
-    wizNext1, wizBack2, wizNext2, wizAddCat, wizBack3, wizSubmit,
-    txSubmitBtn, txClearBtn, refreshBtn
-  ].filter(Boolean);
-  for (const b of btns) b.disabled = !!isBusy;
-}
-
-function showAuth(message = "", isError = false) {
-  show(authView);
-  hide(appView);
-  setStatus(authStatus, message, isError ? "error" : "");
-  setStatus(globalStatus, "");
-  tokenInput?.focus();
-}
-
-function showApp(message = "") {
-  hide(authView);
-  show(appView);
-  setStatus(appStatus, message);
-}
-
-/* ================= URL + FETCH ================= */
-function joinUrl(base, path) {
-  return base.replace(/\/+$/, "") + "/" + path.replace(/^\/+/, "");
-}
-
-function authHeaders(token) {
-  return {
-    "Authorization": `Bearer ${token}`,
-    "Content-Type": "application/json"
-  };
-}
-
-function fetchWithTimeout(url, options = {}) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), API.timeoutMs);
-  return fetch(url, { ...options, signal: controller.signal })
-    .finally(() => clearTimeout(id));
-}
-
-async function safeText(resp) {
-  try { return await resp.text(); } catch { return ""; }
-}
-
-/* ================= API ================= */
-async function validateToken(token) {
-  const url = joinUrl(API.baseUrl, API.validatePath);
-  const resp = await fetchWithTimeout(url, { method: "GET", headers: authHeaders(token) });
-  if (resp.ok) return true;
-  if (resp.status === 401 || resp.status === 403) return false;
-  const t = await safeText(resp);
-  throw new Error(`Token validate failed (${resp.status}): ${t || resp.statusText}`);
-}
-
-async function fetchState(token) {
-  const url = joinUrl(API.baseUrl, API.statePath);
-  const resp = await fetchWithTimeout(url, { method: "GET", headers: authHeaders(token) });
-
-  if (!resp.ok) {
-    if (resp.status === 401 || resp.status === 403) return { authFailed: true, state: null };
-    const t = await safeText(resp);
-    throw new Error(`State failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed: false, state: await resp.json().catch(() => ({})) };
-}
-
-async function postInit(token, payload) {
-  const url = joinUrl(API.baseUrl, API.initPath);
-  const resp = await fetchWithTimeout(url, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify(payload)
-  });
-
-  if (!resp.ok) {
-    if (resp.status === 401 || resp.status === 403) return { authFailed: true, result: null };
-    const t = await safeText(resp);
-    throw new Error(`Init failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed: false, result: await resp.json().catch(() => ({})) };
-}
-
-async function postTransaction(token, body) {
-  const url = joinUrl(API.baseUrl, API.txPath);
-  const resp = await fetchWithTimeout(url, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify(body)
-  });
-
-  if (!resp.ok) {
-    if (resp.status === 401 || resp.status === 403) return { authFailed: true, result: null };
-    const t = await safeText(resp);
-    throw new Error(`Transaction failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed: false, result: await resp.json().catch(() => ({})) };
-}
-
-async function fetchTransactions(token, { limit = 200 } = {}) {
-  const url = joinUrl(API.baseUrl, API.txPath) + `?limit=${encodeURIComponent(String(limit))}`;
-  const resp = await fetchWithTimeout(url, { method: "GET", headers: authHeaders(token) });
-
-  if (!resp.ok) {
-    if (resp.status === 401 || resp.status === 403) return { authFailed: true, data: null };
-    const t = await safeText(resp);
-    throw new Error(`Transactions read failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed: false, data: await resp.json().catch(() => ({})) };
-}
-
-/* ================= DATE HELPERS (UI MM-DD-YYYY) ================= */
-const pad2 = (n) => String(n).padStart(2, "0");
-
-function todayYMD() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
-}
-
-function ymdToMdy(ymd) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
-  if (!m) return "";
-  return `${m[2]}-${m[3]}-${m[1]}`;
-}
-
-function mdyToYmd(mdy) {
-  const s = String(mdy || "").trim();
-  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s);
-  if (!m) return null;
-
-  const mm = Number(m[1]), dd = Number(m[2]), yyyy = Number(m[3]);
-  if (yyyy < 1900 || yyyy > 2100) return null;
-  if (mm < 1 || mm > 12) return null;
-  if (dd < 1 || dd > 31) return null;
-
-  const dt = new Date(yyyy, mm - 1, dd);
-  if (dt.getFullYear() !== yyyy || dt.getMonth() !== (mm - 1) || dt.getDate() !== dd) return null;
-
-  return `${yyyy}-${pad2(mm)}-${pad2(dd)}`;
-}
-
-function periodUsesStartDate(periodType) {
-  return periodType === "weekly" || periodType === "biweekly" || periodType === "quarterly";
-}
-
-function disabledStartDateMessage(periodType) {
-  switch (periodType) {
-    case "daily": return "Not needed for Daily budgets";
-    case "monthly": return "Not needed for Monthly budgets";
-    case "semi_monthly": return "Not needed for Twice-a-Month budgets";
-    default: return "Not needed for this period type";
-  }
-}
-
-function updateStartDateAvailability() {
-  const pt = (wizPeriodType?.value || "").trim();
-  const uses = periodUsesStartDate(pt);
-
-  if (!wizStartDate) return;
-
-  if (uses) {
-    const prev = wizStartDate.dataset.prevValue;
-    wizStartDate.disabled = false;
-    wizStartDate.placeholder = "MM-DD-YYYY";
-    if (prev && wizStartDate.value.startsWith("Not needed")) {
-      wizStartDate.value = prev;
-    }
-    if (!wizStartDate.value || wizStartDate.value.startsWith("Not needed")) {
-      wizStartDate.value = ymdToMdy(todayYMD());
-    }
-  } else {
-    if (wizStartDate.value && !wizStartDate.value.startsWith("Not needed")) {
-      wizStartDate.dataset.prevValue = wizStartDate.value;
-    }
-    wizStartDate.disabled = true;
-    wizStartDate.value = disabledStartDateMessage(pt);
-  }
-}
-
-/* ================= Currency helpers ================= */
-function dollarsStringToCents(v) {
-  const s = String(v || "").trim().replace(/[^0-9.]/g, "");
-  if (!s) return null;
-  const n = Number(s);
-  if (!Number.isFinite(n)) return null;
-  return Math.round(n * 100);
-}
-
-function centsToUsd(cents) {
-  const n = Number(cents);
-  if (!Number.isFinite(n)) return "$0.00";
-  const sign = n < 0 ? "-" : "";
-  const abs = Math.abs(n);
-  return `${sign}$${(abs / 100).toFixed(2)}`;
-}
-
-function normalizeBudgetDisplay(s) {
-  const raw = String(s || "").trim().replace(/[^0-9.]/g, "");
-  if (!raw) return "";
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return "";
-  return "$" + n.toFixed(2);
-}
-
-function parseTxAmountToCents() {
-  const cents = dollarsStringToCents(txAmount.value);
-  if (cents === null) return null;
-  if (cents <= 0) return null;
-  return cents;
-}
-
-/* ================= WIZARD ================= */
-function showStep(stepIndex) {
-  [wizStep1, wizStep2, wizStep3].forEach((el, idx) => {
-    if (!el) return;
-    el.classList.toggle("hidden", idx !== stepIndex);
-  });
-}
-
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function addWizCategoryRow(name = "", dollars = "") {
-  const row = document.createElement("div");
-  row.className = "catRow";
-
-  const display = dollars ? normalizeBudgetDisplay(dollars) : "";
-
-  row.innerHTML = `
-    <input class="catName" type="text" placeholder="Category" value="${escapeHtml(name)}" />
-    <input class="catBudget"
-           type="text"
-           inputmode="decimal"
-           placeholder="$0.00"
-           value="${escapeHtml(display)}" />
-    <button class="secondary wizRemoveCat" type="button">Remove</button>
-  `;
-
-  const b = row.querySelector(".catBudget");
-  b.addEventListener("blur", () => { b.value = normalizeBudgetDisplay(b.value); });
-
-  row.querySelector(".wizRemoveCat").addEventListener("click", () => row.remove());
-  wizCatList.appendChild(row);
-}
-
-function readCategoriesFromUI() {
-  const rows = Array.from(wizCatList.querySelectorAll(".catRow"));
-  return rows.map((r, idx) => {
-    const name = r.querySelector(".catName")?.value?.trim() || "";
-    const budgetRaw = r.querySelector(".catBudget")?.value || "";
-    const budgetCents = dollarsStringToCents(budgetRaw);
-    const budgetDollars = (budgetCents === null) ? "" : (budgetCents / 100).toFixed(2);
-    return { name, budget_dollars: budgetDollars, sort_order: idx + 1 };
-  }).filter(c => c.name.length > 0);
-}
-
 function validateStep1() {
   const pt = (wizPeriodType.value || "").trim();
   const allowed = new Set(["daily", "weekly", "biweekly", "semi_monthly", "monthly", "quarterly"]);
@@ -1069,7 +143,6 @@ function initWizardDefaults() {
 /* ================= DASHBOARD STATE ================= */
 let CURRENT_STATE = null;
 let CURRENT_CATEGORIES = [];
-let CATEGORY_NAME_BY_ID = new Map();
 
 function fmtPeriodRange(period) {
   if (!period || !period.start_ts || !period.end_ts) return "—";
@@ -1094,27 +167,7 @@ function renderDashboardFromState(state) {
   CURRENT_STATE = state || {};
   CURRENT_CATEGORIES = normalizeCategoriesFromState(CURRENT_STATE);
 
-  CATEGORY_NAME_BY_ID = new Map(CURRENT_CATEGORIES.map(c => [c.category_id, c.name]));
-
-  if (location.hostname === "localhost" || location.search.includes("debug=1")) {
-    console.info("State.categories sample:", (CURRENT_STATE?.categories || [])[0]);
-    console.info("Normalized categories:", CURRENT_CATEGORIES);
-  }
-
   if (periodLabelEl) periodLabelEl.textContent = fmtPeriodRange(CURRENT_STATE.period);
-
-  const label = getContribLabel();
-  if (contribLabelPreview) contribLabelPreview.textContent = label || "Not set";
-
-  let budgeted = 0, spent = 0, remaining = 0;
-  for (const c of CURRENT_CATEGORIES) {
-    budgeted += (c.budget_cents + c.rollover_cents);
-    spent += c.spent_cents;
-    remaining += c.remaining_cents;
-  }
-  if (sumBudgetedEl) sumBudgetedEl.textContent = centsToUsd(budgeted);
-  if (sumSpentEl) sumSpentEl.textContent = centsToUsd(spent);
-  if (sumRemainingEl) sumRemainingEl.textContent = centsToUsd(remaining);
 
   if (txCategory) {
     txCategory.innerHTML = "";
@@ -1136,15 +189,15 @@ function renderDashboardFromState(state) {
 
       const tdBudget = document.createElement("td");
       tdBudget.className = "right";
-      tdBudget.textContent = centsToUsd(c.budget_cents + c.rollover_cents);
+      tdBudget.textContent = "$" + ((c.budget_cents + c.rollover_cents) / 100).toFixed(2);
 
       const tdSpent = document.createElement("td");
       tdSpent.className = "right";
-      tdSpent.textContent = centsToUsd(c.spent_cents);
+      tdSpent.textContent = "$" + (c.spent_cents / 100).toFixed(2);
 
       const tdRem = document.createElement("td");
       tdRem.className = "right";
-      tdRem.textContent = centsToUsd(c.remaining_cents);
+      tdRem.textContent = "$" + (c.remaining_cents / 100).toFixed(2);
 
       tr.appendChild(tdName);
       tr.appendChild(tdBudget);
@@ -1152,63 +205,6 @@ function renderDashboardFromState(state) {
       tr.appendChild(tdRem);
       catTableBody.appendChild(tr);
     }
-  }
-}
-
-function formatTxWhen(iso) {
-  const s = String(iso || "");
-  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(s);
-  if (!m) return s || "—";
-  return `${m[2]}-${m[3]}-${m[1]} ${m[4]}:${m[5]}`;
-}
-
-function renderTransactionsTable(items) {
-  const rows = Array.isArray(items) ? items : [];
-  if (!txTableBody) return;
-
-  txTableBody.innerHTML = "";
-
-  if (rows.length === 0) {
-    const tr = document.createElement("tr");
-    const td = document.createElement("td");
-    td.colSpan = 5;
-    td.textContent = "No transactions yet for this period.";
-    td.className = "muted";
-    tr.appendChild(td);
-    txTableBody.appendChild(tr);
-    return;
-  }
-
-  for (const it of rows) {
-    const tr = document.createElement("tr");
-
-    const whenTd = document.createElement("td");
-    whenTd.textContent = formatTxWhen(it.created_at);
-
-    const whoTd = document.createElement("td");
-    whoTd.textContent = String(it.created_by_label || "").trim() || "—";
-    whoTd.className = "muted2";
-
-    const catTd = document.createElement("td");
-    const cid = Number(it.category_id);
-    catTd.textContent = CATEGORY_NAME_BY_ID.get(cid) || `Category ${cid}`;
-
-    const noteTd = document.createElement("td");
-    noteTd.textContent = String(it.note || "").trim() || "—";
-    noteTd.className = "muted2";
-
-    const amtTd = document.createElement("td");
-    amtTd.className = "right";
-    const cents = Number(it.amount_cents) || 0;
-    const isRefund = Number(it.is_refund) === 1;
-    amtTd.textContent = isRefund ? `-${centsToUsd(cents)}` : centsToUsd(cents);
-
-    tr.appendChild(whenTd);
-    tr.appendChild(whoTd);
-    tr.appendChild(catTd);
-    tr.appendChild(noteTd);
-    tr.appendChild(amtTd);
-    txTableBody.appendChild(tr);
   }
 }
 
@@ -1237,16 +233,14 @@ async function loadAppStateAndRender(token) {
   show(dashboardView);
 
   renderDashboardFromState(state);
-  setStatus(appStatus, "Ready.");
 
-  // No automatic transactions refresh here.
-  // User will press Refresh.
+  // Remove "Ready" status
+  setStatus(appStatus, "");
 }
 
 async function refreshAll(token) {
-  // Manual refresh button: pulls both state + ledger
-  setStatus(dashStatus, "Refreshing…");
-  setStatus(txListStatus, "Refreshing transactions…");
+  // Manual refresh button: refreshes state only (Recent Transactions card removed)
+  setStatus(txStatus, "Refreshing…");
   try {
     const st = await fetchState(token);
     if (st.authFailed) {
@@ -1254,21 +248,19 @@ async function refreshAll(token) {
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
     renderDashboardFromState(st.state || {});
-
-    const tx = await fetchTransactions(token, { limit: 200 });
-    if (tx.authFailed) {
-      await idbDel(IDB.key);
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-    renderTransactionsTable((tx.data || {}).items || []);
-
-    setStatus(dashStatus, "Up to date.", "ok");
-    setStatus(txListStatus, "", "");
+    setStatus(txStatus, "Refreshed.", "ok");
   } catch (e) {
-    setStatus(dashStatus, e.message || String(e), "error");
-    setStatus(txListStatus, e.message || String(e), "error");
+    setStatus(txStatus, e.message || String(e), "error");
   }
 }
+
+window.addEventListener("unhandledrejection", (ev) => {
+  try {
+    const msg = ev?.reason?.message || String(ev?.reason || "Unknown error");
+    setStatus(globalStatus, `Error: ${msg}`, "error");
+    showAuth(`Startup error: ${msg}`, true);
+  } catch {}
+});
 
 async function bootstrap() {
   setBusy(true);
@@ -1276,19 +268,18 @@ async function bootstrap() {
   hide(authView);
   hide(appView);
 
-  const label = getContribLabel();
-  if (contribLabel) contribLabel.value = label;
-  if (contribLabelPreview) contribLabelPreview.textContent = label || "Not set";
-  getOrCreateDeviceId();
-
-  const token = await idbGet(IDB.key);
-
-  if (!token) {
-    setBusy(false);
-    return showAuth("No token saved. Enter your bearer token to continue.");
-  }
-
   try {
+    const label = getContribLabel();
+    if (contribLabel) contribLabel.value = label;
+    getOrCreateDeviceId();
+
+    const token = await idbGet(IDB.key);
+
+    if (!token) {
+      setBusy(false);
+      return showAuth("No token saved. Enter your bearer token to continue.");
+    }
+
     setStatus(globalStatus, "Validating token…");
     const ok = await validateToken(token);
     if (!ok) {
@@ -1302,7 +293,10 @@ async function bootstrap() {
     setBusy(false);
   } catch (e) {
     setBusy(false);
-    showAuth(`Startup error: ${e.message}`, true);
+    showAuth(
+      `Startup error: ${e?.message || String(e)}. If you're in Private Browsing or have storage blocked, allow site storage and reload.`,
+      true
+    );
   }
 }
 
@@ -1350,7 +344,6 @@ retryBtn.addEventListener("click", async () => {
 /* ================= EVENTS: CONTRIBUTOR LABEL ================= */
 contribLabel.addEventListener("blur", () => {
   setContribLabel(contribLabel.value);
-  if (contribLabelPreview) contribLabelPreview.textContent = getContribLabel() || "Not set";
 });
 
 /* ================= EVENTS: DASHBOARD TRANSACTIONS ================= */
@@ -1417,7 +410,7 @@ txSubmitBtn.addEventListener("click", async () => {
     }
 
     renderDashboardFromState(res.result || {});
-    setStatus(txStatus, "Saved. Press Refresh to see the shared ledger entry.", "ok");
+    setStatus(txStatus, "Saved.", "ok");
 
     txAmount.value = "";
     txNote.value = "";
