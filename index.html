@@ -199,7 +199,7 @@
       h1{ font-size: 17px; }
     }
 
-    /* ---------------- Dashboard layout helpers (no font-size changes) ---------------- */
+    /* ---------------- Dashboard layout helpers ---------------- */
     .grid2{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -257,13 +257,16 @@
 
     <!-- ================= AUTH ================= -->
     <div id="authView" class="hidden">
-      <p class="status">Enter your bearer token. It will be stored locally in IndexedDB.</p>
+      <p class="status">Enter your name and bearer token. Both are stored locally (name in localStorage, token in IndexedDB).</p>
+
+      <label for="userNameInput">Your name (for shared logging)</label>
+      <input id="userNameInput" type="text" placeholder="e.g., Jeremy" autocomplete="name" />
 
       <label for="tokenInput">Bearer Token</label>
       <input id="tokenInput" type="password" placeholder="Paste token…" autocomplete="off" />
 
       <div class="row">
-        <button id="saveTokenBtn" type="button">Save Token</button>
+        <button id="saveTokenBtn" type="button">Save & Continue</button>
         <button id="toggleTokenBtn" class="secondary" type="button">Show</button>
       </div>
 
@@ -272,7 +275,7 @@
 
     <!-- ================= APP ================= -->
     <div id="appView" class="hidden">
-      <!-- Top status line (we will keep the element, but it will be blank during normal operation) -->
+      <!-- Status line kept but blank during normal operation -->
       <p id="appStatus" class="status"></p>
 
       <!-- ===== Main dashboard (shown when initialized) ===== -->
@@ -282,35 +285,24 @@
             <span class="muted2">Period</span>
             <span id="periodLabel" style="color:var(--text); font-weight:650;"></span>
           </div>
-          <!-- Contributor indicator removed -->
         </div>
 
         <div class="grid2">
-          <!-- Summary card removed -->
-
           <div class="card subcard">
             <h1 style="margin:0 0 10px;">Add transaction</h1>
 
-            <label for="contribLabel">Your name / device label (saved locally)</label>
-            <input id="contribLabel" type="text" placeholder="e.g., Jeremy (iPhone)" />
+            <!-- Type moved to top -->
+            <label for="txType">Type</label>
+            <select id="txType">
+              <option value="expense" selected>Expense</option>
+              <option value="refund">Refund</option>
+            </select>
 
             <label for="txCategory">Category</label>
             <select id="txCategory"></select>
 
-            <div class="row">
-              <div style="flex:1 1 160px; min-width: 160px;">
-                <label for="txAmount">Amount</label>
-                <input id="txAmount" type="text" inputmode="decimal" placeholder="$0.00" />
-              </div>
-
-              <div style="flex:1 1 160px; min-width: 160px;">
-                <label for="txType">Type</label>
-                <select id="txType">
-                  <option value="expense" selected>Expense</option>
-                  <option value="refund">Refund</option>
-                </select>
-              </div>
-            </div>
+            <label for="txAmount">Amount</label>
+            <input id="txAmount" type="text" inputmode="decimal" placeholder="$0.00" />
 
             <label for="txNote">Note (optional)</label>
             <input id="txNote" type="text" placeholder="e.g., Groceries at Target" />
@@ -338,8 +330,6 @@
             <tbody id="catTableBody"></tbody>
           </table>
         </div>
-
-        <!-- Recent transactions card removed -->
       </div>
 
       <!-- ===== Wizard (shown when not initialized) ===== -->
@@ -514,7 +504,7 @@ async function idbDel(key) {
 
 /* ================= Local settings (non-sensitive) ================= */
 const LS = {
-  contribLabel: "purrfect_contrib_label",
+  userName: "purrfect_user_name",
   deviceId: "purrfect_device_id"
 };
 
@@ -533,18 +523,19 @@ function getOrCreateDeviceId() {
   return v;
 }
 
-function getContribLabel() {
-  return String(lsGet(LS.contribLabel) || "").trim();
+function getUserName() {
+  return String(lsGet(LS.userName) || "").trim();
 }
 
-function setContribLabel(v) {
-  lsSet(LS.contribLabel, String(v || "").trim().slice(0, 80));
+function setUserName(v) {
+  lsSet(LS.userName, String(v || "").trim().slice(0, 80));
 }
 
 /* ================= DOM ================= */
 const $ = (id) => document.getElementById(id);
 
 const authView = $("authView");
+const userNameInput = $("userNameInput");
 const tokenInput = $("tokenInput");
 const saveTokenBtn = $("saveTokenBtn");
 const toggleTokenBtn = $("toggleTokenBtn");
@@ -562,9 +553,9 @@ const globalStatus = $("globalStatus");
 /* Dashboard DOM */
 const periodLabelEl = $("periodLabel");
 
+const txType = $("txType");
 const txCategory = $("txCategory");
 const txAmount = $("txAmount");
-const txType = $("txType");
 const txNote = $("txNote");
 const txSubmitBtn = $("txSubmitBtn");
 const txClearBtn = $("txClearBtn");
@@ -572,8 +563,6 @@ const refreshBtn = $("refreshBtn");
 const txStatus = $("txStatus");
 
 const catTableBody = $("catTableBody");
-
-const contribLabel = $("contribLabel");
 
 /* Wizard DOM */
 const wizStep1 = $("wizStep1");
@@ -615,6 +604,7 @@ function setStatus(el, msg, kind) {
   el.classList.remove("error", "ok");
   if (kind) el.classList.add(kind);
 }
+
 function setBusy(isBusy) {
   const btns = [
     saveTokenBtn, toggleTokenBtn, logoutBtn, retryBtn,
@@ -629,7 +619,8 @@ function showAuth(message = "", isError = false) {
   hide(appView);
   setStatus(authStatus, message, isError ? "error" : "");
   setStatus(globalStatus, "");
-  tokenInput?.focus();
+  if (userNameInput && !userNameInput.value) userNameInput.value = getUserName();
+  (userNameInput || tokenInput)?.focus();
 }
 
 function showApp(message = "") {
@@ -637,7 +628,6 @@ function showApp(message = "") {
   show(appView);
   setStatus(appStatus, message);
 }
-
 /* ================= URL + FETCH ================= */
 function joinUrl(base, path) {
   return base.replace(/\/+$/, "") + "/" + path.replace(/^\/+/, "");
@@ -857,6 +847,7 @@ function readCategoriesFromUI() {
     return { name, budget_dollars: budgetDollars, sort_order: idx + 1 };
   }).filter(c => c.name.length > 0);
 }
+
 function validateStep1() {
   const pt = (wizPeriodType.value || "").trim();
   const allowed = new Set(["daily", "weekly", "biweekly", "semi_monthly", "monthly", "quarterly"]);
@@ -1093,12 +1084,11 @@ async function loadAppStateAndRender(token) {
 
   renderDashboardFromState(state);
 
-  // Remove "Ready" status
+  // Keep the line but clear it (no "Ready")
   setStatus(appStatus, "");
 }
 
 async function refreshAll(token) {
-  // Manual refresh button: refreshes state only (Recent Transactions card removed)
   setStatus(txStatus, "Refreshing…");
   try {
     const st = await fetchState(token);
@@ -1128,15 +1118,15 @@ async function bootstrap() {
   hide(appView);
 
   try {
-    const label = getContribLabel();
-    if (contribLabel) contribLabel.value = label;
+    // Pre-fill stored name if available
+    if (userNameInput && !userNameInput.value) userNameInput.value = getUserName();
     getOrCreateDeviceId();
 
     const token = await idbGet(IDB.key);
 
     if (!token) {
       setBusy(false);
-      return showAuth("No token saved. Enter your bearer token to continue.");
+      return showAuth("No token saved. Enter your name and bearer token to continue.");
     }
 
     setStatus(globalStatus, "Validating token…");
@@ -1161,6 +1151,9 @@ async function bootstrap() {
 
 /* ================= EVENTS: AUTH ================= */
 saveTokenBtn.addEventListener("click", async () => {
+  const name = (userNameInput?.value || "").trim();
+  if (!name) return setStatus(authStatus, "Please enter your name.", "error");
+
   const token = (tokenInput.value || "").trim();
   if (!token) return setStatus(authStatus, "Please enter a token.", "error");
 
@@ -1172,8 +1165,11 @@ saveTokenBtn.addEventListener("click", async () => {
       setBusy(false);
       return setStatus(authStatus, "Token is invalid or expired.", "error");
     }
+
+    setUserName(name);
     await idbSet(IDB.key, token);
-    setStatus(authStatus, "Token saved. Loading…", "ok");
+
+    setStatus(authStatus, "Saved. Loading…", "ok");
     await loadAppStateAndRender(token);
     setBusy(false);
   } catch (e) {
@@ -1193,16 +1189,11 @@ logoutBtn.addEventListener("click", async () => {
   setBusy(true);
   await idbDel(IDB.key);
   setBusy(false);
-  showAuth("Logged out. Enter your bearer token to continue.");
+  showAuth("Logged out. Enter your name and bearer token to continue.");
 });
 
 retryBtn.addEventListener("click", async () => {
   await bootstrap();
-});
-
-/* ================= EVENTS: CONTRIBUTOR LABEL ================= */
-contribLabel.addEventListener("blur", () => {
-  setContribLabel(contribLabel.value);
 });
 
 /* ================= EVENTS: DASHBOARD TRANSACTIONS ================= */
@@ -1238,7 +1229,7 @@ txSubmitBtn.addEventListener("click", async () => {
 
   const note = String(txNote.value || "").trim().slice(0, 240) || undefined;
 
-  const created_by_label = getContribLabel() || undefined;
+  const created_by_label = getUserName() || undefined;
   const device_id = getOrCreateDeviceId();
   const client_ts = Date.now();
   const client_tx_id = `${device_id}_${client_ts}_${Math.random().toString(16).slice(2)}`;
@@ -1329,7 +1320,6 @@ wizSubmit.addEventListener("click", async () => {
     }
 
     setStatus(wizStatus3, "Initialized. Loading…", "ok");
-
     await loadAppStateAndRender(token);
     setBusy(false);
   } catch (e) {
