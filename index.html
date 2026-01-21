@@ -7,7 +7,6 @@
   <title>Purrfect Budget</title>
 
   <style>
-    /* ---------------- Banking-app style theme ---------------- */
     :root{
       --bg0:#070b12;
       --bg1:#0b1320;
@@ -44,7 +43,7 @@
     }
 
     .wrap{
-      max-width: 860px;
+      max-width: 980px;
       margin: 0 auto;
       padding: 18px;
     }
@@ -73,7 +72,6 @@
     p{ margin: 10px 0; line-height: 1.35; color: var(--muted); }
     label{ display:block; margin: 12px 0 6px; font-size: 13px; color: var(--muted); }
 
-    /* Banking-style inputs: consistent everywhere */
     input[type="text"], input[type="password"], select{
       width: 100%;
       padding: 11px 12px;
@@ -128,6 +126,13 @@
       box-shadow: none;
       border: 1px solid rgba(255,255,255,0.12);
     }
+    button.danger{
+      background: rgba(255,180,180,0.12);
+      color: var(--danger);
+      border: 1px solid rgba(255,180,180,0.22);
+      box-shadow: none;
+      font-weight: 750;
+    }
 
     button:disabled{ opacity: .55; cursor: not-allowed; }
 
@@ -137,38 +142,16 @@
     .hidden{ display:none; }
     .mono{ font-family: ui-monospace, Menlo, Consolas, monospace; }
 
-    pre{
-      margin: 10px 0 0;
-      padding: 12px;
-      border-radius: 14px;
-      background: rgba(0,0,0,0.22);
-      border: 1px solid rgba(255,255,255,0.10);
-      overflow:auto;
-    }
-
-    /* ---------------- Step 2: phone-first one-line rows ---------------- */
+    /* Step 2 rows */
     .catRow{
       display:flex;
       gap:10px;
       align-items:center;
       margin-top:10px;
-      flex-wrap:nowrap; /* always attempt one line */
+      flex-wrap:nowrap;
     }
-
-    /* Critical override: cancel global width:100% for row inputs */
-    .catRow input{
-      width:auto;
-      min-width:0; /* allow shrink */
-    }
-
-    /* Category always dominates */
-    .catRow .catName{
-      flex: 1 1 auto;
-      min-width: 0;
-      max-width: 520px;
-    }
-
-    /* Budget stays compact */
+    .catRow input{ width:auto; min-width:0; }
+    .catRow .catName{ flex: 1 1 auto; min-width: 0; max-width: 520px; }
     .catRow .catBudget{
       flex: 0 0 96px;
       width: 96px;
@@ -177,7 +160,6 @@
       padding-left: 10px;
       padding-right: 10px;
     }
-
     .catRow .wizRemoveCat{
       flex: 0 0 auto;
       white-space: nowrap;
@@ -194,12 +176,11 @@
         padding-right: 9px;
       }
     }
-
     @media (max-width: 360px){
       h1{ font-size: 17px; }
     }
 
-    /* ---------------- Dashboard layout helpers ---------------- */
+    /* Dashboard helpers */
     .grid2{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -233,180 +214,315 @@
       font-weight: 650;
     }
     .table tr:last-child td{ border-bottom: 0; }
-
     .right{ text-align:right; }
-    .muted{ color: var(--muted); }
-    .muted2{ color: var(--muted2); }
+
+    /* Settings FAB + Modal */
+    .fab{
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 40;
+      border-radius: 999px;
+      padding: 12px 14px;
+      box-shadow: 0 18px 46px rgba(0,0,0,0.38);
+    }
+    .modalOverlay{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.50);
+      backdrop-filter: blur(6px);
+      z-index: 50;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 14px;
+    }
+    .modal{
+      width: 100%;
+      max-width: 920px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.045));
+      box-shadow: 0 18px 46px rgba(0,0,0,0.48);
+      padding: 14px;
+    }
+    .modalHeader{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .modalHeader h1{ margin: 0; }
+    .modalSection{
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.10);
+    }
+    .settingsCatRow{
+      display:flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+      flex-wrap: nowrap;
+    }
+    .settingsCatRow .name{
+      flex: 1 1 auto;
+      min-width: 0;
+      font-weight: 650;
+      color: var(--text);
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .settingsCatRow .meta{
+      flex: 0 0 auto;
+      display:flex;
+      gap: 8px;
+      align-items:center;
+    }
+    .chip{
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      padding: 6px 10px;
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="card">
-    <h1>Purrfect Budget</h1>
+  <h1 style="margin: 0 0 10px;">Purrfect Budget</h1>
 
-    <!-- ================= AUTH ================= -->
-    <div id="authView" class="hidden">
-      <p class="status">Enter your name and bearer token. Both are stored locally (name in localStorage, token in IndexedDB).</p>
+  <!-- ================= AUTH ================= -->
+  <div id="authView" class="card hidden">
+    <p class="status">Enter your name and bearer token. Both are stored locally (name in localStorage, token in IndexedDB).</p>
 
-      <label for="userNameInput">Your name (for shared logging)</label>
-      <input id="userNameInput" type="text" placeholder="e.g., Jeremy" autocomplete="name" />
+    <label for="userNameInput">Your name (for shared logging)</label>
+    <input id="userNameInput" type="text" placeholder="e.g., Jeremy" autocomplete="name" />
 
-      <label for="tokenInput">Bearer Token</label>
-      <input id="tokenInput" type="password" placeholder="Paste token…" autocomplete="off" />
+    <label for="tokenInput">Bearer Token</label>
+    <input id="tokenInput" type="password" placeholder="Paste token…" autocomplete="off" />
 
-      <div class="row">
-        <button id="saveTokenBtn" type="button">Save & Continue</button>
-        <button id="toggleTokenBtn" class="secondary" type="button">Show</button>
-      </div>
-
-      <div id="authStatus" class="status"></div>
+    <div class="row">
+      <button id="saveTokenBtn" type="button">Save & Continue</button>
+      <button id="toggleTokenBtn" class="secondary" type="button">Show</button>
     </div>
 
-    <!-- ================= APP ================= -->
-    <div id="appView" class="hidden">
-      <!-- Status line kept but blank during normal operation -->
-      <p id="appStatus" class="status"></p>
+    <div id="authStatus" class="status"></div>
+  </div>
 
-      <!-- ===== Main dashboard (shown when initialized) ===== -->
-      <div id="dashboardView" class="hidden">
+  <!-- ================= APP ================= -->
+  <div id="appView" class="hidden">
+    <p id="appStatus" class="status"></p>
 
-        <!-- Budget Summary moved to top and renamed -->
-        <div class="card subcard" id="budgetSummaryCard">
-          <h1 style="margin:0 0 6px;">Budget Summary</h1>
-          <div class="status" style="margin-top:0;">
-            Period: <span id="periodLabel" style="color:var(--text); font-weight:650;"></span>
-          </div>
+    <!-- ===== Main dashboard (shown when initialized) ===== -->
+    <div id="dashboardView" class="hidden">
 
-          <table class="table" id="catTable">
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th class="right">Spent</th>
-                <th class="right">Remaining</th>
-              </tr>
-            </thead>
-            <tbody id="catTableBody"></tbody>
-          </table>
+      <!-- Budget Summary at top -->
+      <div class="card subcard" id="budgetSummaryCard">
+        <h1 style="margin:0 0 6px;">Budget Summary</h1>
+        <div class="status" style="margin-top:0;">
+          Period: <span id="periodLabel" style="color:var(--text); font-weight:650;"></span>
         </div>
 
-        <div class="grid2">
-          <div class="card subcard">
-            <h1 style="margin:0 0 10px;">Add transaction</h1>
-
-            <!-- Type moved to top -->
-            <label for="txType">Type</label>
-            <select id="txType">
-              <option value="expense" selected>Expense</option>
-              <option value="refund">Refund</option>
-            </select>
-
-            <label for="txCategory">Category</label>
-            <select id="txCategory"></select>
-
-            <label for="txAmount">Amount</label>
-            <input id="txAmount" type="text" inputmode="decimal" placeholder="$0.00" />
-
-            <label for="txNote">Note (optional)</label>
-            <input id="txNote" type="text" placeholder="e.g., Groceries at Target" />
-
-            <div class="row">
-              <button id="txSubmitBtn" type="button">Save</button>
-              <button id="txClearBtn" class="secondary" type="button">Clear</button>
-              <button id="refreshBtn" class="secondary" type="button">Refresh</button>
-            </div>
-            <div id="txStatus" class="status"></div>
-          </div>
-        </div>
+        <table class="table" id="catTable">
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th class="right">Spent</th>
+              <th class="right">Remaining</th>
+            </tr>
+          </thead>
+          <tbody id="catTableBody"></tbody>
+        </table>
       </div>
 
-      <!-- ===== Wizard (shown when not initialized) ===== -->
-      <div id="noCategoriesView" class="hidden">
-        <p class="ok">Welcome. Let’s initialize your budget.</p>
-        <!-- ---------- STEP 1 ---------- -->
-        <div id="wizStep1" class="card subcard">
-          <h1>Step 1 — Budget period</h1>
+      <div class="grid2">
+        <div class="card subcard">
+          <h1 style="margin:0 0 10px;">Add transaction</h1>
 
-          <label for="wizPeriodType">Period Type</label>
-          <select id="wizPeriodType">
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="biweekly" selected>Every Two Weeks</option>
-            <option value="semi_monthly">Twice a Month</option>
-            <option value="monthly">Monthly</option>
-            <option value="quarterly">Quarterly</option>
+          <label for="txType">Type</label>
+          <select id="txType">
+            <option value="expense" selected>Expense</option>
+            <option value="refund">Refund</option>
           </select>
 
-          <label for="wizStartDate">Start Date (MM-DD-YYYY)</label>
-          <input id="wizStartDate" type="text" placeholder="MM-DD-YYYY" inputmode="numeric" />
+          <label for="txCategory">Category</label>
+          <select id="txCategory"></select>
+
+          <label for="txAmount">Amount</label>
+          <input id="txAmount" type="text" inputmode="decimal" placeholder="$0.00" />
+
+          <label for="txNote">Note (optional)</label>
+          <input id="txNote" type="text" placeholder="e.g., Groceries at Target" />
 
           <div class="row">
-            <button id="wizNext1" type="button">Next</button>
+            <button id="txSubmitBtn" type="button">Save</button>
+            <button id="refreshBtn" class="secondary" type="button">Refresh</button>
           </div>
-          <div id="wizStatus1" class="status"></div>
+          <div id="txStatus" class="status"></div>
         </div>
-
-        <!-- ---------- STEP 2 ---------- -->
-        <div id="wizStep2" class="card subcard hidden">
-          <h1>Step 2 — Categories</h1>
-          <p class="status" style="margin-top:0;">Enter 1–10 categories with starting budgets.</p>
-
-          <div id="wizCatList"></div>
-
-          <div class="row">
-            <button id="wizAddCat" class="secondary" type="button">Add Category</button>
-            <button id="wizBack2" class="secondary" type="button">Back</button>
-            <button id="wizNext2" type="button">Next</button>
-          </div>
-          <div id="wizStatus2" class="status"></div>
-        </div>
-
-        <!-- ---------- STEP 3 ---------- -->
-        <div id="wizStep3" class="card subcard hidden">
-          <h1>Step 3 — Confirm your setup</h1>
-
-          <p class="status" style="margin-top:0;">
-            Please confirm these details before saving your initial budget.
-          </p>
-
-          <!-- Friendly review (no code) -->
-          <div id="wizReviewCard" style="margin-top:10px;">
-            <div class="status" id="wizReviewSummary" style="margin-top:0;"></div>
-
-            <div class="card subcard" style="margin-top:10px;">
-              <h1 style="margin:0 0 10px;">Budget period</h1>
-              <div class="status" id="wizReviewPeriod"></div>
-              <div class="status" id="wizReviewStartDate"></div>
-            </div>
-
-            <div class="card subcard" style="margin-top:10px;">
-              <h1 style="margin:0 0 10px;">Categories</h1>
-              <div id="wizReviewCategories"></div>
-              <div class="status" id="wizReviewTotal" style="margin-top:10px;"></div>
-            </div>
-
-            <div class="status" style="margin-top:12px;">
-              Note: You can change categories and amounts later. This is just your starting setup.
-            </div>
-          </div>
-
-          <!-- Optional: keep JSON for debugging only (hidden) -->
-          <pre id="wizReviewJson" class="mono hidden" style="white-space:pre-wrap;"></pre>
-
-          <div class="row">
-            <button id="wizBack3" class="secondary" type="button">Back</button>
-            <button id="wizSubmit" type="button">Initialize</button>
-          </div>
-          <div id="wizStatus3" class="status"></div>
-        </div>
-      </div>
-
-      <div class="row">
-        <button id="logoutBtn" class="secondary" type="button">Log Out</button>
-        <button id="retryBtn" class="secondary" type="button">Retry</button>
       </div>
     </div>
 
-    <div id="globalStatus" class="status"></div>
+    <!-- ===== Wizard (shown when not initialized) ===== -->
+    <div id="noCategoriesView" class="card hidden" style="margin-top:12px;">
+      <p class="ok">Welcome. Let’s initialize your budget.</p>
+
+      <!-- ---------- STEP 1 ---------- -->
+      <div id="wizStep1" class="card subcard">
+        <h1>Step 1 — Budget period</h1>
+
+        <label for="wizPeriodType">Period Type</label>
+        <select id="wizPeriodType">
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="biweekly" selected>Every Two Weeks</option>
+          <option value="semi_monthly">Twice a Month</option>
+          <option value="monthly">Monthly</option>
+          <option value="quarterly">Quarterly</option>
+        </select>
+
+        <label for="wizStartDate">Start Date (MM-DD-YYYY)</label>
+        <input id="wizStartDate" type="text" placeholder="MM-DD-YYYY" inputmode="numeric" />
+
+        <div class="row">
+          <button id="wizNext1" type="button">Next</button>
+        </div>
+        <div id="wizStatus1" class="status"></div>
+      </div>
+      <!-- ---------- STEP 2 ---------- -->
+      <div id="wizStep2" class="card subcard hidden">
+        <h1>Step 2 — Categories</h1>
+        <p class="status" style="margin-top:0;">Enter 1–10 categories with starting budgets.</p>
+
+        <div id="wizCatList"></div>
+
+        <div class="row">
+          <button id="wizAddCat" class="secondary" type="button">Add Category</button>
+          <button id="wizBack2" class="secondary" type="button">Back</button>
+          <button id="wizNext2" type="button">Next</button>
+        </div>
+        <div id="wizStatus2" class="status"></div>
+      </div>
+
+      <!-- ---------- STEP 3 ---------- -->
+      <div id="wizStep3" class="card subcard hidden">
+        <h1>Step 3 — Confirm your setup</h1>
+
+        <p class="status" style="margin-top:0;">
+          Please confirm these details before saving your initial budget.
+        </p>
+
+        <div id="wizReviewCard" style="margin-top:10px;">
+          <div class="status" id="wizReviewSummary" style="margin-top:0;"></div>
+
+          <div class="card subcard" style="margin-top:10px;">
+            <h1 style="margin:0 0 10px;">Budget period</h1>
+            <div class="status" id="wizReviewPeriod"></div>
+            <div class="status" id="wizReviewStartDate"></div>
+          </div>
+
+          <div class="card subcard" style="margin-top:10px;">
+            <h1 style="margin:0 0 10px;">Categories</h1>
+            <div id="wizReviewCategories"></div>
+            <div class="status" id="wizReviewTotal" style="margin-top:10px;"></div>
+          </div>
+
+          <div class="status" style="margin-top:12px;">
+            Note: You can change categories and amounts later. This is just your starting setup.
+          </div>
+        </div>
+
+        <pre id="wizReviewJson" class="mono hidden" style="white-space:pre-wrap;"></pre>
+
+        <div class="row">
+          <button id="wizBack3" class="secondary" type="button">Back</button>
+          <button id="wizSubmit" type="button">Initialize</button>
+        </div>
+        <div id="wizStatus3" class="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="globalStatus" class="status"></div>
+</div>
+
+<!-- Settings button (visible only when app is running) -->
+<button id="settingsFab" class="fab secondary hidden" type="button">Settings</button>
+
+<!-- Settings modal -->
+<div id="settingsOverlay" class="modalOverlay hidden" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modalHeader">
+      <h1 id="settingsTitle">Settings</h1>
+      <button id="settingsCloseBtn" class="secondary" type="button">Close</button>
+    </div>
+
+    <div class="modalSection">
+      <div class="status" style="margin-top:0;">
+        Manage categories and account actions. Category order changes are saved on this device.
+      </div>
+
+      <div class="card subcard" style="margin-top:12px;">
+        <h1 style="margin:0 0 10px;">Categories</h1>
+
+        <div class="status" style="margin-top:0;">
+          <span class="chip">Add / Remove updates the shared budget</span>
+          <span class="chip">Reorder is device-only display</span>
+        </div>
+
+        <div id="settingsCatList" style="margin-top:10px;"></div>
+
+        <div class="card subcard" style="margin-top:12px;">
+          <h1 style="margin:0 0 10px;">Add a category</h1>
+
+          <label for="settingsNewCatName">Category name</label>
+          <input id="settingsNewCatName" type="text" placeholder="e.g., Dining" />
+
+          <label for="settingsNewCatBudget">Starting budget (optional)</label>
+          <input id="settingsNewCatBudget" type="text" inputmode="decimal" placeholder="$0.00" />
+
+          <div class="row">
+            <button id="settingsAddCatBtn" type="button">Add</button>
+          </div>
+          <div class="status" id="settingsCatStatus"></div>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <button id="settingsApplyRemoveBtn" type="button">Apply Removals</button>
+          <button id="settingsSaveOrderBtn" class="secondary" type="button">Save Display Order</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modalSection">
+      <div class="card subcard">
+        <h1 style="margin:0 0 10px;">Account</h1>
+
+        <div class="row">
+          <button id="settingsLogoutBtn" class="secondary" type="button">Log Out</button>
+        </div>
+
+        <div class="card subcard" style="margin-top:12px;">
+          <h1 style="margin:0 0 10px;">Start Over</h1>
+          <p class="status" style="margin-top:0;">
+            This permanently clears categories, budgets, and transaction history from the database.
+          </p>
+
+          <label for="settingsResetConfirm">Type RESET to confirm</label>
+          <input id="settingsResetConfirm" type="text" placeholder="RESET" autocomplete="off" />
+
+          <div class="row">
+            <button id="settingsStartOverBtn" class="danger" type="button">Start Over</button>
+          </div>
+
+          <div class="status" id="settingsResetStatus"></div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -418,12 +534,14 @@ const API = {
   statePath: "/api/budget/state",
   initPath: "/api/budget/init",
   txPath: "/api/budget/transactions",
+  catsPath: "/api/budget/categories",
+  resetPath: "/api/budget/reset",
   timeoutMs: 12000
 };
 /* ================= INDEXEDDB ================= */
 const IDB = {
   name: "pwa-budget-app",
-  version: 2,              // bump forward; never downgrade
+  version: 2,
   store: "auth",
   key: "bearerToken"
 };
@@ -492,15 +610,13 @@ async function idbDel(key) {
 /* ================= Local settings (non-sensitive) ================= */
 const LS = {
   userName: "purrfect_user_name",
-  deviceId: "purrfect_device_id"
+  deviceId: "purrfect_device_id",
+  catOrder: "purrfect_cat_order_v1"
 };
 
-function lsGet(key) {
-  try { return localStorage.getItem(key); } catch { return null; }
-}
-function lsSet(key, value) {
-  try { localStorage.setItem(key, value); return true; } catch { return false; }
-}
+function lsGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
+function lsSet(key, value) { try { localStorage.setItem(key, value); return true; } catch { return false; } }
+function lsDel(key) { try { localStorage.removeItem(key); return true; } catch { return false; } }
 
 function getOrCreateDeviceId() {
   let v = lsGet(LS.deviceId);
@@ -510,13 +626,25 @@ function getOrCreateDeviceId() {
   return v;
 }
 
-function getUserName() {
-  return String(lsGet(LS.userName) || "").trim();
+function getUserName() { return String(lsGet(LS.userName) || "").trim(); }
+function setUserName(v) { lsSet(LS.userName, String(v || "").trim().slice(0, 80)); }
+
+function getSavedCategoryOrder() {
+  try {
+    const raw = lsGet(LS.catOrder);
+    if (!raw) return null;
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return null;
+    return arr.map(x => Number(x)).filter(n => Number.isFinite(n) && n > 0);
+  } catch { return null; }
 }
 
-function setUserName(v) {
-  lsSet(LS.userName, String(v || "").trim().slice(0, 80));
+function saveCategoryOrder(ids) {
+  const clean = (Array.isArray(ids) ? ids : []).map(x => Number(x)).filter(n => Number.isFinite(n) && n > 0);
+  lsSet(LS.catOrder, JSON.stringify(clean));
 }
+
+function clearCategoryOrder() { lsDel(LS.catOrder); }
 
 /* ================= DOM ================= */
 const $ = (id) => document.getElementById(id);
@@ -532,23 +660,17 @@ const appView = $("appView");
 const appStatus = $("appStatus");
 const dashboardView = $("dashboardView");
 const noCategoriesView = $("noCategoriesView");
-
-const logoutBtn = $("logoutBtn");
-const retryBtn = $("retryBtn");
 const globalStatus = $("globalStatus");
 
 /* Dashboard DOM */
 const periodLabelEl = $("periodLabel");
-
 const txType = $("txType");
 const txCategory = $("txCategory");
 const txAmount = $("txAmount");
 const txNote = $("txNote");
 const txSubmitBtn = $("txSubmitBtn");
-const txClearBtn = $("txClearBtn");
 const refreshBtn = $("refreshBtn");
 const txStatus = $("txStatus");
-
 const catTableBody = $("catTableBody");
 
 /* Wizard DOM */
@@ -558,11 +680,9 @@ const wizStep3 = $("wizStep3");
 
 const wizPeriodType = $("wizPeriodType");
 const wizStartDate = $("wizStartDate");
-
 const wizCatList = $("wizCatList");
 const wizReviewJson = $("wizReviewJson");
 
-/* Friendly Step 3 review DOM */
 const wizReviewSummary = $("wizReviewSummary");
 const wizReviewPeriod = $("wizReviewPeriod");
 const wizReviewStartDate = $("wizReviewStartDate");
@@ -573,13 +693,30 @@ const wizNext1 = $("wizNext1");
 const wizBack2 = $("wizBack2");
 const wizNext2 = $("wizNext2");
 const wizAddCat = $("wizAddCat");
-
 const wizBack3 = $("wizBack3");
 const wizSubmit = $("wizSubmit");
 
 const wizStatus1 = $("wizStatus1");
 const wizStatus2 = $("wizStatus2");
 const wizStatus3 = $("wizStatus3");
+
+/* Settings DOM */
+const settingsFab = $("settingsFab");
+const settingsOverlay = $("settingsOverlay");
+const settingsCloseBtn = $("settingsCloseBtn");
+
+const settingsCatList = $("settingsCatList");
+const settingsNewCatName = $("settingsNewCatName");
+const settingsNewCatBudget = $("settingsNewCatBudget");
+const settingsAddCatBtn = $("settingsAddCatBtn");
+const settingsApplyRemoveBtn = $("settingsApplyRemoveBtn");
+const settingsSaveOrderBtn = $("settingsSaveOrderBtn");
+const settingsCatStatus = $("settingsCatStatus");
+
+const settingsLogoutBtn = $("settingsLogoutBtn");
+const settingsResetConfirm = $("settingsResetConfirm");
+const settingsStartOverBtn = $("settingsStartOverBtn");
+const settingsResetStatus = $("settingsResetStatus");
 
 /* ================= UI HELPERS ================= */
 function show(el) { if (el) el.classList.remove("hidden"); }
@@ -594,16 +731,20 @@ function setStatus(el, msg, kind) {
 
 function setBusy(isBusy) {
   const btns = [
-    saveTokenBtn, toggleTokenBtn, logoutBtn, retryBtn,
+    saveTokenBtn, toggleTokenBtn,
     wizNext1, wizBack2, wizNext2, wizAddCat, wizBack3, wizSubmit,
-    txSubmitBtn, txClearBtn, refreshBtn
+    txSubmitBtn, refreshBtn,
+    settingsFab, settingsCloseBtn, settingsAddCatBtn, settingsApplyRemoveBtn, settingsSaveOrderBtn,
+    settingsLogoutBtn, settingsStartOverBtn
   ].filter(Boolean);
+
   for (const b of btns) b.disabled = !!isBusy;
 }
 
 function showAuth(message = "", isError = false) {
   show(authView);
   hide(appView);
+  hide(settingsFab);
   setStatus(authStatus, message, isError ? "error" : "");
   setStatus(globalStatus, "");
   if (userNameInput && !userNameInput.value) userNameInput.value = getUserName();
@@ -613,6 +754,7 @@ function showAuth(message = "", isError = false) {
 function showApp(message = "") {
   hide(authView);
   show(appView);
+  show(settingsFab);
   setStatus(appStatus, message);
 }
 
@@ -692,7 +834,39 @@ async function postTransaction(token, body) {
   return { authFailed: false, result: await resp.json().catch(() => ({})) };
 }
 
-/* ================= DATE HELPERS (UI MM-DD-YYYY) ================= */
+async function postCategories(token, payload) {
+  const url = joinUrl(API.baseUrl, API.catsPath);
+  const resp = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload)
+  });
+
+  if (!resp.ok) {
+    if (resp.status === 401 || resp.status === 403) return { authFailed: true, result: null };
+    const t = await safeText(resp);
+    throw new Error(`Categories failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed: false, result: await resp.json().catch(() => ({})) };
+}
+
+async function postReset(token) {
+  const url = joinUrl(API.baseUrl, API.resetPath);
+  const resp = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ confirm: "RESET" })
+  });
+
+  if (!resp.ok) {
+    if (resp.status === 401 || resp.status === 403) return { authFailed: true, result: null };
+    const t = await safeText(resp);
+    throw new Error(`Reset failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed: false, result: await resp.json().catch(() => ({})) };
+}
+
+/* ================= DATE HELPERS ================= */
 const pad2 = (n) => String(n).padStart(2, "0");
 
 function todayYMD() {
@@ -738,23 +912,16 @@ function disabledStartDateMessage(periodType) {
 function updateStartDateAvailability() {
   const pt = (wizPeriodType?.value || "").trim();
   const uses = periodUsesStartDate(pt);
-
   if (!wizStartDate) return;
 
   if (uses) {
     const prev = wizStartDate.dataset.prevValue;
     wizStartDate.disabled = false;
     wizStartDate.placeholder = "MM-DD-YYYY";
-    if (prev && wizStartDate.value.startsWith("Not needed")) {
-      wizStartDate.value = prev;
-    }
-    if (!wizStartDate.value || wizStartDate.value.startsWith("Not needed")) {
-      wizStartDate.value = ymdToMdy(todayYMD());
-    }
+    if (prev && wizStartDate.value.startsWith("Not needed")) wizStartDate.value = prev;
+    if (!wizStartDate.value || wizStartDate.value.startsWith("Not needed")) wizStartDate.value = ymdToMdy(todayYMD());
   } else {
-    if (wizStartDate.value && !wizStartDate.value.startsWith("Not needed")) {
-      wizStartDate.dataset.prevValue = wizStartDate.value;
-    }
+    if (wizStartDate.value && !wizStartDate.value.startsWith("Not needed")) wizStartDate.dataset.prevValue = wizStartDate.value;
     wizStartDate.disabled = true;
     wizStartDate.value = disabledStartDateMessage(pt);
   }
@@ -783,7 +950,6 @@ function parseTxAmountToCents() {
   if (cents <= 0) return null;
   return cents;
 }
-
 /* ================= WIZARD ================= */
 function showStep(stepIndex) {
   [wizStep1, wizStep2, wizStep3].forEach((el, idx) => {
@@ -839,7 +1005,6 @@ function validateStep1() {
   const pt = (wizPeriodType.value || "").trim();
   const allowed = new Set(["daily", "weekly", "biweekly", "semi_monthly", "monthly", "quarterly"]);
   if (!allowed.has(pt)) return "Invalid period type.";
-
   if (periodUsesStartDate(pt)) {
     const ymd = mdyToYmd(wizStartDate.value);
     if (!ymd) return "Start Date must be MM-DD-YYYY.";
@@ -903,9 +1068,7 @@ function fmtUsdFromDollarsString(d) {
 function renderReview() {
   const payload = buildInitPayload();
 
-  if (wizReviewJson) {
-    wizReviewJson.textContent = JSON.stringify(payload, null, 2);
-  }
+  if (wizReviewJson) wizReviewJson.textContent = JSON.stringify(payload, null, 2);
 
   const pt = payload.period_type;
   const uses = periodUsesStartDate(pt);
@@ -914,19 +1077,12 @@ function renderReview() {
   if (wizReviewSummary) {
     wizReviewSummary.textContent = `You’re about to initialize your budget with ${catCount} ${catCount === 1 ? "category" : "categories"}.`;
   }
-
-  if (wizReviewPeriod) {
-    wizReviewPeriod.textContent = `Period type: ${periodLabel(pt)}`;
-  }
+  if (wizReviewPeriod) wizReviewPeriod.textContent = `Period type: ${periodLabel(pt)}`;
 
   if (wizReviewStartDate) {
-    if (uses) {
-      wizReviewStartDate.textContent = `Start date: ${ymdToMdy(payload.period_anchor_date)}`;
-      wizReviewStartDate.classList.remove("hidden");
-    } else {
-      wizReviewStartDate.textContent = `Start date: Not required for ${periodLabel(pt)} budgets`;
-      wizReviewStartDate.classList.remove("hidden");
-    }
+    if (uses) wizReviewStartDate.textContent = `Start date: ${ymdToMdy(payload.period_anchor_date)}`;
+    else wizReviewStartDate.textContent = `Start date: Not required for ${periodLabel(pt)} budgets`;
+    wizReviewStartDate.classList.remove("hidden");
   }
 
   let total = 0;
@@ -958,21 +1114,15 @@ function renderReview() {
     }
   }
 
-  if (wizReviewTotal) {
-    wizReviewTotal.textContent = `Total starting budget: $${total.toFixed(2)}`;
-  }
+  if (wizReviewTotal) wizReviewTotal.textContent = `Total starting budget: $${total.toFixed(2)}`;
 }
 
 function initWizardDefaults() {
-  if (!wizStartDate.value || wizStartDate.value === "MM-DD-YYYY") {
-    wizStartDate.value = ymdToMdy(todayYMD());
-  }
-
+  if (!wizStartDate.value || wizStartDate.value === "MM-DD-YYYY") wizStartDate.value = ymdToMdy(todayYMD());
   if (wizCatList.children.length === 0) {
     addWizCategoryRow("Groceries", "300.00");
     addWizCategoryRow("Gas", "120.00");
   }
-
   updateStartDateAvailability();
   showStep(0);
 }
@@ -1000,9 +1150,29 @@ function normalizeCategoriesFromState(state) {
   })).filter(c => c.name && Number.isFinite(c.category_id) && c.category_id > 0);
 }
 
+function applyLocalCategoryOrder(categories) {
+  const order = getSavedCategoryOrder();
+  if (!order || order.length === 0) return categories;
+
+  const byId = new Map(categories.map(c => [c.category_id, c]));
+  const out = [];
+  for (const id of order) {
+    if (byId.has(id)) out.push(byId.get(id));
+    byId.delete(id);
+  }
+  // Append any new categories not in saved order
+  for (const c of categories) {
+    if (byId.has(c.category_id)) {
+      out.push(c);
+      byId.delete(c.category_id);
+    }
+  }
+  return out;
+}
+
 function renderDashboardFromState(state) {
   CURRENT_STATE = state || {};
-  CURRENT_CATEGORIES = normalizeCategoriesFromState(CURRENT_STATE);
+  CURRENT_CATEGORIES = applyLocalCategoryOrder(normalizeCategoriesFromState(CURRENT_STATE));
 
   if (periodLabelEl) periodLabelEl.textContent = fmtPeriodRange(CURRENT_STATE.period);
 
@@ -1016,7 +1186,6 @@ function renderDashboardFromState(state) {
     }
   }
 
-  // Budget Summary table: Category | Spent | Remaining (budget column removed)
   if (catTableBody) {
     catTableBody.innerHTML = "";
     for (const c of CURRENT_CATEGORIES) {
@@ -1039,6 +1208,113 @@ function renderDashboardFromState(state) {
       catTableBody.appendChild(tr);
     }
   }
+
+  renderSettingsCategories();
+}
+
+/* ================= SETTINGS UI ================= */
+let settingsLocalOrder = [];         // array of category_id in modal order
+let settingsPendingRemove = new Set(); // category_id to remove
+
+function openSettings() {
+  settingsPendingRemove = new Set();
+  settingsLocalOrder = CURRENT_CATEGORIES.map(c => c.category_id);
+  setStatus(settingsCatStatus, "");
+  setStatus(settingsResetStatus, "");
+  if (settingsResetConfirm) settingsResetConfirm.value = "";
+  if (settingsNewCatName) settingsNewCatName.value = "";
+  if (settingsNewCatBudget) settingsNewCatBudget.value = "";
+  renderSettingsCategories();
+  show(settingsOverlay);
+  settingsOverlay.setAttribute("aria-hidden", "false");
+}
+
+function closeSettings() {
+  hide(settingsOverlay);
+  settingsOverlay.setAttribute("aria-hidden", "true");
+}
+
+function renderSettingsCategories() {
+  if (!settingsCatList) return;
+  const byId = new Map(CURRENT_CATEGORIES.map(c => [c.category_id, c]));
+  const ordered = settingsLocalOrder
+    .map(id => byId.get(id))
+    .filter(Boolean);
+
+  settingsCatList.innerHTML = "";
+
+  if (ordered.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "status";
+    empty.textContent = "No categories available.";
+    settingsCatList.appendChild(empty);
+    return;
+  }
+
+  for (let i = 0; i < ordered.length; i++) {
+    const c = ordered[i];
+
+    const row = document.createElement("div");
+    row.className = "settingsCatRow";
+
+    const left = document.createElement("div");
+    left.className = "name";
+    left.textContent = c.name;
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+
+    const up = document.createElement("button");
+    up.type = "button";
+    up.className = "secondary";
+    up.textContent = "Up";
+    up.disabled = i === 0;
+    up.addEventListener("click", () => {
+      const tmp = settingsLocalOrder[i - 1];
+      settingsLocalOrder[i - 1] = settingsLocalOrder[i];
+      settingsLocalOrder[i] = tmp;
+      renderSettingsCategories();
+    });
+
+    const down = document.createElement("button");
+    down.type = "button";
+    down.className = "secondary";
+    down.textContent = "Down";
+    down.disabled = i === ordered.length - 1;
+    down.addEventListener("click", () => {
+      const tmp = settingsLocalOrder[i + 1];
+      settingsLocalOrder[i + 1] = settingsLocalOrder[i];
+      settingsLocalOrder[i] = tmp;
+      renderSettingsCategories();
+    });
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "secondary";
+    const isMarked = settingsPendingRemove.has(c.category_id);
+    remove.textContent = isMarked ? "Undo Remove" : "Remove";
+    remove.addEventListener("click", () => {
+      if (settingsPendingRemove.has(c.category_id)) settingsPendingRemove.delete(c.category_id);
+      else settingsPendingRemove.add(c.category_id);
+      renderSettingsCategories();
+    });
+
+    if (settingsPendingRemove.has(c.category_id)) {
+      left.style.opacity = "0.55";
+      left.style.textDecoration = "line-through";
+    } else {
+      left.style.opacity = "1";
+      left.style.textDecoration = "none";
+    }
+
+    meta.appendChild(up);
+    meta.appendChild(down);
+    meta.appendChild(remove);
+
+    row.appendChild(left);
+    row.appendChild(meta);
+    settingsCatList.appendChild(row);
+  }
 }
 
 /* ================= APP FLOW ================= */
@@ -1056,6 +1332,7 @@ async function loadAppStateAndRender(token) {
   const state = result.state || {};
 
   if (state.initialized === false) {
+    hide(dashboardView);
     show(noCategoriesView);
     setStatus(appStatus, "Budget not yet initialized.");
     initWizardDefaults();
@@ -1066,8 +1343,6 @@ async function loadAppStateAndRender(token) {
   show(dashboardView);
 
   renderDashboardFromState(state);
-
-  // Keep the line but clear it (no "Ready")
   setStatus(appStatus, "");
 }
 
@@ -1099,6 +1374,8 @@ async function bootstrap() {
   setStatus(globalStatus, "Starting…");
   hide(authView);
   hide(appView);
+  hide(settingsFab);
+  closeSettings();
 
   try {
     if (userNameInput && !userNameInput.value) userNameInput.value = getUserName();
@@ -1167,26 +1444,8 @@ toggleTokenBtn.addEventListener("click", () => {
   tokenInput.focus();
 });
 
-logoutBtn.addEventListener("click", async () => {
-  setBusy(true);
-  await idbDel(IDB.key);
-  setBusy(false);
-  showAuth("Logged out. Enter your name and bearer token to continue.");
-});
-
-retryBtn.addEventListener("click", async () => {
-  await bootstrap();
-});
-
 /* ================= EVENTS: DASHBOARD TRANSACTIONS ================= */
 txAmount.addEventListener("blur", () => { txAmount.value = normalizeBudgetDisplay(txAmount.value); });
-
-txClearBtn.addEventListener("click", () => {
-  txAmount.value = "";
-  txNote.value = "";
-  txType.value = "expense";
-  setStatus(txStatus, "", "");
-});
 
 refreshBtn.addEventListener("click", async () => {
   const token = await idbGet(IDB.key);
@@ -1265,7 +1524,6 @@ wizNext1.addEventListener("click", () => {
 });
 
 wizBack2.addEventListener("click", () => showStep(0));
-
 wizAddCat.addEventListener("click", () => addWizCategoryRow());
 
 wizNext2.addEventListener("click", () => {
@@ -1307,6 +1565,158 @@ wizSubmit.addEventListener("click", async () => {
   } catch (e) {
     setBusy(false);
     setStatus(wizStatus3, e.message, "error");
+  }
+});
+/* ================= EVENTS: SETTINGS ================= */
+settingsFab.addEventListener("click", () => openSettings());
+settingsCloseBtn.addEventListener("click", () => closeSettings());
+
+// click outside modal closes
+settingsOverlay.addEventListener("click", (e) => {
+  if (e.target === settingsOverlay) closeSettings();
+});
+
+// Add category
+settingsNewCatBudget.addEventListener("blur", () => {
+  settingsNewCatBudget.value = normalizeBudgetDisplay(settingsNewCatBudget.value);
+});
+
+settingsAddCatBtn.addEventListener("click", async () => {
+  const token = await idbGet(IDB.key);
+  if (!token) return showAuth("Missing token. Please re-enter.", true);
+
+  const name = String(settingsNewCatName.value || "").trim();
+  if (!name) return setStatus(settingsCatStatus, "Enter a category name.", "error");
+  if (name.length > 64) return setStatus(settingsCatStatus, "Category name is too long (max 64).", "error");
+
+  const cents = dollarsStringToCents(settingsNewCatBudget.value);
+  const budget_dollars = (cents === null) ? undefined : (cents / 100).toFixed(2);
+
+  setBusy(true);
+  setStatus(settingsCatStatus, "Adding…");
+  try {
+    const payload = {
+      add: [{
+        name,
+        ...(budget_dollars !== undefined ? { budget_dollars } : {})
+      }],
+      remove: []
+    };
+
+    const res = await postCategories(token, payload);
+    if (res.authFailed) {
+      await idbDel(IDB.key);
+      setBusy(false);
+      closeSettings();
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+
+    // After server change, refresh state and update UI.
+    await loadAppStateAndRender(token);
+
+    // Add new category to local order at end (device display)
+    const latest = normalizeCategoriesFromState(CURRENT_STATE);
+    const match = latest.find(x => x.name.toLowerCase() === name.toLowerCase());
+    if (match && !settingsLocalOrder.includes(match.category_id)) {
+      settingsLocalOrder.push(match.category_id);
+      saveCategoryOrder(settingsLocalOrder);
+    }
+
+    settingsNewCatName.value = "";
+    settingsNewCatBudget.value = "";
+    setStatus(settingsCatStatus, "Added.", "ok");
+    setBusy(false);
+  } catch (e) {
+    setBusy(false);
+    setStatus(settingsCatStatus, e.message || String(e), "error");
+  }
+});
+
+// Apply removals (server-side)
+settingsApplyRemoveBtn.addEventListener("click", async () => {
+  const token = await idbGet(IDB.key);
+  if (!token) return showAuth("Missing token. Please re-enter.", true);
+
+  const ids = Array.from(settingsPendingRemove);
+  if (ids.length === 0) return setStatus(settingsCatStatus, "No categories marked for removal.", "error");
+
+  setBusy(true);
+  setStatus(settingsCatStatus, "Removing…");
+  try {
+    const payload = {
+      add: [],
+      remove: ids.map(id => ({ category_id: id }))
+    };
+
+    const res = await postCategories(token, payload);
+    if (res.authFailed) {
+      await idbDel(IDB.key);
+      setBusy(false);
+      closeSettings();
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+
+    // Update local order to drop removed ids
+    settingsLocalOrder = settingsLocalOrder.filter(id => !settingsPendingRemove.has(id));
+    saveCategoryOrder(settingsLocalOrder);
+    settingsPendingRemove = new Set();
+
+    await loadAppStateAndRender(token);
+    setStatus(settingsCatStatus, "Removed.", "ok");
+    setBusy(false);
+  } catch (e) {
+    setBusy(false);
+    setStatus(settingsCatStatus, e.message || String(e), "error");
+  }
+});
+
+// Save device display order
+settingsSaveOrderBtn.addEventListener("click", () => {
+  saveCategoryOrder(settingsLocalOrder);
+  setStatus(settingsCatStatus, "Display order saved on this device.", "ok");
+});
+
+// Logout (local only)
+settingsLogoutBtn.addEventListener("click", async () => {
+  setBusy(true);
+  await idbDel(IDB.key);
+  setBusy(false);
+  closeSettings();
+  showAuth("Logged out. Enter your name and bearer token to continue.");
+});
+
+// Start Over (server-side reset)
+settingsStartOverBtn.addEventListener("click", async () => {
+  const token = await idbGet(IDB.key);
+  if (!token) return showAuth("Missing token. Please re-enter.", true);
+
+  const confirmText = String(settingsResetConfirm.value || "").trim();
+  if (confirmText !== "RESET") return setStatus(settingsResetStatus, "Type RESET to confirm.", "error");
+
+  setBusy(true);
+  setStatus(settingsResetStatus, "Resetting…");
+  try {
+    const res = await postReset(token);
+    if (res.authFailed) {
+      await idbDel(IDB.key);
+      setBusy(false);
+      closeSettings();
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+
+    // Clear any device-only category order because ids will be recreated after init
+    clearCategoryOrder();
+
+    setStatus(settingsResetStatus, "Reset complete. Reloading…", "ok");
+    closeSettings();
+
+    // Reload state -> should become uninitialized and show wizard
+    await loadAppStateAndRender(token);
+
+    setBusy(false);
+  } catch (e) {
+    setBusy(false);
+    setStatus(settingsResetStatus, e.message || String(e), "error");
   }
 });
 
