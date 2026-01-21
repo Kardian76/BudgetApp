@@ -42,13 +42,15 @@
         linear-gradient(180deg, var(--bg0), var(--bg1));
     }
 
+    /* Prevent background scrolling when modal is open */
+    body.modalOpen{ overflow: hidden; }
+
     .wrap{
       max-width: 980px;
       margin: 0 auto;
       padding: 18px;
     }
 
-    /* No outer background card — cards below are top-level */
     .card{
       background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.045));
       border: 1px solid var(--cardBorder);
@@ -141,11 +143,10 @@
     .error{ color: var(--danger); }
     .ok{ color: var(--success); }
 
-    /* Recommended change: ensure hidden ALWAYS wins (fixes modal showing on load) */
+    /* Hidden must ALWAYS win (prevents modal showing on load) */
     .hidden{ display:none !important; }
 
     .mono{ font-family: ui-monospace, Menlo, Consolas, monospace; }
-    /* ---------------- Step 2: phone-first one-line rows ---------------- */
     .catRow{
       display:flex;
       gap:10px;
@@ -179,12 +180,10 @@
         padding-right: 9px;
       }
     }
-
     @media (max-width: 360px){
       h1{ font-size: 17px; }
     }
 
-    /* Dashboard layout */
     .grid2{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -220,7 +219,6 @@
     .table tr:last-child td{ border-bottom: 0; }
     .right{ text-align:right; }
 
-    /* Settings FAB + Modal */
     .fab{
       position: fixed;
       right: 16px;
@@ -231,6 +229,7 @@
       box-shadow: 0 18px 46px rgba(0,0,0,0.38);
     }
 
+    /* FIX: make overlay scrollable */
     .modalOverlay{
       position: fixed;
       inset: 0;
@@ -238,14 +237,19 @@
       backdrop-filter: blur(6px);
       z-index: 50;
       display: flex;
-      align-items: flex-end;
+      align-items: center;      /* center is nicer when modal scrolls */
       justify-content: center;
       padding: 14px;
+      overflow: auto;           /* critical: allows scrolling when content is tall */
+      -webkit-overflow-scrolling: touch;
     }
 
+    /* FIX: constrain modal height and allow internal scrolling */
     .modal{
       width: 100%;
       max-width: 920px;
+      max-height: calc(100vh - 28px);  /* leave room for padding */
+      overflow: auto;
       border-radius: 18px;
       border: 1px solid rgba(255,255,255,0.12);
       background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.045));
@@ -258,6 +262,13 @@
       align-items:center;
       justify-content: space-between;
       gap: 10px;
+      position: sticky;         /* keeps header visible while scrolling */
+      top: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+      border-radius: 14px;
     }
     .modalHeader h1{ margin: 0; }
 
@@ -290,6 +301,7 @@
       gap: 8px;
       align-items:center;
     }
+
     .chip{
       border: 1px solid rgba(255,255,255,0.14);
       background: rgba(255,255,255,0.06);
@@ -329,10 +341,8 @@
   <div id="appView" class="hidden">
     <p id="appStatus" class="status"></p>
 
-    <!-- ===== Main dashboard (shown when initialized) ===== -->
     <div id="dashboardView" class="hidden">
 
-      <!-- Budget Summary at top -->
       <div class="card subcard" id="budgetSummaryCard">
         <h1 style="margin:0 0 6px;">Budget Summary</h1>
         <div class="status" style="margin-top:0;">
@@ -379,11 +389,9 @@
       </div>
     </div>
 
-    <!-- ===== Wizard (shown when not initialized) ===== -->
     <div id="noCategoriesView" class="card hidden" style="margin-top:12px;">
       <p class="ok">Welcome. Let’s initialize your budget.</p>
 
-      <!-- ---------- STEP 1 ---------- -->
       <div id="wizStep1" class="card subcard">
         <h1>Step 1 — Budget period</h1>
 
@@ -405,7 +413,6 @@
         </div>
         <div id="wizStatus1" class="status"></div>
       </div>
-      <!-- ---------- STEP 2 ---------- -->
       <div id="wizStep2" class="card subcard hidden">
         <h1>Step 2 — Categories</h1>
         <p class="status" style="margin-top:0;">Enter 1–10 categories with starting budgets.</p>
@@ -420,7 +427,6 @@
         <div id="wizStatus2" class="status"></div>
       </div>
 
-      <!-- ---------- STEP 3 ---------- -->
       <div id="wizStep3" class="card subcard hidden">
         <h1>Step 3 — Confirm your setup</h1>
 
@@ -462,10 +468,8 @@
   <div id="globalStatus" class="status"></div>
 </div>
 
-<!-- Settings button (bottom-right). Hidden until app view is active. -->
 <button id="settingsFab" class="fab secondary hidden" type="button">Settings</button>
 
-<!-- Settings modal (MUST remain hidden until Settings is tapped) -->
 <div id="settingsOverlay" class="modalOverlay hidden" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="modalHeader">
@@ -524,9 +528,7 @@
             This permanently clears categories, budgets, and transaction history from the database.
           </p>
 
-          <label for="settingsResetConfirm">Type RESET to confirm</label>
-          <input id="settingsResetConfirm" type="text" placeholder="RESET" autocomplete="off" />
-
+          <!-- Changed: Start Over is now ONLY a button -->
           <div class="row">
             <button id="settingsStartOverBtn" class="danger" type="button">Start Over</button>
           </div>
@@ -539,7 +541,6 @@
 </div>
 
 <script>
-/* ================= CONFIG ================= */
 const API = {
   baseUrl: "https://purrfect-budget-api.kardian.workers.dev",
   validatePath: "/api/auth/validate",
@@ -550,7 +551,6 @@ const API = {
   resetPath: "/api/budget/reset",
   timeoutMs: 12000
 };
-/* ================= INDEXEDDB ================= */
 const IDB = {
   name: "pwa-budget-app",
   version: 2,
@@ -619,7 +619,6 @@ async function idbDel(key) {
   } finally { db.close(); }
 }
 
-/* ================= Local settings (non-sensitive) ================= */
 const LS = {
   userName: "purrfect_user_name",
   deviceId: "purrfect_device_id",
@@ -723,7 +722,6 @@ const settingsSaveOrderBtn = $("settingsSaveOrderBtn");
 const settingsCatStatus = $("settingsCatStatus");
 
 const settingsLogoutBtn = $("settingsLogoutBtn");
-const settingsResetConfirm = $("settingsResetConfirm");
 const settingsStartOverBtn = $("settingsStartOverBtn");
 const settingsResetStatus = $("settingsResetStatus");
 
@@ -754,7 +752,8 @@ function showAuth(message = "", isError = false) {
   show(authView);
   hide(appView);
   hide(settingsFab);
-  hide(settingsOverlay);                 // defensive: ensure overlay not shown
+  hide(settingsOverlay);
+  document.body.classList.remove("modalOpen");
   settingsOverlay?.setAttribute("aria-hidden", "true");
   setStatus(authStatus, message, isError ? "error" : "");
   setStatus(globalStatus, "");
@@ -792,7 +791,6 @@ async function safeText(resp) {
   try { return await resp.text(); } catch { return ""; }
 }
 
-/* ================= API ================= */
 async function validateToken(token) {
   const url = joinUrl(API.baseUrl, API.validatePath);
   const resp = await fetchWithTimeout(url, { method: "GET", headers: authHeaders(token) });
@@ -813,6 +811,7 @@ async function fetchState(token) {
   }
   return { authFailed: false, state: await resp.json().catch(() => ({})) };
 }
+
 async function postInit(token, payload) {
   const url = joinUrl(API.baseUrl, API.initPath);
   const resp = await fetchWithTimeout(url, {
@@ -876,7 +875,6 @@ async function postReset(token) {
   }
   return { authFailed: false, result: await resp.json().catch(() => ({})) };
 }
-
 /* ================= DATE HELPERS (UI MM-DD-YYYY) ================= */
 const pad2 = (n) => String(n).padStart(2, "0");
 
@@ -1236,10 +1234,11 @@ function openSettings() {
   settingsLocalOrder = CURRENT_CATEGORIES.map(c => c.category_id);
   setStatus(settingsCatStatus, "");
   setStatus(settingsResetStatus, "");
-  if (settingsResetConfirm) settingsResetConfirm.value = "";
   if (settingsNewCatName) settingsNewCatName.value = "";
   if (settingsNewCatBudget) settingsNewCatBudget.value = "";
   renderSettingsCategories();
+
+  document.body.classList.add("modalOpen");     // prevents background scroll
   show(settingsOverlay);
   settingsOverlay.setAttribute("aria-hidden", "false");
 }
@@ -1247,6 +1246,7 @@ function openSettings() {
 function closeSettings() {
   hide(settingsOverlay);
   settingsOverlay.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modalOpen");
 }
 
 function renderSettingsCategories() {
@@ -1356,7 +1356,6 @@ async function loadAppStateAndRender(token) {
   show(dashboardView);
   renderDashboardFromState(state);
 
-  // Remove "Ready" status at top
   setStatus(appStatus, "");
 }
 
@@ -1389,7 +1388,8 @@ async function bootstrap() {
   hide(authView);
   hide(appView);
   hide(settingsFab);
-  hide(settingsOverlay);                 // defensive: ensure overlay not shown
+  hide(settingsOverlay);
+  document.body.classList.remove("modalOpen");
   settingsOverlay?.setAttribute("aria-hidden", "true");
 
   try {
@@ -1458,7 +1458,7 @@ toggleTokenBtn.addEventListener("click", () => {
   tokenInput.focus();
 });
 
-/* ================= EVENTS: DASHBOARD TRANSACTIONS ================= */
+/* ================= EVENTS: DASHBOARD ================= */
 txAmount.addEventListener("blur", () => { txAmount.value = normalizeBudgetDisplay(txAmount.value); });
 
 refreshBtn.addEventListener("click", async () => {
@@ -1492,15 +1492,7 @@ txSubmitBtn.addEventListener("click", async () => {
   const body = {
     created_by_label,
     items: [
-      {
-        category_id: categoryId,
-        amount_cents: cents,
-        is_refund: isRefund,
-        note,
-        device_id,
-        client_ts,
-        client_tx_id
-      }
+      { category_id: categoryId, amount_cents: cents, is_refund: isRefund, note, device_id, client_ts, client_tx_id }
     ]
   };
 
@@ -1609,10 +1601,7 @@ settingsAddCatBtn.addEventListener("click", async () => {
   setStatus(settingsCatStatus, "Adding…");
   try {
     const payload = {
-      add: [{
-        name,
-        ...(budget_dollars !== undefined ? { budget_dollars } : {})
-      }],
+      add: [{ name, ...(budget_dollars !== undefined ? { budget_dollars } : {}) }],
       remove: []
     };
 
@@ -1626,7 +1615,6 @@ settingsAddCatBtn.addEventListener("click", async () => {
 
     await loadAppStateAndRender(token);
 
-    // Best-effort: add newly created category id to local order (match by name).
     const latest = normalizeCategoriesFromState(CURRENT_STATE);
     const match = latest.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (match && !settingsLocalOrder.includes(match.category_id)) {
@@ -1654,10 +1642,7 @@ settingsApplyRemoveBtn.addEventListener("click", async () => {
   setBusy(true);
   setStatus(settingsCatStatus, "Removing…");
   try {
-    const payload = {
-      add: [],
-      remove: ids.map(id => ({ category_id: id }))
-    };
+    const payload = { add: [], remove: ids.map(id => ({ category_id: id })) };
 
     const res = await postCategories(token, payload);
     if (res.authFailed) {
@@ -1693,12 +1678,13 @@ settingsLogoutBtn.addEventListener("click", async () => {
   showAuth("Logged out. Enter your name and bearer token to continue.");
 });
 
+/* Changed: Start Over now uses confirm() and no text field */
 settingsStartOverBtn.addEventListener("click", async () => {
   const token = await idbGet(IDB.key);
   if (!token) return showAuth("Missing token. Please re-enter.", true);
 
-  const confirmText = String(settingsResetConfirm.value || "").trim();
-  if (confirmText !== "RESET") return setStatus(settingsResetStatus, "Type RESET to confirm.", "error");
+  const ok = confirm("Start Over will permanently clear categories, budgets, and transaction history for everyone using this token. Continue?");
+  if (!ok) return;
 
   setBusy(true);
   setStatus(settingsResetStatus, "Resetting…");
