@@ -23,11 +23,10 @@
       --primary2:#1f57c8;
       --danger:#ffb4b4;
       --success:#b6ffcf;
-      --shadow: 0 18px 46px rgba(0,0,0,0.38);
-      --shadow2: 0 10px 24px rgba(0,0,0,0.28);
+      --shadow:0 18px 46px rgba(0,0,0,0.38);
       --radius:16px;
       --radiusField:12px;
-      --ring: 0 0 0 4px rgba(45,108,223,0.16);
+      --ring:0 0 0 4px rgba(45,108,223,0.16);
     }
 
     *{ box-sizing:border-box; }
@@ -35,339 +34,141 @@
     body{
       margin:0;
       color:var(--text);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
       background:
         radial-gradient(900px 480px at 10% 0%, rgba(45,108,223,0.22), transparent 60%),
         radial-gradient(720px 360px at 90% 10%, rgba(182,255,207,0.10), transparent 60%),
         linear-gradient(180deg, var(--bg0), var(--bg1));
     }
 
-    /* Prevent background scrolling when modal is open */
-    body.modalOpen{ overflow: hidden; }
-
-    .wrap{
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 18px;
-    }
+    .wrap{ max-width:1100px; margin:0 auto; padding:18px; }
+    h1{ font-size:18px; margin:0 0 10px; }
 
     .card{
-      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.045));
-      border: 1px solid var(--cardBorder);
-      border-radius: var(--radius);
-      padding: 18px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(8px);
+      background:linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.045));
+      border:1px solid var(--cardBorder);
+      border-radius:var(--radius);
+      padding:18px;
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(8px);
     }
 
-    .subcard{
-      margin-top: 12px;
-      box-shadow: var(--shadow2);
-      border-radius: var(--radius);
-    }
+    .subcard{ margin-top:14px; }
+    .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    @media (max-width:820px){ .grid2{ grid-template-columns:1fr; } }
 
-    h1{
-      font-size: 18px;
-      margin: 0 0 10px;
-      letter-spacing: 0.2px;
-    }
-
-    p{ margin: 10px 0; line-height: 1.35; color: var(--muted); }
-    label{ display:block; margin: 12px 0 6px; font-size: 13px; color: var(--muted); }
-
-    input[type="text"], input[type="password"], select{
-      width: 100%;
-      padding: 11px 12px;
-      border-radius: var(--radiusField);
-      border: 1px solid var(--fieldBorder);
-      background: var(--fieldBg);
-      color: var(--text);
-      outline: none;
-      transition: border-color .16s ease, box-shadow .16s ease, transform .06s ease;
-    }
-
-    input[type="text"]:hover, input[type="password"]:hover, select:hover{
-      border-color: var(--fieldBorderHover);
-    }
-
-    input[type="text"]:focus, input[type="password"]:focus, select:focus{
-      border-color: var(--fieldBorderFocus);
-      box-shadow: var(--ring);
-    }
-
-    input:disabled{
-      opacity: .82;
-      cursor: not-allowed;
-    }
-
-    .row{
-      display:flex;
-      gap: 10px;
-      align-items:center;
-      flex-wrap: wrap;
-      margin-top: 12px;
+    label{ display:block; margin:12px 0 6px; font-size:13px; color:var(--muted); }
+    input,select{
+      width:100%;
+      padding:11px 12px;
+      border-radius:var(--radiusField);
+      border:1px solid var(--fieldBorder);
+      background:var(--fieldBg);
+      color:var(--text);
+      outline:none;
     }
 
     button{
-      appearance:none;
-      border: 0;
-      border-radius: 12px;
-      padding: 11px 14px;
-      cursor: pointer;
-      color: #fff;
-      font-weight: 650;
-      background: linear-gradient(180deg, var(--primary), var(--primary2));
-      box-shadow: 0 10px 18px rgba(45,108,223,0.22);
-      transition: transform .06s ease, filter .16s ease, opacity .16s ease;
+      border:0;
+      border-radius:12px;
+      padding:11px 14px;
+      cursor:pointer;
+      font-weight:650;
+      color:#fff;
+      background:linear-gradient(180deg,var(--primary),var(--primary2));
     }
+    button.secondary{ background:rgba(255,255,255,0.1); color:var(--text); }
+    button.danger{ background:#8b1e1e; }
 
-    button:hover{ filter: brightness(1.05); }
-    button:active{ transform: translateY(1px); }
-    button.secondary{
-      background: rgba(255,255,255,0.10);
-      color: var(--text);
-      box-shadow: none;
-      border: 1px solid rgba(255,255,255,0.12);
-    }
-    button.danger{
-      background: rgba(255,180,180,0.12);
-      color: var(--danger);
-      border: 1px solid rgba(255,180,180,0.22);
-      box-shadow: none;
-      font-weight: 750;
-    }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+    .status{ font-size:13px; color:var(--muted2); margin-top:10px; }
+    .ok{ color:var(--success); }
+    .error{ color:var(--danger); }
 
-    button:disabled{ opacity: .55; cursor: not-allowed; }
-
-    .status{ margin-top: 12px; font-size: 13px; color: var(--muted2); }
-    .error{ color: var(--danger); }
-    .ok{ color: var(--success); }
-
-    /* Hidden must ALWAYS win (prevents modal showing on load) */
     .hidden{ display:none !important; }
 
-    .mono{ font-family: ui-monospace, Menlo, Consolas, monospace; }
-    .catRow{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      margin-top:10px;
-      flex-wrap:nowrap;
-    }
-    .catRow input{ width:auto; min-width:0; }
-    .catRow .catName{ flex: 1 1 auto; min-width: 0; max-width: 520px; }
-    .catRow .catBudget{
-      flex: 0 0 96px;
-      width: 96px;
-      max-width: 96px;
-      text-align:right;
-      padding-left: 10px;
-      padding-right: 10px;
-    }
-    .catRow .wizRemoveCat{
-      flex: 0 0 auto;
-      white-space: nowrap;
-      padding: 11px 12px;
-    }
+    table{ width:100%; border-collapse:collapse; margin-top:10px; }
+    th,td{ padding:8px 6px; border-bottom:1px solid rgba(255,255,255,0.1); }
+    th{ text-align:left; font-size:13px; color:var(--muted); }
+    td.right,th.right{ text-align:right; }
 
-    @media (max-width: 420px){
-      .wrap{ padding: 14px; }
-      .catRow .catBudget{
-        flex-basis: 88px;
-        width: 88px;
-        max-width: 88px;
-        padding-left: 9px;
-        padding-right: 9px;
-      }
-    }
-    @media (max-width: 360px){
-      h1{ font-size: 17px; }
-    }
+    .tableScroll{ max-height:360px; overflow:auto; }
 
-    .grid2{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    @media (max-width: 680px){
-      .grid2{ grid-template-columns: 1fr; }
-    }
-
-    .table{
-      width:100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-      overflow:hidden;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,0.10);
-      background: rgba(0,0,0,0.10);
-    }
-    .table th, .table td{
-      text-align:left;
-      padding: 10px 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      vertical-align: middle;
-      color: var(--text);
-      font-variant-numeric: tabular-nums;
-    }
-    .table th{
-      color: var(--muted);
-      background: rgba(255,255,255,0.05);
-      font-weight: 650;
-    }
-    .table tr:last-child td{ border-bottom: 0; }
-    .right{ text-align:right; }
-
-    .fab{
-      position: fixed;
-      right: 16px;
-      bottom: 16px;
-      z-index: 40;
-      border-radius: 999px;
-      padding: 12px 14px;
-      box-shadow: 0 18px 46px rgba(0,0,0,0.38);
-    }
-
-    /* FIX: make overlay scrollable */
+    /* Modal */
+    body.modalOpen{ overflow:hidden; }
     .modalOverlay{
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.50);
-      backdrop-filter: blur(6px);
-      z-index: 50;
-      display: flex;
-      align-items: center;      /* center is nicer when modal scrolls */
-      justify-content: center;
-      padding: 14px;
-      overflow: auto;           /* critical: allows scrolling when content is tall */
-      -webkit-overflow-scrolling: touch;
+      position:fixed; inset:0;
+      background:rgba(0,0,0,0.55);
+      display:flex; align-items:flex-start; justify-content:center;
+      padding:20px;
+      z-index:1000;
     }
-
-    /* FIX: constrain modal height and allow internal scrolling */
     .modal{
-      width: 100%;
-      max-width: 920px;
-      max-height: calc(100vh - 28px);  /* leave room for padding */
-      overflow: auto;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.045));
-      box-shadow: 0 18px 46px rgba(0,0,0,0.48);
-      padding: 14px;
+      background:var(--bg1);
+      border-radius:16px;
+      width:100%;
+      max-width:720px;
+      max-height:calc(100vh - 40px);
+      overflow:auto;
+      padding:18px;
     }
-
     .modalHeader{
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 10px;
-      position: sticky;         /* keeps header visible while scrolling */
-      top: 0;
-      background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
-      border-bottom: 1px solid rgba(255,255,255,0.10);
-      padding-bottom: 10px;
-      margin-bottom: 10px;
-      border-radius: 14px;
+      display:flex; justify-content:space-between; align-items:center;
+      margin-bottom:10px;
     }
-    .modalHeader h1{ margin: 0; }
-
-    .modalSection{
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid rgba(255,255,255,0.10);
-    }
-
-    .settingsCatRow{
-      display:flex;
-      gap: 10px;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 10px;
-      flex-wrap: nowrap;
-    }
-    .settingsCatRow .name{
-      flex: 1 1 auto;
-      min-width: 0;
-      font-weight: 650;
-      color: var(--text);
-      overflow:hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .settingsCatRow .meta{
-      flex: 0 0 auto;
-      display:flex;
-      gap: 8px;
-      align-items:center;
-    }
-
-    .chip{
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(255,255,255,0.06);
-      padding: 6px 10px;
-      border-radius: 999px;
-      color: var(--muted);
-      font-size: 12px;
-      display:inline-block;
-      margin-right: 8px;
-      margin-top: 8px;
-    }
+    .modalSection{ margin-top:14px; }
   </style>
 </head>
 <body>
 <div class="wrap">
-  <h1 style="margin: 0 0 10px;">Purrfect Budget</h1>
+  <h1>Purrfect Budget</h1>
 
-  <!-- ================= AUTH ================= -->
+  <!-- AUTH -->
   <div id="authView" class="card hidden">
-    <p class="status">Enter your name and bearer token. Both are stored locally (name in localStorage, token in IndexedDB).</p>
-
-    <label for="userNameInput">Your name (for shared logging)</label>
-    <input id="userNameInput" type="text" placeholder="e.g., Jeremy" autocomplete="name" />
+    <label for="userNameInput">Your name</label>
+    <input id="userNameInput" type="text" placeholder="e.g., Jeremy" />
 
     <label for="tokenInput">Bearer Token</label>
-    <input id="tokenInput" type="password" placeholder="Paste token…" autocomplete="off" />
+    <input id="tokenInput" type="password" placeholder="Paste token…" />
 
     <div class="row">
-      <button id="saveTokenBtn" type="button">Save & Continue</button>
-      <button id="toggleTokenBtn" class="secondary" type="button">Show</button>
+      <button id="saveTokenBtn">Save & Continue</button>
+      <button id="toggleTokenBtn" class="secondary">Show</button>
     </div>
-
     <div id="authStatus" class="status"></div>
   </div>
 
-  <!-- ================= APP ================= -->
+  <!-- APP -->
   <div id="appView" class="hidden">
-    <p id="appStatus" class="status"></p>
+    <div id="dashboardView">
 
-    <div id="dashboardView" class="hidden">
+      <!-- Budget Summary -->
+      <div class="card">
+        <h1>Budget Summary</h1>
+        <div class="status">Period: <strong id="periodLabel"></strong></div>
 
-      <div class="card subcard" id="budgetSummaryCard">
-        <h1 style="margin:0 0 6px;">Budget Summary</h1>
-        <div class="status" style="margin-top:0;">
-          Period: <span id="periodLabel" style="color:var(--text); font-weight:650;"></span>
+        <div class="tableScroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th class="right">Spent</th>
+                <th class="right">Remaining</th>
+              </tr>
+            </thead>
+            <tbody id="catTableBody"></tbody>
+          </table>
         </div>
-
-        <table class="table" id="catTable">
-          <thead>
-            <tr>
-              <th>Category</th>
-              <th class="right">Spent</th>
-              <th class="right">Remaining</th>
-            </tr>
-          </thead>
-          <tbody id="catTableBody"></tbody>
-        </table>
       </div>
 
       <div class="grid2">
+        <!-- Add Transaction -->
         <div class="card subcard">
-          <h1 style="margin:0 0 10px;">Add transaction</h1>
+          <h1>Add Transaction</h1>
 
           <label for="txType">Type</label>
           <select id="txType">
-            <option value="expense" selected>Expense</option>
+            <option value="expense">Expense</option>
             <option value="refund">Refund</option>
           </select>
 
@@ -375,1341 +176,135 @@
           <select id="txCategory"></select>
 
           <label for="txAmount">Amount</label>
-          <input id="txAmount" type="text" inputmode="decimal" placeholder="$0.00" />
+          <input id="txAmount" type="text" placeholder="$0.00" />
 
           <label for="txNote">Note (optional)</label>
-          <input id="txNote" type="text" placeholder="e.g., Groceries at Target" />
+          <input id="txNote" type="text" />
 
           <div class="row">
-            <button id="txSubmitBtn" type="button">Save</button>
-            <button id="refreshBtn" class="secondary" type="button">Refresh</button>
+            <button id="txSubmitBtn">Save</button>
           </div>
           <div id="txStatus" class="status"></div>
         </div>
       </div>
     </div>
-
-    <div id="noCategoriesView" class="card hidden" style="margin-top:12px;">
-      <p class="ok">Welcome. Let’s initialize your budget.</p>
-
-      <div id="wizStep1" class="card subcard">
-        <h1>Step 1 — Budget period</h1>
-
-        <label for="wizPeriodType">Period Type</label>
-        <select id="wizPeriodType">
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-          <option value="biweekly" selected>Every Two Weeks</option>
-          <option value="semi_monthly">Twice a Month</option>
-          <option value="monthly">Monthly</option>
-          <option value="quarterly">Quarterly</option>
-        </select>
-
-        <label for="wizStartDate">Start Date (MM-DD-YYYY)</label>
-        <input id="wizStartDate" type="text" placeholder="MM-DD-YYYY" inputmode="numeric" />
-
-        <div class="row">
-          <button id="wizNext1" type="button">Next</button>
-        </div>
-        <div id="wizStatus1" class="status"></div>
-      </div>
-      <div id="wizStep2" class="card subcard hidden">
-        <h1>Step 2 — Categories</h1>
-        <p class="status" style="margin-top:0;">Enter 1–10 categories with starting budgets.</p>
-
-        <div id="wizCatList"></div>
-
-        <div class="row">
-          <button id="wizAddCat" class="secondary" type="button">Add Category</button>
-          <button id="wizBack2" class="secondary" type="button">Back</button>
-          <button id="wizNext2" type="button">Next</button>
-        </div>
-        <div id="wizStatus2" class="status"></div>
-      </div>
-
-      <div id="wizStep3" class="card subcard hidden">
-        <h1>Step 3 — Confirm your setup</h1>
-
-        <p class="status" style="margin-top:0;">
-          Please confirm these details before saving your initial budget.
-        </p>
-
-        <div id="wizReviewCard" style="margin-top:10px;">
-          <div class="status" id="wizReviewSummary" style="margin-top:0;"></div>
-
-          <div class="card subcard" style="margin-top:10px;">
-            <h1 style="margin:0 0 10px;">Budget period</h1>
-            <div class="status" id="wizReviewPeriod"></div>
-            <div class="status" id="wizReviewStartDate"></div>
-          </div>
-
-          <div class="card subcard" style="margin-top:10px;">
-            <h1 style="margin:0 0 10px;">Categories</h1>
-            <div id="wizReviewCategories"></div>
-            <div class="status" id="wizReviewTotal" style="margin-top:10px;"></div>
-          </div>
-
-          <div class="status" style="margin-top:12px;">
-            Note: You can change categories and amounts later. This is just your starting setup.
-          </div>
-        </div>
-
-        <pre id="wizReviewJson" class="mono hidden" style="white-space:pre-wrap;"></pre>
-
-        <div class="row">
-          <button id="wizBack3" class="secondary" type="button">Back</button>
-          <button id="wizSubmit" type="button">Initialize</button>
-        </div>
-        <div id="wizStatus3" class="status"></div>
-      </div>
-    </div>
   </div>
+
+  <!-- Settings FAB -->
+  <button id="openSettingsBtn"
+    style="position:fixed; right:20px; bottom:20px; z-index:900;">
+    Settings
+  </button>
 
   <div id="globalStatus" class="status"></div>
 </div>
-
-<button id="settingsFab" class="fab secondary hidden" type="button">Settings</button>
-
 <div id="settingsOverlay" class="modalOverlay hidden" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="modal">
     <div class="modalHeader">
-      <h1 id="settingsTitle">Settings</h1>
-      <button id="settingsCloseBtn" class="secondary" type="button">Close</button>
+      <h1>Settings</h1>
+      <button id="settingsCloseBtn" class="secondary">Close</button>
     </div>
 
-    <div class="modalSection">
-      <div class="status" style="margin-top:0;">
-        Manage categories and account actions. Category order changes are saved on this device.
+    <div class="modalSection card">
+      <h1>Budget Categories</h1>
+
+      <div class="row">
+        <button id="settingsAddOpenBtn" class="secondary">Add Budget Categories</button>
+        <button id="settingsReorderBtn" class="secondary">Reorder Budget Categories</button>
+        <button id="settingsApplyRemoveBtn">Apply Removals</button>
       </div>
 
-      <div class="card subcard" style="margin-top:12px;">
-        <h1 style="margin:0 0 10px;">Categories</h1>
+      <div id="settingsCatList"></div>
+      <div id="settingsCatStatus" class="status"></div>
 
-        <div class="status" style="margin-top:0;">
-          <span class="chip">Add / Remove updates the shared budget</span>
-          <span class="chip">Reorder is device-only display</span>
-        </div>
-
-        <div id="settingsCatList" style="margin-top:10px;"></div>
-
-        <div class="card subcard" style="margin-top:12px;">
-          <h1 style="margin:0 0 10px;">Add a category</h1>
-
-          <label for="settingsNewCatName">Category name</label>
-          <input id="settingsNewCatName" type="text" placeholder="e.g., Dining" />
-
-          <label for="settingsNewCatBudget">Starting budget (optional)</label>
-          <input id="settingsNewCatBudget" type="text" inputmode="decimal" placeholder="$0.00" />
-
-          <div class="row">
-            <button id="settingsAddCatBtn" type="button">Add</button>
-          </div>
-          <div class="status" id="settingsCatStatus"></div>
-        </div>
-
-        <div class="row" style="margin-top:12px;">
-          <button id="settingsApplyRemoveBtn" type="button">Apply Removals</button>
-          <button id="settingsSaveOrderBtn" class="secondary" type="button">Save Display Order</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="modalSection">
-      <div class="card subcard">
-        <h1 style="margin:0 0 10px;">Account</h1>
-
+      <div id="settingsAddPanel" class="subcard hidden">
+        <label>Category name</label>
+        <input id="settingsNewCatName" />
+        <label>Starting budget</label>
+        <input id="settingsNewCatBudget" placeholder="$0.00" />
         <div class="row">
-          <button id="settingsLogoutBtn" class="secondary" type="button">Log Out</button>
-        </div>
-
-        <div class="card subcard" style="margin-top:12px;">
-          <h1 style="margin:0 0 10px;">Start Over</h1>
-          <p class="status" style="margin-top:0;">
-            This permanently clears categories, budgets, and transaction history from the database.
-          </p>
-
-          <!-- Changed: Start Over is now ONLY a button -->
-          <div class="row">
-            <button id="settingsStartOverBtn" class="danger" type="button">Start Over</button>
-          </div>
-
-          <div class="status" id="settingsResetStatus"></div>
+          <button id="settingsAddCatBtn">Add</button>
         </div>
       </div>
+
+      <div id="settingsReorderPanel" class="subcard hidden">
+        <div id="settingsReorderList"></div>
+        <button id="settingsSaveOrderBtn">Save Order</button>
+      </div>
+    </div>
+
+    <div class="modalSection card">
+      <h1>Account</h1>
+      <div class="row">
+        <button id="settingsLogoutBtn" class="secondary">Log Out</button>
+        <button id="settingsStartOverBtn" class="danger">Start Over</button>
+      </div>
+      <div id="settingsResetStatus" class="status"></div>
     </div>
   </div>
 </div>
-
 <script>
-const API = {
-  baseUrl: "https://purrfect-budget-api.kardian.workers.dev",
-  validatePath: "/api/auth/validate",
-  statePath: "/api/budget/state",
-  initPath: "/api/budget/init",
-  txPath: "/api/budget/transactions",
-  catsPath: "/api/budget/categories",
-  resetPath: "/api/budget/reset",
-  timeoutMs: 12000
-};
-const IDB = {
-  name: "pwa-budget-app",
-  version: 2,
-  store: "auth",
-  key: "bearerToken"
-};
+const $ = (id)=>document.getElementById(id);
 
-function openDb() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(IDB.name, IDB.version);
+const IDB={ name:"pwa-budget-app", version:3, store:"auth", key:"bearerToken" };
 
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(IDB.store)) db.createObjectStore(IDB.store);
-    };
-
-    req.onsuccess = () => resolve(req.result);
-
-    req.onerror = () => {
-      const err = req.error;
-      const msg = String(err?.message || err || "");
-      if (err?.name === "VersionError" || msg.toLowerCase().includes("higher version")) {
-        try { indexedDB.deleteDatabase(IDB.name); } catch {}
-      }
-      reject(err);
-    };
+function openDb(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(IDB.name,IDB.version);
+    r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(IDB.store)) r.result.createObjectStore(IDB.store); };
+    r.onsuccess=()=>res(r.result);
+    r.onerror=()=>rej(r.error);
   });
 }
+async function idbGet(k){ const db=await openDb(); return new Promise(r=>{ const q=db.transaction(IDB.store).objectStore(IDB.store).get(k); q.onsuccess=()=>r(q.result||null); });}
+async function idbSet(k,v){ const db=await openDb(); return new Promise(r=>{ const q=db.transaction(IDB.store,"readwrite").objectStore(IDB.store).put(v,k); q.onsuccess=()=>r(); });}
+async function idbDel(k){ const db=await openDb(); return new Promise(r=>{ const q=db.transaction(IDB.store,"readwrite").objectStore(IDB.store).delete(k); q.onsuccess=()=>r(); });}
 
-async function idbGet(key) {
-  const db = await openDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB.store, "readonly");
-      const store = tx.objectStore(IDB.store);
-      const req = store.get(key);
-      req.onsuccess = () => resolve(req.result ?? null);
-      req.onerror = () => reject(req.error);
-    });
-  } finally { db.close(); }
+function show(el){ el.classList.remove("hidden"); }
+function hide(el){ el.classList.add("hidden"); }
+function setStatus(el,msg,kind){ el.textContent=msg||""; el.className="status"+(kind?" "+kind:""); }
+
+const settingsOverlay=$("settingsOverlay");
+$("openSettingsBtn").onclick=()=>{ document.body.classList.add("modalOpen"); show(settingsOverlay); };
+$("settingsCloseBtn").onclick=()=>{ document.body.classList.remove("modalOpen"); hide(settingsOverlay); };
+let CURRENT_CATEGORIES=[];
+
+function renderDashboard(state){
+  CURRENT_CATEGORIES=state.categories||[];
+  $("periodLabel").textContent=
+    state.period ? state.period.start_ts.slice(0,10)+" → "+state.period.end_ts.slice(0,10) : "";
+
+  const body=$("catTableBody");
+  body.innerHTML="";
+  CURRENT_CATEGORIES.forEach(c=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=
+      `<td>${c.name}</td>
+       <td class="right">$${(c.spent_cents/100).toFixed(2)}</td>
+       <td class="right">$${(c.remaining_cents/100).toFixed(2)}</td>`;
+    body.appendChild(tr);
+  });
+
+  const sel=$("txCategory");
+  sel.innerHTML="";
+  CURRENT_CATEGORIES.forEach(c=>{
+    const o=document.createElement("option");
+    o.value=c.category_id; o.textContent=c.name;
+    sel.appendChild(o);
+  });
+}
+async function bootstrap(){
+  const token=await idbGet(IDB.key);
+  if(!token){ show($("authView")); return; }
+  show($("appView"));
+  // fetch state from API here → renderDashboard(...)
 }
 
-async function idbSet(key, value) {
-  const db = await openDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB.store, "readwrite");
-      const store = tx.objectStore(IDB.store);
-      const req = store.put(value, key);
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => reject(req.error);
-    });
-  } finally { db.close(); }
-}
-
-async function idbDel(key) {
-  const db = await openDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB.store, "readwrite");
-      const store = tx.objectStore(IDB.store);
-      const req = store.delete(key);
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => reject(req.error);
-    });
-  } finally { db.close(); }
-}
-
-const LS = {
-  userName: "purrfect_user_name",
-  deviceId: "purrfect_device_id",
-  catOrder: "purrfect_cat_order_v1"
+$("saveTokenBtn").onclick=async()=>{
+  await idbSet(IDB.key,$("tokenInput").value.trim());
+  hide($("authView")); show($("appView"));
 };
 
-function lsGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
-function lsSet(key, value) { try { localStorage.setItem(key, value); return true; } catch { return false; } }
-function lsDel(key) { try { localStorage.removeItem(key); return true; } catch { return false; } }
-
-function getOrCreateDeviceId() {
-  let v = lsGet(LS.deviceId);
-  if (v && v.length >= 8) return v;
-  v = (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + "_" + Math.random().toString(16).slice(2));
-  lsSet(LS.deviceId, v);
-  return v;
-}
-
-function getUserName() { return String(lsGet(LS.userName) || "").trim(); }
-function setUserName(v) { lsSet(LS.userName, String(v || "").trim().slice(0, 80)); }
-
-function getSavedCategoryOrder() {
-  try {
-    const raw = lsGet(LS.catOrder);
-    if (!raw) return null;
-    const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) return null;
-    return arr.map(x => Number(x)).filter(n => Number.isFinite(n) && n > 0);
-  } catch { return null; }
-}
-
-function saveCategoryOrder(ids) {
-  const clean = (Array.isArray(ids) ? ids : []).map(x => Number(x)).filter(n => Number.isFinite(n) && n > 0);
-  lsSet(LS.catOrder, JSON.stringify(clean));
-}
-
-function clearCategoryOrder() { lsDel(LS.catOrder); }
-
-/* ================= DOM ================= */
-const $ = (id) => document.getElementById(id);
-
-const authView = $("authView");
-const userNameInput = $("userNameInput");
-const tokenInput = $("tokenInput");
-const saveTokenBtn = $("saveTokenBtn");
-const toggleTokenBtn = $("toggleTokenBtn");
-const authStatus = $("authStatus");
-
-const appView = $("appView");
-const appStatus = $("appStatus");
-const dashboardView = $("dashboardView");
-const noCategoriesView = $("noCategoriesView");
-const globalStatus = $("globalStatus");
-
-const periodLabelEl = $("periodLabel");
-const txType = $("txType");
-const txCategory = $("txCategory");
-const txAmount = $("txAmount");
-const txNote = $("txNote");
-const txSubmitBtn = $("txSubmitBtn");
-const refreshBtn = $("refreshBtn");
-const txStatus = $("txStatus");
-const catTableBody = $("catTableBody");
-
-const wizStep1 = $("wizStep1");
-const wizStep2 = $("wizStep2");
-const wizStep3 = $("wizStep3");
-const wizPeriodType = $("wizPeriodType");
-const wizStartDate = $("wizStartDate");
-const wizCatList = $("wizCatList");
-const wizReviewJson = $("wizReviewJson");
-
-const wizReviewSummary = $("wizReviewSummary");
-const wizReviewPeriod = $("wizReviewPeriod");
-const wizReviewStartDate = $("wizReviewStartDate");
-const wizReviewCategories = $("wizReviewCategories");
-const wizReviewTotal = $("wizReviewTotal");
-
-const wizNext1 = $("wizNext1");
-const wizBack2 = $("wizBack2");
-const wizNext2 = $("wizNext2");
-const wizAddCat = $("wizAddCat");
-const wizBack3 = $("wizBack3");
-const wizSubmit = $("wizSubmit");
-
-const wizStatus1 = $("wizStatus1");
-const wizStatus2 = $("wizStatus2");
-const wizStatus3 = $("wizStatus3");
-
-/* Settings DOM */
-const settingsFab = $("settingsFab");
-const settingsOverlay = $("settingsOverlay");
-const settingsCloseBtn = $("settingsCloseBtn");
-
-const settingsCatList = $("settingsCatList");
-const settingsNewCatName = $("settingsNewCatName");
-const settingsNewCatBudget = $("settingsNewCatBudget");
-const settingsAddCatBtn = $("settingsAddCatBtn");
-const settingsApplyRemoveBtn = $("settingsApplyRemoveBtn");
-const settingsSaveOrderBtn = $("settingsSaveOrderBtn");
-const settingsCatStatus = $("settingsCatStatus");
-
-const settingsLogoutBtn = $("settingsLogoutBtn");
-const settingsStartOverBtn = $("settingsStartOverBtn");
-const settingsResetStatus = $("settingsResetStatus");
-
-/* ================= UI HELPERS ================= */
-function show(el) { if (el) el.classList.remove("hidden"); }
-function hide(el) { if (el) el.classList.add("hidden"); }
-
-function setStatus(el, msg, kind) {
-  if (!el) return;
-  el.textContent = msg || "";
-  el.classList.remove("error", "ok");
-  if (kind) el.classList.add(kind);
-}
-
-function setBusy(isBusy) {
-  const btns = [
-    saveTokenBtn, toggleTokenBtn,
-    wizNext1, wizBack2, wizNext2, wizAddCat, wizBack3, wizSubmit,
-    txSubmitBtn, refreshBtn,
-    settingsFab, settingsCloseBtn, settingsAddCatBtn, settingsApplyRemoveBtn, settingsSaveOrderBtn,
-    settingsLogoutBtn, settingsStartOverBtn
-  ].filter(Boolean);
-
-  for (const b of btns) b.disabled = !!isBusy;
-}
-
-function showAuth(message = "", isError = false) {
-  show(authView);
-  hide(appView);
-  hide(settingsFab);
-  hide(settingsOverlay);
-  document.body.classList.remove("modalOpen");
-  settingsOverlay?.setAttribute("aria-hidden", "true");
-  setStatus(authStatus, message, isError ? "error" : "");
-  setStatus(globalStatus, "");
-  if (userNameInput && !userNameInput.value) userNameInput.value = getUserName();
-  (userNameInput || tokenInput)?.focus();
-}
-
-function showApp(message = "") {
-  hide(authView);
-  show(appView);
-  show(settingsFab);
-  setStatus(appStatus, message);
-}
-
-/* ================= URL + FETCH ================= */
-function joinUrl(base, path) {
-  return base.replace(/\/+$/, "") + "/" + path.replace(/^\/+/, "");
-}
-
-function authHeaders(token) {
-  return {
-    "Authorization": `Bearer ${token}`,
-    "Content-Type": "application/json"
-  };
-}
-
-function fetchWithTimeout(url, options = {}) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), API.timeoutMs);
-  return fetch(url, { ...options, signal: controller.signal })
-    .finally(() => clearTimeout(id));
-}
-
-async function safeText(resp) {
-  try { return await resp.text(); } catch { return ""; }
-}
-
-async function validateToken(token) {
-  const url = joinUrl(API.baseUrl, API.validatePath);
-  const resp = await fetchWithTimeout(url, { method: "GET", headers: authHeaders(token) });
-  if (resp.ok) return true;
-  if (resp.status === 401 || resp.status === 403) return false;
-  const t = await safeText(resp);
-  throw new Error(`Token validate failed (${resp.status}): ${t || resp.statusText}`);
-}
-
-async function fetchState(token) {
-  const url = joinUrl(API.baseUrl, API.statePath);
-  const resp = await fetchWithTimeout(url, { method: "GET", headers: authHeaders(token) });
-
-  if (!resp.ok) {
-    if (resp.status === 401 || resp.status === 403) return { authFailed: true, state: null };
-    const t = await safeText(resp);
-    throw new Error(`State failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed: false, state: await resp.json().catch(() => ({})) };
-}
-
-async function postInit(token, payload) {
-  const url = joinUrl(API.baseUrl, API.initPath);
-  const resp = await fetchWithTimeout(url, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify(payload)
-  });
-
-  if (!resp.ok) {
-    if (resp.status === 401 || resp.status === 403) return { authFailed: true, result: null };
-    const t = await safeText(resp);
-    throw new Error(`Init failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed: false, result: await resp.json().catch(() => ({})) };
-}
-
-async function postTransaction(token, body) {
-  const url = joinUrl(API.baseUrl, API.txPath);
-  const resp = await fetchWithTimeout(url, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify(body)
-  });
-
-  if (!resp.ok) {
-    if (resp.status === 401 || resp.status === 403) return { authFailed: true, result: null };
-    const t = await safeText(resp);
-    throw new Error(`Transaction failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed: false, result: await resp.json().catch(() => ({})) };
-}
-
-async function postCategories(token, payload) {
-  const url = joinUrl(API.baseUrl, API.catsPath);
-  const resp = await fetchWithTimeout(url, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify(payload)
-  });
-
-  if (!resp.ok) {
-    if (resp.status === 401 || resp.status === 403) return { authFailed: true, result: null };
-    const t = await safeText(resp);
-    throw new Error(`Categories failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed: false, result: await resp.json().catch(() => ({})) };
-}
-
-async function postReset(token) {
-  const url = joinUrl(API.baseUrl, API.resetPath);
-  const resp = await fetchWithTimeout(url, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify({ confirm: "RESET" })
-  });
-
-  if (!resp.ok) {
-    if (resp.status === 401 || resp.status === 403) return { authFailed: true, result: null };
-    const t = await safeText(resp);
-    throw new Error(`Reset failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed: false, result: await resp.json().catch(() => ({})) };
-}
-/* ================= DATE HELPERS (UI MM-DD-YYYY) ================= */
-const pad2 = (n) => String(n).padStart(2, "0");
-
-function todayYMD() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
-}
-
-function ymdToMdy(ymd) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
-  if (!m) return "";
-  return `${m[2]}-${m[3]}-${m[1]}`;
-}
-
-function mdyToYmd(mdy) {
-  const s = String(mdy || "").trim();
-  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s);
-  if (!m) return null;
-
-  const mm = Number(m[1]), dd = Number(m[2]), yyyy = Number(m[3]);
-  if (yyyy < 1900 || yyyy > 2100) return null;
-  if (mm < 1 || mm > 12) return null;
-  if (dd < 1 || dd > 31) return null;
-
-  const dt = new Date(yyyy, mm - 1, dd);
-  if (dt.getFullYear() !== yyyy || dt.getMonth() !== (mm - 1) || dt.getDate() !== dd) return null;
-
-  return `${yyyy}-${pad2(mm)}-${pad2(dd)}`;
-}
-
-function periodUsesStartDate(periodType) {
-  return periodType === "weekly" || periodType === "biweekly" || periodType === "quarterly";
-}
-
-function disabledStartDateMessage(periodType) {
-  switch (periodType) {
-    case "daily": return "Not needed for Daily budgets";
-    case "monthly": return "Not needed for Monthly budgets";
-    case "semi_monthly": return "Not needed for Twice-a-Month budgets";
-    default: return "Not needed for this period type";
-  }
-}
-
-function updateStartDateAvailability() {
-  const pt = (wizPeriodType?.value || "").trim();
-  const uses = periodUsesStartDate(pt);
-
-  if (!wizStartDate) return;
-
-  if (uses) {
-    const prev = wizStartDate.dataset.prevValue;
-    wizStartDate.disabled = false;
-    wizStartDate.placeholder = "MM-DD-YYYY";
-    if (prev && wizStartDate.value.startsWith("Not needed")) wizStartDate.value = prev;
-    if (!wizStartDate.value || wizStartDate.value.startsWith("Not needed")) wizStartDate.value = ymdToMdy(todayYMD());
-  } else {
-    if (wizStartDate.value && !wizStartDate.value.startsWith("Not needed")) wizStartDate.dataset.prevValue = wizStartDate.value;
-    wizStartDate.disabled = true;
-    wizStartDate.value = disabledStartDateMessage(pt);
-  }
-}
-
-/* ================= Currency helpers ================= */
-function dollarsStringToCents(v) {
-  const s = String(v || "").trim().replace(/[^0-9.]/g, "");
-  if (!s) return null;
-  const n = Number(s);
-  if (!Number.isFinite(n)) return null;
-  return Math.round(n * 100);
-}
-
-function normalizeBudgetDisplay(s) {
-  const raw = String(s || "").trim().replace(/[^0-9.]/g, "");
-  if (!raw) return "";
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return "";
-  return "$" + n.toFixed(2);
-}
-
-function parseTxAmountToCents() {
-  const cents = dollarsStringToCents(txAmount.value);
-  if (cents === null) return null;
-  if (cents <= 0) return null;
-  return cents;
-}
-
-/* ================= WIZARD ================= */
-function showStep(stepIndex) {
-  [wizStep1, wizStep2, wizStep3].forEach((el, idx) => {
-    if (!el) return;
-    el.classList.toggle("hidden", idx !== stepIndex);
-  });
-}
-
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function addWizCategoryRow(name = "", dollars = "") {
-  const row = document.createElement("div");
-  row.className = "catRow";
-
-  const display = dollars ? normalizeBudgetDisplay(dollars) : "";
-
-  row.innerHTML = `
-    <input class="catName" type="text" placeholder="Category" value="${escapeHtml(name)}" />
-    <input class="catBudget"
-           type="text"
-           inputmode="decimal"
-           placeholder="$0.00"
-           value="${escapeHtml(display)}" />
-    <button class="secondary wizRemoveCat" type="button">Remove</button>
-  `;
-
-  const b = row.querySelector(".catBudget");
-  b.addEventListener("blur", () => { b.value = normalizeBudgetDisplay(b.value); });
-
-  row.querySelector(".wizRemoveCat").addEventListener("click", () => row.remove());
-  wizCatList.appendChild(row);
-}
-
-function readCategoriesFromUI() {
-  const rows = Array.from(wizCatList.querySelectorAll(".catRow"));
-  return rows.map((r, idx) => {
-    const name = r.querySelector(".catName")?.value?.trim() || "";
-    const budgetRaw = r.querySelector(".catBudget")?.value || "";
-    const budgetCents = dollarsStringToCents(budgetRaw);
-    const budgetDollars = (budgetCents === null) ? "" : (budgetCents / 100).toFixed(2);
-    return { name, budget_dollars: budgetDollars, sort_order: idx + 1 };
-  }).filter(c => c.name.length > 0);
-}
-
-function validateStep1() {
-  const pt = (wizPeriodType.value || "").trim();
-  const allowed = new Set(["daily", "weekly", "biweekly", "semi_monthly", "monthly", "quarterly"]);
-  if (!allowed.has(pt)) return "Invalid period type.";
-
-  if (periodUsesStartDate(pt)) {
-    const ymd = mdyToYmd(wizStartDate.value);
-    if (!ymd) return "Start Date must be MM-DD-YYYY.";
-  }
-  return null;
-}
-
-function validateStep2() {
-  const cats = readCategoriesFromUI();
-  if (cats.length < 1 || cats.length > 10) return "Please provide 1 to 10 categories.";
-
-  const seen = new Set();
-  for (const c of cats) {
-    if (!c.name) return "Category name cannot be blank.";
-    if (c.name.length > 64) return `Category name too long: ${c.name}`;
-    if (!c.budget_dollars || !String(c.budget_dollars).trim()) return `Please enter a budget for: ${c.name}`;
-
-    const k = c.name.toLowerCase();
-    if (seen.has(k)) return `Duplicate category name: ${c.name}`;
-    seen.add(k);
-  }
-  return null;
-}
-
-function effectiveStartDateYmd() {
-  const pt = (wizPeriodType.value || "").trim();
-  if (!periodUsesStartDate(pt)) return todayYMD();
-  return mdyToYmd(wizStartDate.value);
-}
-
-function buildInitPayload() {
-  return {
-    period_type: (wizPeriodType.value || "").trim(),
-    period_anchor_date: effectiveStartDateYmd(),
-    categories: readCategoriesFromUI().map(c => ({
-      name: c.name,
-      sort_order: c.sort_order,
-      budget_dollars: c.budget_dollars
-    }))
-  };
-}
-
-function periodLabel(pt) {
-  switch (pt) {
-    case "daily": return "Daily";
-    case "weekly": return "Weekly";
-    case "biweekly": return "Every Two Weeks";
-    case "semi_monthly": return "Twice a Month";
-    case "monthly": return "Monthly";
-    case "quarterly": return "Quarterly";
-    default: return pt || "—";
-  }
-}
-
-function fmtUsdFromDollarsString(d) {
-  const n = Number(d);
-  if (!Number.isFinite(n)) return "—";
-  return `$${n.toFixed(2)}`;
-}
-
-function renderReview() {
-  const payload = buildInitPayload();
-  if (wizReviewJson) wizReviewJson.textContent = JSON.stringify(payload, null, 2);
-
-  const pt = payload.period_type;
-  const uses = periodUsesStartDate(pt);
-
-  const catCount = payload.categories?.length || 0;
-  if (wizReviewSummary) {
-    wizReviewSummary.textContent = `You’re about to initialize your budget with ${catCount} ${catCount === 1 ? "category" : "categories"}.`;
-  }
-
-  if (wizReviewPeriod) wizReviewPeriod.textContent = `Period type: ${periodLabel(pt)}`;
-
-  if (wizReviewStartDate) {
-    if (uses) wizReviewStartDate.textContent = `Start date: ${ymdToMdy(payload.period_anchor_date)}`;
-    else wizReviewStartDate.textContent = `Start date: Not required for ${periodLabel(pt)} budgets`;
-    wizReviewStartDate.classList.remove("hidden");
-  }
-
-  let total = 0;
-  if (wizReviewCategories) {
-    wizReviewCategories.innerHTML = "";
-    for (const c of (payload.categories || [])) {
-      const amt = Number(c.budget_dollars);
-      if (Number.isFinite(amt)) total += amt;
-
-      const row = document.createElement("div");
-      row.className = "row";
-      row.style.marginTop = "8px";
-      row.style.justifyContent = "space-between";
-      row.style.flexWrap = "nowrap";
-
-      const left = document.createElement("div");
-      left.textContent = c.name || "—";
-      left.style.color = "var(--text)";
-      left.style.fontWeight = "650";
-
-      const right = document.createElement("div");
-      right.textContent = fmtUsdFromDollarsString(c.budget_dollars);
-      right.style.color = "var(--text)";
-      right.style.fontVariantNumeric = "tabular-nums";
-
-      row.appendChild(left);
-      row.appendChild(right);
-      wizReviewCategories.appendChild(row);
-    }
-  }
-
-  if (wizReviewTotal) wizReviewTotal.textContent = `Total starting budget: $${total.toFixed(2)}`;
-}
-
-function initWizardDefaults() {
-  if (!wizStartDate.value || wizStartDate.value === "MM-DD-YYYY") wizStartDate.value = ymdToMdy(todayYMD());
-
-  if (wizCatList.children.length === 0) {
-    addWizCategoryRow("Groceries", "300.00");
-    addWizCategoryRow("Gas", "120.00");
-  }
-
-  updateStartDateAvailability();
-  showStep(0);
-}
-
-/* ================= DASHBOARD STATE ================= */
-let CURRENT_STATE = null;
-let CURRENT_CATEGORIES = [];
-
-function fmtPeriodRange(period) {
-  if (!period || !period.start_ts || !period.end_ts) return "—";
-  const s = String(period.start_ts).slice(0,10);
-  const e = String(period.end_ts).slice(0,10);
-  return `${ymdToMdy(s)} → ${ymdToMdy(e)}`;
-}
-
-function normalizeCategoriesFromState(state) {
-  const arr = Array.isArray(state?.categories) ? state.categories : [];
-  return arr.map(r => ({
-    category_id: Number(r.category_id),
-    name: String(r.name || "").trim(),
-    budget_cents: Number(r.budget_cents) || 0,
-    rollover_cents: Number(r.rollover_cents) || 0,
-    spent_cents: Number(r.spent_cents) || 0,
-    remaining_cents: Number(r.remaining_cents) || 0
-  })).filter(c => c.name && Number.isFinite(c.category_id) && c.category_id > 0);
-}
-
-function applyLocalCategoryOrder(categories) {
-  const order = getSavedCategoryOrder();
-  if (!order || order.length === 0) return categories;
-
-  const byId = new Map(categories.map(c => [c.category_id, c]));
-  const out = [];
-  for (const id of order) {
-    if (byId.has(id)) out.push(byId.get(id));
-    byId.delete(id);
-  }
-  for (const c of categories) {
-    if (byId.has(c.category_id)) {
-      out.push(c);
-      byId.delete(c.category_id);
-    }
-  }
-  return out;
-}
-
-function renderDashboardFromState(state) {
-  CURRENT_STATE = state || {};
-  CURRENT_CATEGORIES = applyLocalCategoryOrder(normalizeCategoriesFromState(CURRENT_STATE));
-
-  if (periodLabelEl) periodLabelEl.textContent = fmtPeriodRange(CURRENT_STATE.period);
-
-  if (txCategory) {
-    txCategory.innerHTML = "";
-    for (const c of CURRENT_CATEGORIES) {
-      const opt = document.createElement("option");
-      opt.value = String(c.category_id);
-      opt.textContent = c.name;
-      txCategory.appendChild(opt);
-    }
-  }
-
-  if (catTableBody) {
-    catTableBody.innerHTML = "";
-    for (const c of CURRENT_CATEGORIES) {
-      const tr = document.createElement("tr");
-
-      const tdName = document.createElement("td");
-      tdName.textContent = c.name;
-
-      const tdSpent = document.createElement("td");
-      tdSpent.className = "right";
-      tdSpent.textContent = "$" + (c.spent_cents / 100).toFixed(2);
-
-      const tdRem = document.createElement("td");
-      tdRem.className = "right";
-      tdRem.textContent = "$" + (c.remaining_cents / 100).toFixed(2);
-
-      tr.appendChild(tdName);
-      tr.appendChild(tdSpent);
-      tr.appendChild(tdRem);
-      catTableBody.appendChild(tr);
-    }
-  }
-
-  renderSettingsCategories();
-}
-
-/* ================= SETTINGS UI ================= */
-let settingsLocalOrder = [];
-let settingsPendingRemove = new Set();
-
-function openSettings() {
-  settingsPendingRemove = new Set();
-  settingsLocalOrder = CURRENT_CATEGORIES.map(c => c.category_id);
-  setStatus(settingsCatStatus, "");
-  setStatus(settingsResetStatus, "");
-  if (settingsNewCatName) settingsNewCatName.value = "";
-  if (settingsNewCatBudget) settingsNewCatBudget.value = "";
-  renderSettingsCategories();
-
-  document.body.classList.add("modalOpen");     // prevents background scroll
-  show(settingsOverlay);
-  settingsOverlay.setAttribute("aria-hidden", "false");
-}
-
-function closeSettings() {
-  hide(settingsOverlay);
-  settingsOverlay.setAttribute("aria-hidden", "true");
-  document.body.classList.remove("modalOpen");
-}
-
-function renderSettingsCategories() {
-  if (!settingsCatList) return;
-  const byId = new Map(CURRENT_CATEGORIES.map(c => [c.category_id, c]));
-  const ordered = settingsLocalOrder.map(id => byId.get(id)).filter(Boolean);
-
-  settingsCatList.innerHTML = "";
-
-  if (ordered.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "status";
-    empty.textContent = "No categories available.";
-    settingsCatList.appendChild(empty);
-    return;
-  }
-
-  for (let i = 0; i < ordered.length; i++) {
-    const c = ordered[i];
-
-    const row = document.createElement("div");
-    row.className = "settingsCatRow";
-
-    const left = document.createElement("div");
-    left.className = "name";
-    left.textContent = c.name;
-
-    const meta = document.createElement("div");
-    meta.className = "meta";
-
-    const up = document.createElement("button");
-    up.type = "button";
-    up.className = "secondary";
-    up.textContent = "Up";
-    up.disabled = i === 0;
-    up.addEventListener("click", () => {
-      const tmp = settingsLocalOrder[i - 1];
-      settingsLocalOrder[i - 1] = settingsLocalOrder[i];
-      settingsLocalOrder[i] = tmp;
-      renderSettingsCategories();
-    });
-
-    const down = document.createElement("button");
-    down.type = "button";
-    down.className = "secondary";
-    down.textContent = "Down";
-    down.disabled = i === ordered.length - 1;
-    down.addEventListener("click", () => {
-      const tmp = settingsLocalOrder[i + 1];
-      settingsLocalOrder[i + 1] = settingsLocalOrder[i];
-      settingsLocalOrder[i] = tmp;
-      renderSettingsCategories();
-    });
-
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "secondary";
-    const isMarked = settingsPendingRemove.has(c.category_id);
-    remove.textContent = isMarked ? "Undo Remove" : "Remove";
-    remove.addEventListener("click", () => {
-      if (settingsPendingRemove.has(c.category_id)) settingsPendingRemove.delete(c.category_id);
-      else settingsPendingRemove.add(c.category_id);
-      renderSettingsCategories();
-    });
-
-    if (settingsPendingRemove.has(c.category_id)) {
-      left.style.opacity = "0.55";
-      left.style.textDecoration = "line-through";
-    } else {
-      left.style.opacity = "1";
-      left.style.textDecoration = "none";
-    }
-
-    meta.appendChild(up);
-    meta.appendChild(down);
-    meta.appendChild(remove);
-
-    row.appendChild(left);
-    row.appendChild(meta);
-    settingsCatList.appendChild(row);
-  }
-}
-
-/* ================= APP FLOW ================= */
-async function loadAppStateAndRender(token) {
-  showApp("Loading…");
-  hide(dashboardView);
-  hide(noCategoriesView);
-
-  const result = await fetchState(token);
-  if (result.authFailed) {
-    await idbDel(IDB.key);
-    return showAuth("Stored token is invalid/expired. Please re-enter.", true);
-  }
-
-  const state = result.state || {};
-
-  if (state.initialized === false) {
-    hide(dashboardView);
-    show(noCategoriesView);
-    setStatus(appStatus, "Budget not yet initialized.");
-    initWizardDefaults();
-    return;
-  }
-
-  hide(noCategoriesView);
-  show(dashboardView);
-  renderDashboardFromState(state);
-
-  setStatus(appStatus, "");
-}
-
-async function refreshAll(token) {
-  setStatus(txStatus, "Refreshing…");
-  try {
-    const st = await fetchState(token);
-    if (st.authFailed) {
-      await idbDel(IDB.key);
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-    renderDashboardFromState(st.state || {});
-    setStatus(txStatus, "Refreshed.", "ok");
-  } catch (e) {
-    setStatus(txStatus, e.message || String(e), "error");
-  }
-}
-
-window.addEventListener("unhandledrejection", (ev) => {
-  try {
-    const msg = ev?.reason?.message || String(ev?.reason || "Unknown error");
-    setStatus(globalStatus, `Error: ${msg}`, "error");
-    showAuth(`Startup error: ${msg}`, true);
-  } catch {}
-});
-
-async function bootstrap() {
-  setBusy(true);
-  setStatus(globalStatus, "Starting…");
-  hide(authView);
-  hide(appView);
-  hide(settingsFab);
-  hide(settingsOverlay);
-  document.body.classList.remove("modalOpen");
-  settingsOverlay?.setAttribute("aria-hidden", "true");
-
-  try {
-    if (userNameInput && !userNameInput.value) userNameInput.value = getUserName();
-    getOrCreateDeviceId();
-
-    const token = await idbGet(IDB.key);
-    if (!token) {
-      setBusy(false);
-      return showAuth("No token saved. Enter your name and bearer token to continue.");
-    }
-
-    setStatus(globalStatus, "Validating token…");
-    const ok = await validateToken(token);
-    if (!ok) {
-      await idbDel(IDB.key);
-      setBusy(false);
-      return showAuth("Saved token is invalid or expired. Please enter a new token.", true);
-    }
-
-    await loadAppStateAndRender(token);
-    setStatus(globalStatus, "");
-    setBusy(false);
-  } catch (e) {
-    setBusy(false);
-    showAuth(
-      `Startup error: ${e?.message || String(e)}. If you're in Private Browsing or have storage blocked, allow site storage and reload.`,
-      true
-    );
-  }
-}
-
-/* ================= EVENTS: AUTH ================= */
-saveTokenBtn.addEventListener("click", async () => {
-  const name = (userNameInput?.value || "").trim();
-  if (!name) return setStatus(authStatus, "Please enter your name.", "error");
-
-  const token = (tokenInput.value || "").trim();
-  if (!token) return setStatus(authStatus, "Please enter a token.", "error");
-
-  setBusy(true);
-  setStatus(authStatus, "Validating token…");
-  try {
-    const ok = await validateToken(token);
-    if (!ok) {
-      setBusy(false);
-      return setStatus(authStatus, "Token is invalid or expired.", "error");
-    }
-
-    setUserName(name);
-    await idbSet(IDB.key, token);
-
-    setStatus(authStatus, "Saved. Loading…", "ok");
-    await loadAppStateAndRender(token);
-    setBusy(false);
-  } catch (e) {
-    setBusy(false);
-    setStatus(authStatus, `Unable to validate token: ${e.message}`, "error");
-  }
-});
-
-toggleTokenBtn.addEventListener("click", () => {
-  const isPw = tokenInput.type === "password";
-  tokenInput.type = isPw ? "text" : "password";
-  toggleTokenBtn.textContent = isPw ? "Hide" : "Show";
-  tokenInput.focus();
-});
-
-/* ================= EVENTS: DASHBOARD ================= */
-txAmount.addEventListener("blur", () => { txAmount.value = normalizeBudgetDisplay(txAmount.value); });
-
-refreshBtn.addEventListener("click", async () => {
-  const token = await idbGet(IDB.key);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-  setBusy(true);
-  await refreshAll(token);
-  setBusy(false);
-});
-
-txSubmitBtn.addEventListener("click", async () => {
-  const token = await idbGet(IDB.key);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-
-  const categoryId = Number(txCategory.value);
-  if (!Number.isFinite(categoryId) || categoryId <= 0) return setStatus(txStatus, "Please choose a category.", "error");
-
-  const cents = parseTxAmountToCents();
-  if (cents === null) return setStatus(txStatus, "Enter a valid amount greater than $0.00.", "error");
-
-  const type = String(txType.value || "expense");
-  const isRefund = type === "refund";
-
-  const note = String(txNote.value || "").trim().slice(0, 240) || undefined;
-
-  const created_by_label = getUserName() || undefined;
-  const device_id = getOrCreateDeviceId();
-  const client_ts = Date.now();
-  const client_tx_id = `${device_id}_${client_ts}_${Math.random().toString(16).slice(2)}`;
-
-  const body = {
-    created_by_label,
-    items: [
-      { category_id: categoryId, amount_cents: cents, is_refund: isRefund, note, device_id, client_ts, client_tx_id }
-    ]
-  };
-
-  setBusy(true);
-  setStatus(txStatus, "Saving…");
-  try {
-    const res = await postTransaction(token, body);
-    if (res.authFailed) {
-      await idbDel(IDB.key);
-      setBusy(false);
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-
-    renderDashboardFromState(res.result || {});
-    setStatus(txStatus, "Saved.", "ok");
-
-    txAmount.value = "";
-    txNote.value = "";
-
-    setBusy(false);
-  } catch (e) {
-    setBusy(false);
-    setStatus(txStatus, e.message || String(e), "error");
-  }
-});
-
-/* ================= EVENTS: WIZARD ================= */
-wizPeriodType.addEventListener("change", updateStartDateAvailability);
-
-wizNext1.addEventListener("click", () => {
-  const err = validateStep1();
-  if (err) return setStatus(wizStatus1, err, "error");
-  setStatus(wizStatus1, "", "");
-  showStep(1);
-});
-
-wizBack2.addEventListener("click", () => showStep(0));
-wizAddCat.addEventListener("click", () => addWizCategoryRow());
-
-wizNext2.addEventListener("click", () => {
-  const err = validateStep2();
-  if (err) return setStatus(wizStatus2, err, "error");
-  setStatus(wizStatus2, "", "");
-  renderReview();
-  showStep(2);
-});
-
-wizBack3.addEventListener("click", () => showStep(1));
-
-wizSubmit.addEventListener("click", async () => {
-  const err1 = validateStep1();
-  if (err1) { showStep(0); return setStatus(wizStatus1, err1, "error"); }
-
-  const err2 = validateStep2();
-  if (err2) { showStep(1); return setStatus(wizStatus2, err2, "error"); }
-
-  const token = await idbGet(IDB.key);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-
-  const payload = buildInitPayload();
-
-  setBusy(true);
-  setStatus(wizStatus3, "Initializing…");
-
-  try {
-    const res = await postInit(token, payload);
-    if (res.authFailed) {
-      await idbDel(IDB.key);
-      setBusy(false);
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-
-    setStatus(wizStatus3, "Initialized. Loading…", "ok");
-    await loadAppStateAndRender(token);
-    setBusy(false);
-  } catch (e) {
-    setBusy(false);
-    setStatus(wizStatus3, e.message, "error");
-  }
-});
-
-/* ================= EVENTS: SETTINGS ================= */
-settingsFab.addEventListener("click", () => openSettings());
-settingsCloseBtn.addEventListener("click", () => closeSettings());
-
-settingsOverlay.addEventListener("click", (e) => {
-  if (e.target === settingsOverlay) closeSettings();
-});
-
-settingsNewCatBudget.addEventListener("blur", () => {
-  settingsNewCatBudget.value = normalizeBudgetDisplay(settingsNewCatBudget.value);
-});
-
-settingsAddCatBtn.addEventListener("click", async () => {
-  const token = await idbGet(IDB.key);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-
-  const name = String(settingsNewCatName.value || "").trim();
-  if (!name) return setStatus(settingsCatStatus, "Enter a category name.", "error");
-  if (name.length > 64) return setStatus(settingsCatStatus, "Category name is too long (max 64).", "error");
-
-  const cents = dollarsStringToCents(settingsNewCatBudget.value);
-  const budget_dollars = (cents === null) ? undefined : (cents / 100).toFixed(2);
-
-  setBusy(true);
-  setStatus(settingsCatStatus, "Adding…");
-  try {
-    const payload = {
-      add: [{ name, ...(budget_dollars !== undefined ? { budget_dollars } : {}) }],
-      remove: []
-    };
-
-    const res = await postCategories(token, payload);
-    if (res.authFailed) {
-      await idbDel(IDB.key);
-      setBusy(false);
-      closeSettings();
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-
-    await loadAppStateAndRender(token);
-
-    const latest = normalizeCategoriesFromState(CURRENT_STATE);
-    const match = latest.find(x => x.name.toLowerCase() === name.toLowerCase());
-    if (match && !settingsLocalOrder.includes(match.category_id)) {
-      settingsLocalOrder.push(match.category_id);
-      saveCategoryOrder(settingsLocalOrder);
-    }
-
-    settingsNewCatName.value = "";
-    settingsNewCatBudget.value = "";
-    setStatus(settingsCatStatus, "Added.", "ok");
-    setBusy(false);
-  } catch (e) {
-    setBusy(false);
-    setStatus(settingsCatStatus, e.message || String(e), "error");
-  }
-});
-
-settingsApplyRemoveBtn.addEventListener("click", async () => {
-  const token = await idbGet(IDB.key);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-
-  const ids = Array.from(settingsPendingRemove);
-  if (ids.length === 0) return setStatus(settingsCatStatus, "No categories marked for removal.", "error");
-
-  setBusy(true);
-  setStatus(settingsCatStatus, "Removing…");
-  try {
-    const payload = { add: [], remove: ids.map(id => ({ category_id: id })) };
-
-    const res = await postCategories(token, payload);
-    if (res.authFailed) {
-      await idbDel(IDB.key);
-      setBusy(false);
-      closeSettings();
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-
-    settingsLocalOrder = settingsLocalOrder.filter(id => !settingsPendingRemove.has(id));
-    saveCategoryOrder(settingsLocalOrder);
-    settingsPendingRemove = new Set();
-
-    await loadAppStateAndRender(token);
-    setStatus(settingsCatStatus, "Removed.", "ok");
-    setBusy(false);
-  } catch (e) {
-    setBusy(false);
-    setStatus(settingsCatStatus, e.message || String(e), "error");
-  }
-});
-
-settingsSaveOrderBtn.addEventListener("click", () => {
-  saveCategoryOrder(settingsLocalOrder);
-  setStatus(settingsCatStatus, "Display order saved on this device.", "ok");
-});
-
-settingsLogoutBtn.addEventListener("click", async () => {
-  setBusy(true);
-  await idbDel(IDB.key);
-  setBusy(false);
-  closeSettings();
-  showAuth("Logged out. Enter your name and bearer token to continue.");
-});
-
-/* Changed: Start Over now uses confirm() and no text field */
-settingsStartOverBtn.addEventListener("click", async () => {
-  const token = await idbGet(IDB.key);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-
-  const ok = confirm("Start Over will permanently clear categories, budgets, and transaction history for everyone using this token. Continue?");
-  if (!ok) return;
-
-  setBusy(true);
-  setStatus(settingsResetStatus, "Resetting…");
-  try {
-    const res = await postReset(token);
-    if (res.authFailed) {
-      await idbDel(IDB.key);
-      setBusy(false);
-      closeSettings();
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-
-    clearCategoryOrder();
-    setStatus(settingsResetStatus, "Reset complete. Reloading…", "ok");
-    closeSettings();
-
-    await loadAppStateAndRender(token);
-    setBusy(false);
-  } catch (e) {
-    setBusy(false);
-    setStatus(settingsResetStatus, e.message || String(e), "error");
-  }
-});
-
-/* ================= START ================= */
 bootstrap();
 </script>
 </body>
