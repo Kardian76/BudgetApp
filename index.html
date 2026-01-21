@@ -48,6 +48,7 @@
       padding: 18px;
     }
 
+    /* No outer background card — cards below are top-level */
     .card{
       background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.045));
       border: 1px solid var(--cardBorder);
@@ -139,10 +140,12 @@
     .status{ margin-top: 12px; font-size: 13px; color: var(--muted2); }
     .error{ color: var(--danger); }
     .ok{ color: var(--success); }
-    .hidden{ display:none; }
-    .mono{ font-family: ui-monospace, Menlo, Consolas, monospace; }
 
-    /* Step 2 rows */
+    /* Recommended change: ensure hidden ALWAYS wins (fixes modal showing on load) */
+    .hidden{ display:none !important; }
+
+    .mono{ font-family: ui-monospace, Menlo, Consolas, monospace; }
+    /* ---------------- Step 2: phone-first one-line rows ---------------- */
     .catRow{
       display:flex;
       gap:10px;
@@ -176,11 +179,12 @@
         padding-right: 9px;
       }
     }
+
     @media (max-width: 360px){
       h1{ font-size: 17px; }
     }
 
-    /* Dashboard helpers */
+    /* Dashboard layout */
     .grid2{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -226,6 +230,7 @@
       padding: 12px 14px;
       box-shadow: 0 18px 46px rgba(0,0,0,0.38);
     }
+
     .modalOverlay{
       position: fixed;
       inset: 0;
@@ -237,6 +242,7 @@
       justify-content: center;
       padding: 14px;
     }
+
     .modal{
       width: 100%;
       max-width: 920px;
@@ -246,6 +252,7 @@
       box-shadow: 0 18px 46px rgba(0,0,0,0.48);
       padding: 14px;
     }
+
     .modalHeader{
       display:flex;
       align-items:center;
@@ -253,11 +260,13 @@
       gap: 10px;
     }
     .modalHeader h1{ margin: 0; }
+
     .modalSection{
       margin-top: 12px;
       padding-top: 12px;
       border-top: 1px solid rgba(255,255,255,0.10);
     }
+
     .settingsCatRow{
       display:flex;
       gap: 10px;
@@ -288,6 +297,9 @@
       border-radius: 999px;
       color: var(--muted);
       font-size: 12px;
+      display:inline-block;
+      margin-right: 8px;
+      margin-top: 8px;
     }
   </style>
 </head>
@@ -450,10 +462,10 @@
   <div id="globalStatus" class="status"></div>
 </div>
 
-<!-- Settings button (visible only when app is running) -->
+<!-- Settings button (bottom-right). Hidden until app view is active. -->
 <button id="settingsFab" class="fab secondary hidden" type="button">Settings</button>
 
-<!-- Settings modal -->
+<!-- Settings modal (MUST remain hidden until Settings is tapped) -->
 <div id="settingsOverlay" class="modalOverlay hidden" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="modalHeader">
@@ -662,7 +674,6 @@ const dashboardView = $("dashboardView");
 const noCategoriesView = $("noCategoriesView");
 const globalStatus = $("globalStatus");
 
-/* Dashboard DOM */
 const periodLabelEl = $("periodLabel");
 const txType = $("txType");
 const txCategory = $("txCategory");
@@ -673,11 +684,9 @@ const refreshBtn = $("refreshBtn");
 const txStatus = $("txStatus");
 const catTableBody = $("catTableBody");
 
-/* Wizard DOM */
 const wizStep1 = $("wizStep1");
 const wizStep2 = $("wizStep2");
 const wizStep3 = $("wizStep3");
-
 const wizPeriodType = $("wizPeriodType");
 const wizStartDate = $("wizStartDate");
 const wizCatList = $("wizCatList");
@@ -745,6 +754,8 @@ function showAuth(message = "", isError = false) {
   show(authView);
   hide(appView);
   hide(settingsFab);
+  hide(settingsOverlay);                 // defensive: ensure overlay not shown
+  settingsOverlay?.setAttribute("aria-hidden", "true");
   setStatus(authStatus, message, isError ? "error" : "");
   setStatus(globalStatus, "");
   if (userNameInput && !userNameInput.value) userNameInput.value = getUserName();
@@ -780,6 +791,7 @@ function fetchWithTimeout(url, options = {}) {
 async function safeText(resp) {
   try { return await resp.text(); } catch { return ""; }
 }
+
 /* ================= API ================= */
 async function validateToken(token) {
   const url = joinUrl(API.baseUrl, API.validatePath);
@@ -801,7 +813,6 @@ async function fetchState(token) {
   }
   return { authFailed: false, state: await resp.json().catch(() => ({})) };
 }
-
 async function postInit(token, payload) {
   const url = joinUrl(API.baseUrl, API.initPath);
   const resp = await fetchWithTimeout(url, {
@@ -866,7 +877,7 @@ async function postReset(token) {
   return { authFailed: false, result: await resp.json().catch(() => ({})) };
 }
 
-/* ================= DATE HELPERS ================= */
+/* ================= DATE HELPERS (UI MM-DD-YYYY) ================= */
 const pad2 = (n) => String(n).padStart(2, "0");
 
 function todayYMD() {
@@ -912,6 +923,7 @@ function disabledStartDateMessage(periodType) {
 function updateStartDateAvailability() {
   const pt = (wizPeriodType?.value || "").trim();
   const uses = periodUsesStartDate(pt);
+
   if (!wizStartDate) return;
 
   if (uses) {
@@ -950,6 +962,7 @@ function parseTxAmountToCents() {
   if (cents <= 0) return null;
   return cents;
 }
+
 /* ================= WIZARD ================= */
 function showStep(stepIndex) {
   [wizStep1, wizStep2, wizStep3].forEach((el, idx) => {
@@ -1005,6 +1018,7 @@ function validateStep1() {
   const pt = (wizPeriodType.value || "").trim();
   const allowed = new Set(["daily", "weekly", "biweekly", "semi_monthly", "monthly", "quarterly"]);
   if (!allowed.has(pt)) return "Invalid period type.";
+
   if (periodUsesStartDate(pt)) {
     const ymd = mdyToYmd(wizStartDate.value);
     if (!ymd) return "Start Date must be MM-DD-YYYY.";
@@ -1067,7 +1081,6 @@ function fmtUsdFromDollarsString(d) {
 
 function renderReview() {
   const payload = buildInitPayload();
-
   if (wizReviewJson) wizReviewJson.textContent = JSON.stringify(payload, null, 2);
 
   const pt = payload.period_type;
@@ -1077,6 +1090,7 @@ function renderReview() {
   if (wizReviewSummary) {
     wizReviewSummary.textContent = `You’re about to initialize your budget with ${catCount} ${catCount === 1 ? "category" : "categories"}.`;
   }
+
   if (wizReviewPeriod) wizReviewPeriod.textContent = `Period type: ${periodLabel(pt)}`;
 
   if (wizReviewStartDate) {
@@ -1119,10 +1133,12 @@ function renderReview() {
 
 function initWizardDefaults() {
   if (!wizStartDate.value || wizStartDate.value === "MM-DD-YYYY") wizStartDate.value = ymdToMdy(todayYMD());
+
   if (wizCatList.children.length === 0) {
     addWizCategoryRow("Groceries", "300.00");
     addWizCategoryRow("Gas", "120.00");
   }
+
   updateStartDateAvailability();
   showStep(0);
 }
@@ -1160,7 +1176,6 @@ function applyLocalCategoryOrder(categories) {
     if (byId.has(id)) out.push(byId.get(id));
     byId.delete(id);
   }
-  // Append any new categories not in saved order
   for (const c of categories) {
     if (byId.has(c.category_id)) {
       out.push(c);
@@ -1213,8 +1228,8 @@ function renderDashboardFromState(state) {
 }
 
 /* ================= SETTINGS UI ================= */
-let settingsLocalOrder = [];         // array of category_id in modal order
-let settingsPendingRemove = new Set(); // category_id to remove
+let settingsLocalOrder = [];
+let settingsPendingRemove = new Set();
 
 function openSettings() {
   settingsPendingRemove = new Set();
@@ -1237,9 +1252,7 @@ function closeSettings() {
 function renderSettingsCategories() {
   if (!settingsCatList) return;
   const byId = new Map(CURRENT_CATEGORIES.map(c => [c.category_id, c]));
-  const ordered = settingsLocalOrder
-    .map(id => byId.get(id))
-    .filter(Boolean);
+  const ordered = settingsLocalOrder.map(id => byId.get(id)).filter(Boolean);
 
   settingsCatList.innerHTML = "";
 
@@ -1341,8 +1354,9 @@ async function loadAppStateAndRender(token) {
 
   hide(noCategoriesView);
   show(dashboardView);
-
   renderDashboardFromState(state);
+
+  // Remove "Ready" status at top
   setStatus(appStatus, "");
 }
 
@@ -1375,14 +1389,14 @@ async function bootstrap() {
   hide(authView);
   hide(appView);
   hide(settingsFab);
-  closeSettings();
+  hide(settingsOverlay);                 // defensive: ensure overlay not shown
+  settingsOverlay?.setAttribute("aria-hidden", "true");
 
   try {
     if (userNameInput && !userNameInput.value) userNameInput.value = getUserName();
     getOrCreateDeviceId();
 
     const token = await idbGet(IDB.key);
-
     if (!token) {
       setBusy(false);
       return showAuth("No token saved. Enter your name and bearer token to continue.");
@@ -1567,16 +1581,15 @@ wizSubmit.addEventListener("click", async () => {
     setStatus(wizStatus3, e.message, "error");
   }
 });
+
 /* ================= EVENTS: SETTINGS ================= */
 settingsFab.addEventListener("click", () => openSettings());
 settingsCloseBtn.addEventListener("click", () => closeSettings());
 
-// click outside modal closes
 settingsOverlay.addEventListener("click", (e) => {
   if (e.target === settingsOverlay) closeSettings();
 });
 
-// Add category
 settingsNewCatBudget.addEventListener("blur", () => {
   settingsNewCatBudget.value = normalizeBudgetDisplay(settingsNewCatBudget.value);
 });
@@ -1611,10 +1624,9 @@ settingsAddCatBtn.addEventListener("click", async () => {
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
 
-    // After server change, refresh state and update UI.
     await loadAppStateAndRender(token);
 
-    // Add new category to local order at end (device display)
+    // Best-effort: add newly created category id to local order (match by name).
     const latest = normalizeCategoriesFromState(CURRENT_STATE);
     const match = latest.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (match && !settingsLocalOrder.includes(match.category_id)) {
@@ -1632,7 +1644,6 @@ settingsAddCatBtn.addEventListener("click", async () => {
   }
 });
 
-// Apply removals (server-side)
 settingsApplyRemoveBtn.addEventListener("click", async () => {
   const token = await idbGet(IDB.key);
   if (!token) return showAuth("Missing token. Please re-enter.", true);
@@ -1656,7 +1667,6 @@ settingsApplyRemoveBtn.addEventListener("click", async () => {
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
 
-    // Update local order to drop removed ids
     settingsLocalOrder = settingsLocalOrder.filter(id => !settingsPendingRemove.has(id));
     saveCategoryOrder(settingsLocalOrder);
     settingsPendingRemove = new Set();
@@ -1670,13 +1680,11 @@ settingsApplyRemoveBtn.addEventListener("click", async () => {
   }
 });
 
-// Save device display order
 settingsSaveOrderBtn.addEventListener("click", () => {
   saveCategoryOrder(settingsLocalOrder);
   setStatus(settingsCatStatus, "Display order saved on this device.", "ok");
 });
 
-// Logout (local only)
 settingsLogoutBtn.addEventListener("click", async () => {
   setBusy(true);
   await idbDel(IDB.key);
@@ -1685,7 +1693,6 @@ settingsLogoutBtn.addEventListener("click", async () => {
   showAuth("Logged out. Enter your name and bearer token to continue.");
 });
 
-// Start Over (server-side reset)
 settingsStartOverBtn.addEventListener("click", async () => {
   const token = await idbGet(IDB.key);
   if (!token) return showAuth("Missing token. Please re-enter.", true);
@@ -1704,15 +1711,11 @@ settingsStartOverBtn.addEventListener("click", async () => {
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
 
-    // Clear any device-only category order because ids will be recreated after init
     clearCategoryOrder();
-
     setStatus(settingsResetStatus, "Reset complete. Reloading…", "ok");
     closeSettings();
 
-    // Reload state -> should become uninitialized and show wizard
     await loadAppStateAndRender(token);
-
     setBusy(false);
   } catch (e) {
     setBusy(false);
