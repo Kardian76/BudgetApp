@@ -143,7 +143,7 @@
       width:100%;
       max-width:760px;
       max-height:calc(100vh - 36px);
-      overflow:auto; /* key: modal scroll */
+      overflow:auto;
       background:linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.045));
       border:1px solid var(--cardBorder);
       border-radius:16px;
@@ -158,6 +158,7 @@
       gap:12px;
     }
     .modalSection{ margin-top:14px; }
+
     .settingsCatRow{
       display:flex;
       gap:10px;
@@ -251,14 +252,13 @@
             <div id="txStatus" class="status"></div>
           </div>
 
-          <!-- Right side intentionally left open for future cards -->
           <div class="card subcard">
             <h1>Tips</h1>
             <p class="status" style="margin-top:0;">
               Use Refund to undo an expense. Refresh updates everyone’s shared budget state.
             </p>
             <div class="status">
-              You can manage categories via Settings.
+              Manage categories via Settings.
             </div>
           </div>
         </div>
@@ -267,7 +267,7 @@
       <div id="notInitView" class="card hidden">
         <h1>Not initialized</h1>
         <p class="status" style="margin-top:0;">
-          Your budget is not initialized yet. Use your existing initialization flow (wizard) or initialize via your API.
+          Your budget is not initialized yet. Initialize via your existing setup flow or your API.
         </p>
       </div>
     </div>
@@ -277,6 +277,7 @@
 
     <div id="globalStatus" class="status"></div>
   </div>
+
   <!-- ================= SETTINGS MODAL ================= -->
   <div id="settingsOverlay" class="modalOverlay hidden" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
@@ -314,12 +315,9 @@
             </div>
           </div>
 
-          <!-- Reorder panel (local order persisted) -->
+          <!-- Reorder panel -->
           <div id="settingsReorderPanel" class="card subcard hidden" style="margin-top:12px;">
             <h1 style="margin:0 0 10px;">Reorder categories</h1>
-            <p class="status" style="margin-top:0;">
-              This changes display order in this browser. Server-side reorder requires an API endpoint.
-            </p>
 
             <div id="settingsReorderList" style="margin-top:10px;"></div>
 
@@ -353,7 +351,7 @@ const API = {
   validatePath: "/api/auth/validate",
   statePath: "/api/budget/state",
   txPath: "/api/budget/transactions",
-  categoriesPath: "/api/budget/categories",
+  categoriesPath: "/api/budget/categories", // POST add/remove
   resetPath: "/api/budget/reset",
   timeoutMs: 12000
 };
@@ -445,17 +443,39 @@ function showApp(){
   hide(authView);
   show(appView);
 }
-/* ================= INDEXEDDB =================
-   Includes handling for "stored database is a higher version" by deleting and recreating. */
-const IDB = { name: "pwa-budget-app", version: 3, store: "kv" };
 
-function openDbOnce(){
+  /* ================= INDEXEDDB (ROBUST, NO MIGRATION) =================
+   Recovers from:
+   - "stored database is a higher version than the version requested"
+   - "object store was not found" (store name changed across versions)
+   Strategy: delete DB + recreate (you said no migration needed).
+*/
+const IDB = {
+  name: "pwa-budget-app",
+  version: 4,
+  store: "kv"
+};
+
+function deleteDb(){
+  return new Promise((resolve) => {
+    const del = indexedDB.deleteDatabase(IDB.name);
+    del.onsuccess = () => resolve(true);
+    del.onerror = () => resolve(false);
+    del.onblocked = () => resolve(false);
+  });
+}
+
+function openDbOnce(versionOverride){
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(IDB.name, IDB.version);
+    const req = indexedDB.open(IDB.name, versionOverride ?? IDB.version);
+
     req.onupgradeneeded = () => {
       const db = req.result;
-      if (!db.objectStoreNames.contains(IDB.store)) db.createObjectStore(IDB.store);
+      if (!db.objectStoreNames.contains(IDB.store)) {
+        db.createObjectStore(IDB.store);
+      }
     };
+
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
@@ -463,17 +483,17 @@ function openDbOnce(){
 
 async function openDb(){
   try {
-    return await openDbOnce();
+    const db = await openDbOnce();
+    if (!db.objectStoreNames.contains(IDB.store)) {
+      db.close();
+      await deleteDb();
+      return await openDbOnce();
+    }
+    return db;
   } catch (e) {
     const msg = String(e?.message || e || "");
-    // If user previously had a newer version, easiest recovery is delete + recreate.
     if (msg.includes("higher version")) {
-      await new Promise((res) => {
-        const del = indexedDB.deleteDatabase(IDB.name);
-        del.onsuccess = () => res();
-        del.onerror = () => res(); // best-effort
-        del.onblocked = () => res();
-      });
+      await deleteDb();
       return await openDbOnce();
     }
     throw e;
@@ -610,13 +630,15 @@ function fmtCents(c){
   const n = Number(c);
   if (!Number.isFinite(n)) return "—";
   return "$" + (n/100).toFixed(2);
-}
-/* ================= DASHBOARD STATE ================= */
+                       }
+
+  /* ================= DASHBOARD STATE ================= */
 let CURRENT_STATE = null;
 let CURRENT_CATEGORIES = [];
 let settingsLocalOrder = [];
 let settingsPendingRemove = new Set();
 
+/* Local display order persistence */
 function getSavedOrder(){
   try {
     const s = localStorage.getItem("pb_category_order");
@@ -650,15 +672,13 @@ function applyOrder(categories){
   const byId = new Map(categories.map(c => [c.category_id, c]));
   const ordered = [];
 
-  for (const id of saved) {
+  for (const id of saved){
     const c = byId.get(id);
     if (c) ordered.push(c);
   }
-  // Append anything new (not in saved list)
-  for (const c of categories) {
+  for (const c of categories){
     if (!saved.includes(c.category_id)) ordered.push(c);
   }
-  // Keep localOrder in sync
   settingsLocalOrder = ordered.map(c => c.category_id);
   return ordered;
 }
@@ -670,7 +690,6 @@ function renderDashboardFromState(state){
 
   if (periodLabelEl) periodLabelEl.textContent = fmtPeriodRange(CURRENT_STATE.period);
 
-  // Category dropdown
   if (txCategory){
     txCategory.innerHTML = "";
     for (const c of CURRENT_CATEGORIES){
@@ -681,7 +700,6 @@ function renderDashboardFromState(state){
     }
   }
 
-  // Summary table
   if (catTableBody){
     catTableBody.innerHTML = "";
     for (const c of CURRENT_CATEGORIES){
@@ -711,8 +729,7 @@ function renderDashboardFromState(state){
 function renderSettingsCategories(){
   if (!settingsCatList) return;
 
-  // Ensure we have local order based on current categories
-  if (!Array.isArray(settingsLocalOrder) || settingsLocalOrder.length === 0) {
+  if (!Array.isArray(settingsLocalOrder) || settingsLocalOrder.length === 0){
     settingsLocalOrder = CURRENT_CATEGORIES.map(c => c.category_id);
   }
 
@@ -721,7 +738,7 @@ function renderSettingsCategories(){
 
   settingsCatList.innerHTML = "";
 
-  if (ordered.length === 0) {
+  if (ordered.length === 0){
     const d = document.createElement("div");
     d.className = "status";
     d.textContent = "No categories available.";
@@ -766,7 +783,7 @@ function renderSettingsCategories(){
     settingsCatList.appendChild(row);
   }
 
-  if (settingsReorderPanel && !settingsReorderPanel.classList.contains("hidden")) {
+  if (settingsReorderPanel && !settingsReorderPanel.classList.contains("hidden")){
     renderReorderList();
   }
 }
@@ -818,6 +835,7 @@ function renderReorderList(){
 
     meta.appendChild(up);
     meta.appendChild(down);
+
     row.appendChild(left);
     row.appendChild(meta);
     settingsReorderList.appendChild(row);
@@ -846,7 +864,8 @@ function closeSettings(){
   hide(settingsOverlay);
   settingsOverlay.setAttribute("aria-hidden", "true");
 }
-/* ================= APP FLOW ================= */
+
+  /* ================= APP FLOW ================= */
 async function loadAppStateAndRender(token){
   showApp();
   hide(notInitView);
@@ -942,6 +961,7 @@ toggleTokenBtn.addEventListener("click", () => {
 refreshBtn.addEventListener("click", async () => {
   const token = await idbGet(KEY_TOKEN);
   if (!token) return showAuth("Missing token. Please re-enter.", true);
+
   setBusy(true);
   setStatus(txStatus, "Refreshing…");
   try {
@@ -1012,7 +1032,7 @@ txSubmitBtn.addEventListener("click", async () => {
 openSettingsBtn.addEventListener("click", openSettings);
 settingsCloseBtn.addEventListener("click", closeSettings);
 
-// Add Budget Categories button -> open add panel
+// Add Budget Categories
 settingsAddOpenBtn.addEventListener("click", () => {
   show(settingsAddPanel);
   hide(settingsReorderPanel);
@@ -1021,21 +1041,8 @@ settingsAddOpenBtn.addEventListener("click", () => {
 });
 settingsAddCloseBtn.addEventListener("click", () => hide(settingsAddPanel));
 
-// Reorder button -> open reorder panel
-settingsReorderBtn.addEventListener("click", () => {
-  show(settingsReorderPanel);
-  hide(settingsAddPanel);
-  setStatus(settingsCatStatus, "");
-  renderReorderList();
-});
-settingsReorderCloseBtn.addEventListener("click", () => hide(settingsReorderPanel));
-
-settingsSaveOrderBtn.addEventListener("click", () => {
-  saveOrder(settingsLocalOrder);
-  // Apply immediately to dashboard ordering
-  CURRENT_CATEGORIES = applyOrder(CURRENT_CATEGORIES);
-  renderDashboardFromState(CURRENT_STATE || {});
-  setStatus(settingsCatStatus, "Order saved.", "ok");
+settingsNewCatBudget?.addEventListener("blur", () => {
+  settingsNewCatBudget.value = normalizeMoneyDisplay(settingsNewCatBudget.value);
 });
 
 settingsAddCatBtn.addEventListener("click", async () => {
@@ -1046,7 +1053,7 @@ settingsAddCatBtn.addEventListener("click", async () => {
   if (!name) return setStatus(settingsCatStatus, "Please enter a category name.", "error");
 
   const budgetRaw = String(settingsNewCatBudget.value || "").trim();
-  const budget = budgetRaw ? normalizeMoneyDisplay(budgetRaw).replace("$","") : undefined;
+  const budget = budgetRaw ? budgetRaw.replace(/[^0-9.]/g, "") : undefined;
 
   setBusy(true);
   setStatus(settingsCatStatus, "Adding…");
@@ -1060,7 +1067,6 @@ settingsAddCatBtn.addEventListener("click", async () => {
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
 
-    // Update dashboard + settings from response state
     renderDashboardFromState(res.result || {});
     renderSettingsCategories();
 
@@ -1074,6 +1080,24 @@ settingsAddCatBtn.addEventListener("click", async () => {
   }
 });
 
+// Reorder Budget Categories
+settingsReorderBtn.addEventListener("click", () => {
+  show(settingsReorderPanel);
+  hide(settingsAddPanel);
+  setStatus(settingsCatStatus, "");
+  renderReorderList();
+});
+settingsReorderCloseBtn.addEventListener("click", () => hide(settingsReorderPanel));
+
+settingsSaveOrderBtn.addEventListener("click", () => {
+  saveOrder(settingsLocalOrder);
+  // re-render both dashboard + settings from current state
+  renderDashboardFromState(CURRENT_STATE || {});
+  renderSettingsCategories();
+  setStatus(settingsCatStatus, "Order saved.", "ok");
+});
+
+// Apply Removals
 settingsApplyRemoveBtn.addEventListener("click", async () => {
   const token = await idbGet(KEY_TOKEN);
   if (!token) return showAuth("Missing token. Please re-enter.", true);
@@ -1093,7 +1117,7 @@ settingsApplyRemoveBtn.addEventListener("click", async () => {
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
 
-    // Clean saved order too
+    // Update local order by removing deleted ids
     const saved = getSavedOrder().filter(id => !ids.includes(id));
     saveOrder(saved);
 
@@ -1109,6 +1133,7 @@ settingsApplyRemoveBtn.addEventListener("click", async () => {
   }
 });
 
+// Log Out
 settingsLogoutBtn.addEventListener("click", async () => {
   setBusy(true);
   await idbDel(KEY_TOKEN);
@@ -1117,6 +1142,7 @@ settingsLogoutBtn.addEventListener("click", async () => {
   showAuth("Logged out. Enter your name and bearer token to continue.");
 });
 
+// Start Over
 settingsStartOverBtn.addEventListener("click", async () => {
   const token = await idbGet(KEY_TOKEN);
   if (!token) return showAuth("Missing token. Please re-enter.", true);
@@ -1135,7 +1161,6 @@ settingsStartOverBtn.addEventListener("click", async () => {
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
 
-    // Clear local order
     saveOrder([]);
     settingsPendingRemove = new Set();
     setStatus(settingsResetStatus, "Reset complete. Reloading…", "ok");
