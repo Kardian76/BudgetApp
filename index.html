@@ -9,10 +9,9 @@
 <style>
 :root{
   --bg0:#070b12; --bg1:#0b1320;
-  --card:rgba(255,255,255,.06);
   --border:rgba(255,255,255,.10);
   --text:#e9eef7; --muted:rgba(233,238,247,.75);
-  --primary:#2d6cdf; --danger:#ffb4b4; --ok:#b6ffcf;
+  --danger:#ffb4b4; --ok:#b6ffcf;
   --radius:16px;
 }
 *{box-sizing:border-box}
@@ -50,7 +49,7 @@ button{
 button.secondary{background:rgba(255,255,255,.12)}
 button.danger{background:rgba(255,180,180,.18);color:#ffd7d7}
 button:disabled{opacity:.55}
-.status{font-size:13px;color:var(--muted);margin-top:8px}
+.status{font-size:13px;color:var(--muted);margin-top:8px;white-space:pre-wrap}
 .status.ok{color:var(--ok)} .status.error{color:var(--danger)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:900px){.grid2{grid-template-columns:1fr}}
@@ -59,21 +58,34 @@ th,td{padding:6px;border-bottom:1px solid var(--border)}
 th{text-align:left;font-size:13px;color:var(--muted)}
 td.right{text-align:right}
 .tableScroll{max-height:360px;overflow:auto}
+
 .fab{position:fixed;right:18px;bottom:18px;z-index:50}
+
 .modalOverlay{
   position:fixed;inset:0;background:rgba(0,0,0,.6);
   display:flex;align-items:flex-start;justify-content:center;
   padding:18px;z-index:100
 }
 .modal{
-  max-width:760px;width:100%;max-height:calc(100vh - 36px);
-  overflow:auto;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.045));
-  border:1px solid var(--border);border-radius:16px;padding:16px
+  max-width:780px;width:100%;
+  max-height:calc(100vh - 36px);
+  overflow:auto;
+  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.045));
+  border:1px solid var(--border);
+  border-radius:16px;padding:16px
 }
-.modalHeader{display:flex;justify-content:space-between;align-items:center}
+.modalHeader{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.divider{height:1px;background:rgba(255,255,255,.10);margin:12px 0}
+.small{font-size:12px;color:var(--muted)}
+.reorderItem{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:10px;padding:8px;border:1px solid rgba(255,255,255,.10);
+  border-radius:12px;margin-top:8px;background:rgba(0,0,0,.18)
+}
+.reorderBtns{display:flex;gap:8px;flex:0 0 auto}
+.reorderBtns button{padding:8px 10px}
 </style>
 </head>
-
 <body>
 <div class="wrap">
   <h1>Purrfect Budget</h1>
@@ -106,7 +118,6 @@ td.right{text-align:right}
         <option value="quarterly">Quarterly</option>
       </select>
 
-      <!-- Optional polish -->
       <p class="status" style="margin-top:6px;">
         Budgets reset automatically at the start of each period.
       </p>
@@ -114,7 +125,9 @@ td.right{text-align:right}
       <label>Start date (MM-DD-YYYY)</label>
       <input id="wizStartDate" placeholder="MM-DD-YYYY" inputmode="numeric" />
 
-      <button id="wizNext1" type="button">Next</button>
+      <div class="row">
+        <button id="wizNext1" type="button">Next</button>
+      </div>
       <div id="wizStatus1" class="status"></div>
     </div>
 
@@ -131,7 +144,9 @@ td.right{text-align:right}
     <div id="wizStep3" class="card hidden">
       <h1>Step 3 — Confirm</h1>
       <div id="wizReview" class="status"></div>
-      <button id="wizSubmit" type="button">Initialize Budget</button>
+      <div class="row">
+        <button id="wizSubmit" type="button">Initialize Budget</button>
+      </div>
       <div id="wizStatus3" class="status"></div>
     </div>
   </div>
@@ -143,6 +158,7 @@ td.right{text-align:right}
       <div class="card">
         <h1>Budget Summary</h1>
         <div class="status">Period: <strong id="periodLabel">—</strong></div>
+
         <div class="tableScroll">
           <table>
             <thead>
@@ -176,7 +192,9 @@ td.right{text-align:right}
           <label>Note</label>
           <input id="txNote" />
 
-          <button id="txSubmitBtn" type="button">Save</button>
+          <div class="row">
+            <button id="txSubmitBtn" type="button">Save</button>
+          </div>
           <div id="txStatus" class="status"></div>
         </div>
       </div>
@@ -187,7 +205,7 @@ td.right{text-align:right}
   <div id="globalStatus" class="status"></div>
 </div>
 
-<!-- SETTINGS MODAL (shell) -->
+<!-- SETTINGS MODAL -->
 <div id="settingsOverlay" class="modalOverlay hidden" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true">
     <div class="modalHeader">
@@ -195,22 +213,40 @@ td.right{text-align:right}
       <button id="settingsCloseBtn" class="secondary" type="button">Close</button>
     </div>
 
-    <div class="card subcard">
+    <div class="divider"></div>
+
+    <div class="card">
       <h1>Budget Categories</h1>
-      <div class="status" style="margin-top:0;">
-        Category management is available in your full Settings implementation.
+      <div class="row">
+        <button id="settingsOpenReorderBtn" class="secondary" type="button">Reorder Budget Categories</button>
+      </div>
+
+      <div id="settingsReorderPanel" class="subcard hidden">
+        <div class="status" style="margin-top:0;">
+          Move categories up/down. This affects how categories are shown in the app on this device.
+        </div>
+        <div id="settingsReorderList"></div>
+        <div class="row">
+          <button id="settingsSaveOrderBtn" type="button">Save Order</button>
+          <button id="settingsCancelOrderBtn" class="secondary" type="button">Cancel</button>
+        </div>
+        <div id="settingsReorderStatus" class="status"></div>
       </div>
     </div>
 
     <div class="card subcard">
       <h1>Account</h1>
-      <div class="status" style="margin-top:0;">
-        Log out and Start Over actions are available in your full Settings implementation.
+      <div class="row">
+        <button id="settingsLogoutBtn" class="secondary" type="button">Log Out</button>
+        <button id="settingsResetBtn" class="danger" type="button">Reset Budget</button>
       </div>
+      <div class="small" style="margin-top:8px;">
+        Reset clears categories, budgets, and all transaction history from the server.
+      </div>
+      <div id="settingsAccountStatus" class="status"></div>
     </div>
   </div>
 </div>
-
 <script>
 /* ================= CONFIG ================= */
 const API = {
@@ -219,7 +255,6 @@ const API = {
   state: "/api/budget/state",
   init: "/api/budget/init",
   tx: "/api/budget/transactions",
-  cats: "/api/budget/categories",
   reset: "/api/budget/reset",
   timeoutMs: 12000
 };
@@ -268,28 +303,51 @@ const openSettingsBtn = $("openSettingsBtn");
 const settingsOverlay = $("settingsOverlay");
 const settingsCloseBtn = $("settingsCloseBtn");
 
+const settingsOpenReorderBtn = $("settingsOpenReorderBtn");
+const settingsReorderPanel = $("settingsReorderPanel");
+const settingsReorderList = $("settingsReorderList");
+const settingsSaveOrderBtn = $("settingsSaveOrderBtn");
+const settingsCancelOrderBtn = $("settingsCancelOrderBtn");
+const settingsReorderStatus = $("settingsReorderStatus");
+
+const settingsLogoutBtn = $("settingsLogoutBtn");
+const settingsResetBtn = $("settingsResetBtn");
+const settingsAccountStatus = $("settingsAccountStatus");
+
 /* ================= UI HELPERS ================= */
 function show(el){ if (el) el.classList.remove("hidden"); }
 function hide(el){ if (el) el.classList.add("hidden"); }
+
 function setStatus(el, msg, kind){
   if (!el) return;
   el.textContent = msg || "";
   el.classList.remove("ok","error");
   if (kind) el.classList.add(kind);
 }
-function join(path){ return API.base.replace(/\/+$/,"") + "/" + path.replace(/^\/+/,""); }
-function authHeaders(token){ return { Authorization:`Bearer ${token}`, "Content-Type":"application/json" }; }
+
+function join(path){
+  return API.base.replace(/\/+$/,"") + "/" + path.replace(/^\/+/,"");
+}
+
+function authHeaders(token){
+  return { Authorization:`Bearer ${token}`, "Content-Type":"application/json" };
+}
+
 function fetchWithTimeout(url, options = {}){
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), API.timeoutMs);
   return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(id));
 }
-async function safeText(resp){ try { return await resp.text(); } catch { return ""; } }
 
-/* ================= INDEXEDDB (ROBUST, NO MIGRATION) ================= */
+async function safeText(resp){
+  try { return await resp.text(); } catch { return ""; }
+}
+
+/* ================= INDEXEDDB (ROBUST) ================= */
 const IDB = { name:"pwa-budget-app", version:4, store:"kv" };
 const KEY_TOKEN = "token";
 const KEY_NAME  = "name";
+const KEY_CAT_ORDER = "catOrder"; // array of category_id numbers in desired UI order
 
 function deleteDb(){
   return new Promise((resolve) => {
@@ -369,8 +427,7 @@ async function idbDel(key){
     });
   } finally { db.close(); }
 }
-
-/* ================= API ================= */
+  /* ================= API ================= */
 async function validateToken(token){
   const url = join(API.validate);
   const resp = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(token) });
@@ -413,17 +470,35 @@ async function postTransaction(token, payload){
   return { authFailed:false, result: await resp.json().catch(()=> ({})) };
 }
 
+async function postReset(token){
+  const url = join(API.reset);
+  const resp = await fetchWithTimeout(url, {
+    method:"POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ confirm:"RESET" })
+  });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Reset failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
 /* ================= DATE + MONEY ================= */
 const pad2 = (n) => String(n).padStart(2, "0");
+
 function todayYMD(){
   const d = new Date();
   return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
 }
+
 function ymdToMdy(ymd){
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd||""));
   if (!m) return "";
   return `${m[2]}-${m[3]}-${m[1]}`;
 }
+
 function mdyToYmd(mdy){
   const s = String(mdy||"").trim();
   const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s);
@@ -434,6 +509,7 @@ function mdyToYmd(mdy){
   if (dt.getFullYear() !== yyyy || dt.getMonth() !== (mm-1) || dt.getDate() !== dd) return null;
   return `${yyyy}-${pad2(mm)}-${pad2(dd)}`;
 }
+
 function normalizeMoneyDisplay(s){
   const raw = String(s||"").trim().replace(/[^0-9.]/g,"");
   if (!raw) return "";
@@ -441,6 +517,7 @@ function normalizeMoneyDisplay(s){
   if (!Number.isFinite(n)) return "";
   return "$" + n.toFixed(2);
 }
+
 function dollarsToCentsFromInput(s){
   const raw = String(s||"").trim().replace(/[^0-9.]/g,"");
   if (!raw) return null;
@@ -448,6 +525,7 @@ function dollarsToCentsFromInput(s){
   if (!Number.isFinite(n) || n <= 0) return null;
   return Math.round(n*100);
 }
+
 function fmtCents(c){
   const n = Number(c);
   if (!Number.isFinite(n)) return "—";
@@ -489,9 +567,9 @@ function initWizard(){
 function readWizardCategories(){
   const rows = Array.from(wizCatList.querySelectorAll(".row"));
   const cats = [];
-  for (let i = 0; i < rows.length; i++){
-    const name = (rows[i].querySelector(".wizCatName")?.value || "").trim();
-    const money = (rows[i].querySelector(".wizCatBudget")?.value || "").trim();
+  for (const r of rows){
+    const name = (r.querySelector(".wizCatName")?.value || "").trim();
+    const money = (r.querySelector(".wizCatBudget")?.value || "").trim();
     const dollars = money.replace(/[^0-9.]/g,"");
     if (!name) continue;
     cats.push({ name, sort_order: cats.length + 1, budget_dollars: dollars });
@@ -503,9 +581,6 @@ function validateWizardStep1(){
   const pt = String(wizPeriodType.value || "").trim();
   const allowed = new Set(["daily","weekly","biweekly","semi_monthly","monthly","quarterly"]);
   if (!allowed.has(pt)) return "Invalid period type.";
-
-  // For simplicity and consistency with your Worker, we require a valid MM-DD-YYYY always.
-  // (You can later relax this based on period type if desired.)
   const ymd = mdyToYmd(wizStartDate.value);
   if (!ymd) return "Start date must be MM-DD-YYYY.";
   return null;
@@ -527,7 +602,6 @@ function validateWizardStep2(){
 
 function renderWizardReview(){
   const pt = String(wizPeriodType.value || "").trim();
-  const ymd = mdyToYmd(wizStartDate.value) || "(invalid date)";
   const cats = readWizardCategories();
   let total = 0;
 
@@ -553,11 +627,11 @@ async function submitInit(){
   const token = await idbGet(KEY_TOKEN);
   if (!token) return showAuth("Missing token. Please re-enter.", true);
 
-  const period_type = String(wizPeriodType.value || "").trim();
-  const period_anchor_date = mdyToYmd(wizStartDate.value);
-  const categories = readWizardCategories();
-
-  const payload = { period_type, period_anchor_date, categories };
+  const payload = {
+    period_type: String(wizPeriodType.value || "").trim(),
+    period_anchor_date: mdyToYmd(wizStartDate.value),
+    categories: readWizardCategories()
+  };
 
   setStatus(wizStatus3, "Initializing…");
   try {
@@ -572,8 +646,7 @@ async function submitInit(){
     setStatus(wizStatus3, e?.message || String(e), "error");
   }
 }
-
-/* ================= AUTH/UI FLOW ================= */
+  /* ================= AUTH/UI FLOW ================= */
 function showAuth(message = "", isError = false){
   show(authView);
   hide(appView);
@@ -588,8 +661,42 @@ function showApp(){
   show(appView);
 }
 
+/* ================= CATEGORY ORDERING (UI ONLY) ================= */
+function normalizeCategories(state){
+  const cats = Array.isArray(state?.categories) ? state.categories : [];
+  return cats.map(c => ({
+    category_id: Number(c.category_id),
+    name: String(c.name || ""),
+    spent_cents: Number(c.spent_cents) || 0,
+    remaining_cents: Number(c.remaining_cents) || 0
+  })).filter(c => Number.isFinite(c.category_id) && c.category_id > 0 && c.name);
+}
+
+async function applyUiOrder(cats){
+  const saved = await idbGet(KEY_CAT_ORDER);
+  if (!Array.isArray(saved) || saved.length === 0) return cats;
+
+  const order = saved.map(Number).filter(n => Number.isFinite(n) && n > 0);
+  const byId = new Map(cats.map(c => [c.category_id, c]));
+
+  const out = [];
+  for (const id of order){
+    if (byId.has(id)) out.push(byId.get(id));
+  }
+  for (const c of cats){
+    if (!order.includes(c.category_id)) out.push(c);
+  }
+  return out;
+}
+
+async function ensureOrderDefaults(cats){
+  const saved = await idbGet(KEY_CAT_ORDER);
+  if (Array.isArray(saved) && saved.length) return;
+  await idbSet(KEY_CAT_ORDER, cats.map(c => c.category_id));
+}
+
 /* ================= DASHBOARD ================= */
-function renderDashboard(state){
+async function renderDashboard(state){
   const p = state?.period;
   if (p?.start_ts && p?.end_ts) {
     periodLabel.textContent = `${String(p.start_ts).slice(0,10)} → ${String(p.end_ts).slice(0,10)}`;
@@ -597,12 +704,16 @@ function renderDashboard(state){
     periodLabel.textContent = "—";
   }
 
-  const cats = Array.isArray(state?.categories) ? state.categories : [];
+  let cats = normalizeCategories(state);
+  await ensureOrderDefaults(cats);
+  cats = await applyUiOrder(cats);
+
   catTableBody.innerHTML = "";
   for (const c of cats){
     const tr = document.createElement("tr");
+
     const tdName = document.createElement("td");
-    tdName.textContent = String(c.name || "");
+    tdName.textContent = c.name;
 
     const tdSpent = document.createElement("td");
     tdSpent.className = "right";
@@ -618,17 +729,119 @@ function renderDashboard(state){
     catTableBody.appendChild(tr);
   }
 
-  // Category dropdown
   txCategory.innerHTML = "";
   for (const c of cats){
     const opt = document.createElement("option");
-    opt.value = String(c.category_id || "");
-    opt.textContent = String(c.name || "");
+    opt.value = String(c.category_id);
+    opt.textContent = c.name;
     txCategory.appendChild(opt);
   }
 }
 
-/* ================= BOOTSTRAP ================= */
+/* ================= SETTINGS MODAL ================= */
+function openSettings(){
+  settingsOverlay.classList.remove("hidden");
+  settingsOverlay.setAttribute("aria-hidden", "false");
+  setStatus(settingsAccountStatus, "");
+  setStatus(settingsReorderStatus, "");
+  hide(settingsReorderPanel);
+}
+
+function closeSettings(){
+  settingsOverlay.classList.add("hidden");
+  settingsOverlay.setAttribute("aria-hidden", "true");
+}
+
+async function buildReorderListFromCurrentState(){
+  // Rebuild list from what’s currently shown in the table (source is latest render order)
+  const rows = Array.from(catTableBody.querySelectorAll("tr"));
+  const names = rows.map(r => r.firstChild?.textContent || "").filter(Boolean);
+
+  // We need ids: derive from CURRENT_STATE
+  // We'll keep an in-memory snapshot each load.
+}
+
+let CURRENT_STATE = null;
+
+async function openReorderPanel(){
+  if (!CURRENT_STATE) return setStatus(settingsReorderStatus, "No budget loaded yet.", "error");
+
+  let cats = normalizeCategories(CURRENT_STATE);
+  await ensureOrderDefaults(cats);
+  cats = await applyUiOrder(cats);
+
+  settingsReorderList.innerHTML = "";
+  for (let i = 0; i < cats.length; i++){
+    const c = cats[i];
+    const item = document.createElement("div");
+    item.className = "reorderItem";
+    item.dataset.id = String(c.category_id);
+
+    const left = document.createElement("div");
+    left.textContent = c.name;
+
+    const btns = document.createElement("div");
+    btns.className = "reorderBtns";
+
+    const up = document.createElement("button");
+    up.type = "button";
+    up.className = "secondary";
+    up.textContent = "Up";
+    up.disabled = i === 0;
+    up.addEventListener("click", () => {
+      const prev = item.previousElementSibling;
+      if (prev) settingsReorderList.insertBefore(item, prev);
+      refreshReorderButtons();
+    });
+
+    const down = document.createElement("button");
+    down.type = "button";
+    down.className = "secondary";
+    down.textContent = "Down";
+    down.disabled = i === cats.length - 1;
+    down.addEventListener("click", () => {
+      const next = item.nextElementSibling;
+      if (next) settingsReorderList.insertBefore(next, item);
+      refreshReorderButtons();
+    });
+
+    btns.appendChild(up);
+    btns.appendChild(down);
+
+    item.appendChild(left);
+    item.appendChild(btns);
+    settingsReorderList.appendChild(item);
+  }
+
+  function refreshReorderButtons(){
+    const items = Array.from(settingsReorderList.children);
+    for (let idx = 0; idx < items.length; idx++){
+      const it = items[idx];
+      const [upBtn, downBtn] = it.querySelectorAll("button");
+      if (upBtn) upBtn.disabled = idx === 0;
+      if (downBtn) downBtn.disabled = idx === items.length - 1;
+    }
+  }
+
+  refreshReorderButtons();
+  show(settingsReorderPanel);
+  setStatus(settingsReorderStatus, "");
+}
+
+async function saveReorder(){
+  const ids = Array.from(settingsReorderList.children)
+    .map(el => Number(el.dataset.id))
+    .filter(n => Number.isFinite(n) && n > 0);
+
+  if (ids.length < 1) return setStatus(settingsReorderStatus, "No categories to save.", "error");
+
+  await idbSet(KEY_CAT_ORDER, ids);
+  setStatus(settingsReorderStatus, "Saved.", "ok");
+
+  // Re-render dashboard in the new order
+  await renderDashboard(CURRENT_STATE);
+}
+  /* ================= BOOTSTRAP ================= */
 async function loadAppStateAndRender(token){
   showApp();
   hide(dashboardView);
@@ -644,11 +857,14 @@ async function loadAppStateAndRender(token){
   if (state.initialized === false){
     show(noCategoriesView);
     initWizard();
+    CURRENT_STATE = null;
     return;
   }
 
+  CURRENT_STATE = state;
+
   show(dashboardView);
-  renderDashboard(state);
+  await renderDashboard(state);
 }
 
 async function bootstrap(){
@@ -679,7 +895,7 @@ async function bootstrap(){
   }
 }
 
-/* ================= EVENTS ================= */
+/* ================= EVENTS: AUTH ================= */
 saveTokenBtn.addEventListener("click", async () => {
   const token = (tokenInput.value || "").trim();
   const name = (userNameInput.value || "").trim();
@@ -708,6 +924,7 @@ toggleTokenBtn.addEventListener("click", () => {
   tokenInput.focus();
 });
 
+/* ================= EVENTS: WIZARD ================= */
 wizNext1.addEventListener("click", () => {
   const err = validateWizardStep1();
   if (err) return setStatus(wizStatus1, err, "error");
@@ -727,6 +944,7 @@ wizNext2.addEventListener("click", () => {
 
 wizSubmit.addEventListener("click", submitInit);
 
+/* ================= EVENTS: TRANSACTIONS ================= */
 txAmount.addEventListener("blur", () => { txAmount.value = normalizeMoneyDisplay(txAmount.value); });
 
 txSubmitBtn.addEventListener("click", async () => {
@@ -747,12 +965,7 @@ txSubmitBtn.addEventListener("click", async () => {
 
   const body = {
     created_by_label: name,
-    items: [{
-      category_id: categoryId,
-      amount_cents: cents,
-      is_refund: isRefund,
-      note
-    }]
+    items: [{ category_id: categoryId, amount_cents: cents, is_refund: isRefund, note }]
   };
 
   setStatus(txStatus, "Saving…");
@@ -762,7 +975,8 @@ txSubmitBtn.addEventListener("click", async () => {
       await idbDel(KEY_TOKEN);
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
-    renderDashboard(res.result || {});
+    CURRENT_STATE = res.result || {};
+    await renderDashboard(CURRENT_STATE);
     setStatus(txStatus, "Saved.", "ok");
     txAmount.value = "";
     txNote.value = "";
@@ -771,19 +985,62 @@ txSubmitBtn.addEventListener("click", async () => {
   }
 });
 
-/* Settings modal open/close (shell) */
-function openSettings(){
-  settingsOverlay.classList.remove("hidden");
-  settingsOverlay.setAttribute("aria-hidden", "false");
-}
-function closeSettings(){
-  settingsOverlay.classList.add("hidden");
-  settingsOverlay.setAttribute("aria-hidden", "true");
-}
+/* ================= EVENTS: SETTINGS ================= */
 openSettingsBtn.addEventListener("click", openSettings);
 settingsCloseBtn.addEventListener("click", closeSettings);
+
 settingsOverlay.addEventListener("click", (e) => {
   if (e.target === settingsOverlay) closeSettings();
+});
+
+settingsOpenReorderBtn.addEventListener("click", async () => {
+  await openReorderPanel();
+});
+
+settingsCancelOrderBtn.addEventListener("click", () => {
+  hide(settingsReorderPanel);
+  setStatus(settingsReorderStatus, "");
+});
+
+settingsSaveOrderBtn.addEventListener("click", async () => {
+  await saveReorder();
+});
+
+settingsLogoutBtn.addEventListener("click", async () => {
+  await idbDel(KEY_TOKEN);
+  await idbDel(KEY_NAME);
+  await idbDel(KEY_CAT_ORDER);
+  closeSettings();
+  showAuth("Logged out. Enter your name and bearer token to continue.");
+});
+
+settingsResetBtn.addEventListener("click", async () => {
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return showAuth("Missing token. Please re-enter.", true);
+
+  const ok = window.confirm("This will DELETE all categories, budgets, and transactions from the server. Continue?");
+  if (!ok) return;
+
+  setStatus(settingsAccountStatus, "Resetting…");
+  try {
+    const res = await postReset(token);
+    if (res.authFailed){
+      await idbDel(KEY_TOKEN);
+      closeSettings();
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+
+    // Clear local ordering (fresh start)
+    await idbDel(KEY_CAT_ORDER);
+
+    setStatus(settingsAccountStatus, "Reset complete.", "ok");
+    closeSettings();
+
+    // Immediately go to wizard
+    await loadAppStateAndRender(token);
+  } catch (e) {
+    setStatus(settingsAccountStatus, e?.message || String(e), "error");
+  }
 });
 
 /* Safety: surface unhandled rejections */
