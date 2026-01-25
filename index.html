@@ -65,240 +65,734 @@ td.right{text-align:right}
   display:flex;align-items:flex-start;justify-content:center;
   padding:18px;z-index:100
 }
-.modal{max-width:760px;width:100%;max-height:calc(100vh - 36px);
+.modal{
+  max-width:760px;width:100%;max-height:calc(100vh - 36px);
   overflow:auto;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.045));
-  border:1px solid var(--border);border-radius:16px;padding:16px}
+  border:1px solid var(--border);border-radius:16px;padding:16px
+}
 .modalHeader{display:flex;justify-content:space-between;align-items:center}
-.settingsRow{display:flex;justify-content:space-between;gap:10px;margin-top:10px}
 </style>
 </head>
+
 <body>
 <div class="wrap">
-<h1>Purrfect Budget</h1>
+  <h1>Purrfect Budget</h1>
 
-<!-- AUTH -->
-<div id="authView" class="card hidden">
-  <label>Your name</label>
-  <input id="userNameInput" placeholder="e.g. Alex" />
-  <label>Bearer token</label>
-  <input id="tokenInput" type="password" />
-  <div class="row">
-    <button id="saveTokenBtn">Continue</button>
-    <button id="toggleTokenBtn" class="secondary">Show</button>
-  </div>
-  <div id="authStatus" class="status"></div>
-</div>
-
-<!-- SETUP WIZARD -->
-<div id="noCategoriesView" class="hidden">
-  <div id="wizStep1" class="card">
-    <h1>Step 1 — Budget period</h1>
-    <label>Period type</label>
-    <select id="wizPeriodType">
-      <option value="biweekly">Every Two Weeks</option>
-      <option value="weekly">Weekly</option>
-      <option value="monthly">Monthly</option>
-    </select>
-    <label>Start date (MM-DD-YYYY)</label>
-    <input id="wizStartDate" placeholder="MM-DD-YYYY" />
-    <button id="wizNext1">Next</button>
-    <div id="wizStatus1" class="status"></div>
-  </div>
-
-  <div id="wizStep2" class="card hidden">
-    <h1>Step 2 — Categories</h1>
-    <div id="wizCatList"></div>
+  <!-- AUTH -->
+  <div id="authView" class="card hidden">
+    <label>Your name</label>
+    <input id="userNameInput" placeholder="e.g. Alex" autocomplete="off" />
+    <label>Bearer token</label>
+    <input id="tokenInput" type="password" autocomplete="off" />
     <div class="row">
-      <button id="wizAddCat" class="secondary">Add Category</button>
-      <button id="wizNext2">Next</button>
+      <button id="saveTokenBtn" type="button">Continue</button>
+      <button id="toggleTokenBtn" class="secondary" type="button">Show</button>
     </div>
-    <div id="wizStatus2" class="status"></div>
+    <div id="authStatus" class="status"></div>
   </div>
 
-  <div id="wizStep3" class="card hidden">
-    <h1>Step 3 — Confirm</h1>
-    <div id="wizReview"></div>
-    <button id="wizSubmit">Initialize Budget</button>
-    <div id="wizStatus3" class="status"></div>
+  <!-- SETUP WIZARD -->
+  <div id="noCategoriesView" class="hidden">
+    <div id="wizStep1" class="card">
+      <h1>Step 1 — Budget period</h1>
+
+      <label>Period type</label>
+      <select id="wizPeriodType">
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="biweekly" selected>Every Two Weeks</option>
+        <option value="semi_monthly">Twice a Month</option>
+        <option value="monthly">Monthly</option>
+        <option value="quarterly">Quarterly</option>
+      </select>
+
+      <!-- Optional polish -->
+      <p class="status" style="margin-top:6px;">
+        Budgets reset automatically at the start of each period.
+      </p>
+
+      <label>Start date (MM-DD-YYYY)</label>
+      <input id="wizStartDate" placeholder="MM-DD-YYYY" inputmode="numeric" />
+
+      <button id="wizNext1" type="button">Next</button>
+      <div id="wizStatus1" class="status"></div>
+    </div>
+
+    <div id="wizStep2" class="card hidden">
+      <h1>Step 2 — Categories</h1>
+      <div id="wizCatList"></div>
+      <div class="row">
+        <button id="wizAddCat" class="secondary" type="button">Add Category</button>
+        <button id="wizNext2" type="button">Next</button>
+      </div>
+      <div id="wizStatus2" class="status"></div>
+    </div>
+
+    <div id="wizStep3" class="card hidden">
+      <h1>Step 3 — Confirm</h1>
+      <div id="wizReview" class="status"></div>
+      <button id="wizSubmit" type="button">Initialize Budget</button>
+      <div id="wizStatus3" class="status"></div>
+    </div>
   </div>
+
+  <!-- APP -->
+  <div id="appView" class="hidden">
+    <div id="dashboardView" class="hidden">
+
+      <div class="card">
+        <h1>Budget Summary</h1>
+        <div class="status">Period: <strong id="periodLabel">—</strong></div>
+        <div class="tableScroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th class="right">Spent</th>
+                <th class="right">Remaining</th>
+              </tr>
+            </thead>
+            <tbody id="catTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card subcard">
+          <h1>Add Transaction</h1>
+
+          <label>Type</label>
+          <select id="txType">
+            <option value="expense">Expense</option>
+            <option value="refund">Refund</option>
+          </select>
+
+          <label>Category</label>
+          <select id="txCategory"></select>
+
+          <label>Amount</label>
+          <input id="txAmount" placeholder="$0.00" inputmode="decimal" />
+
+          <label>Note</label>
+          <input id="txNote" />
+
+          <button id="txSubmitBtn" type="button">Save</button>
+          <div id="txStatus" class="status"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button id="openSettingsBtn" class="fab" type="button">Settings</button>
+  <div id="globalStatus" class="status"></div>
 </div>
 
-<!-- APP -->
-<div id="appView" class="hidden">
-  <div id="dashboardView" class="hidden">
+<!-- SETTINGS MODAL (shell) -->
+<div id="settingsOverlay" class="modalOverlay hidden" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modalHeader">
+      <h1 style="margin:0;">Settings</h1>
+      <button id="settingsCloseBtn" class="secondary" type="button">Close</button>
+    </div>
 
-    <div class="card">
-      <h1>Budget Summary</h1>
-      <div class="status">Period: <strong id="periodLabel">—</strong></div>
-      <div class="tableScroll">
-        <table>
-          <thead>
-            <tr><th>Category</th><th class="right">Spent</th><th class="right">Remaining</th></tr>
-          </thead>
-          <tbody id="catTableBody"></tbody>
-        </table>
+    <div class="card subcard">
+      <h1>Budget Categories</h1>
+      <div class="status" style="margin-top:0;">
+        Category management is available in your full Settings implementation.
       </div>
     </div>
 
-    <div class="grid2">
-      <div class="card subcard">
-        <h1>Add Transaction</h1>
-        <label>Type</label>
-        <select id="txType"><option value="expense">Expense</option><option value="refund">Refund</option></select>
-        <label>Category</label>
-        <select id="txCategory"></select>
-        <label>Amount</label>
-        <input id="txAmount" placeholder="$0.00" />
-        <label>Note</label>
-        <input id="txNote" />
-        <button id="txSubmitBtn">Save</button>
-        <div id="txStatus" class="status"></div>
+    <div class="card subcard">
+      <h1>Account</h1>
+      <div class="status" style="margin-top:0;">
+        Log out and Start Over actions are available in your full Settings implementation.
       </div>
     </div>
   </div>
 </div>
 
-<button id="openSettingsBtn" class="fab">Settings</button>
-<div id="globalStatus" class="status"></div>
-</div>
-<div id="settingsOverlay" class="modalOverlay hidden">
-<div class="modal">
-  <div class="modalHeader">
-    <h1>Settings</h1>
-    <button id="settingsCloseBtn" class="secondary">Close</button>
-  </div>
-
-  <div class="card subcard">
-    <h1>Budget Categories</h1>
-    <div class="row">
-      <button id="settingsAddOpenBtn" class="secondary">Add Budget Categories</button>
-      <button id="settingsReorderBtn" class="secondary">Reorder Budget Categories</button>
-      <button id="settingsApplyRemoveBtn">Apply Removals</button>
-    </div>
-    <div id="settingsCatList"></div>
-    <div id="settingsCatStatus" class="status"></div>
-
-    <div id="settingsAddPanel" class="subcard hidden">
-      <label>Name</label>
-      <input id="settingsNewCatName" />
-      <label>Budget</label>
-      <input id="settingsNewCatBudget" placeholder="$0.00" />
-      <button id="settingsAddCatBtn">Add</button>
-    </div>
-
-    <div id="settingsReorderPanel" class="subcard hidden">
-      <div id="settingsReorderList"></div>
-      <button id="settingsSaveOrderBtn">Save Order</button>
-    </div>
-  </div>
-
-  <div class="card subcard">
-    <h1>Account</h1>
-    <button id="settingsLogoutBtn" class="secondary">Log Out</button>
-    <button id="settingsStartOverBtn" class="danger">Start Over</button>
-    <div id="settingsResetStatus" class="status"></div>
-  </div>
-</div>
-</div>
 <script>
-const API={
-  base:"https://purrfect-budget-api.kardian.workers.dev",
-  validate:"/api/auth/validate",
-  state:"/api/budget/state",
-  init:"/api/budget/init",
-  tx:"/api/budget/transactions",
-  cats:"/api/budget/categories",
-  reset:"/api/budget/reset"
+/* ================= CONFIG ================= */
+const API = {
+  base: "https://purrfect-budget-api.kardian.workers.dev",
+  validate: "/api/auth/validate",
+  state: "/api/budget/state",
+  init: "/api/budget/init",
+  tx: "/api/budget/transactions",
+  cats: "/api/budget/categories",
+  reset: "/api/budget/reset",
+  timeoutMs: 12000
 };
 
-const IDB={name:"pwa-budget-app",version:4,store:"kv"};
-const KEY_TOKEN="token",KEY_NAME="name";
+/* ================= DOM ================= */
+const $ = (id) => document.getElementById(id);
 
-function openDb(){
-  return new Promise((res)=>{
-    const r=indexedDB.open(IDB.name,IDB.version);
-    r.onupgradeneeded=()=>r.result.createObjectStore(IDB.store);
-    r.onsuccess=()=>res(r.result);
+const authView = $("authView");
+const userNameInput = $("userNameInput");
+const tokenInput = $("tokenInput");
+const saveTokenBtn = $("saveTokenBtn");
+const toggleTokenBtn = $("toggleTokenBtn");
+const authStatus = $("authStatus");
+
+const noCategoriesView = $("noCategoriesView");
+const wizStep1 = $("wizStep1");
+const wizStep2 = $("wizStep2");
+const wizStep3 = $("wizStep3");
+const wizPeriodType = $("wizPeriodType");
+const wizStartDate = $("wizStartDate");
+const wizCatList = $("wizCatList");
+const wizReview = $("wizReview");
+const wizNext1 = $("wizNext1");
+const wizAddCat = $("wizAddCat");
+const wizNext2 = $("wizNext2");
+const wizSubmit = $("wizSubmit");
+const wizStatus1 = $("wizStatus1");
+const wizStatus2 = $("wizStatus2");
+const wizStatus3 = $("wizStatus3");
+
+const appView = $("appView");
+const dashboardView = $("dashboardView");
+const periodLabel = $("periodLabel");
+const catTableBody = $("catTableBody");
+
+const txType = $("txType");
+const txCategory = $("txCategory");
+const txAmount = $("txAmount");
+const txNote = $("txNote");
+const txSubmitBtn = $("txSubmitBtn");
+const txStatus = $("txStatus");
+
+const globalStatus = $("globalStatus");
+
+const openSettingsBtn = $("openSettingsBtn");
+const settingsOverlay = $("settingsOverlay");
+const settingsCloseBtn = $("settingsCloseBtn");
+
+/* ================= UI HELPERS ================= */
+function show(el){ if (el) el.classList.remove("hidden"); }
+function hide(el){ if (el) el.classList.add("hidden"); }
+function setStatus(el, msg, kind){
+  if (!el) return;
+  el.textContent = msg || "";
+  el.classList.remove("ok","error");
+  if (kind) el.classList.add(kind);
+}
+function join(path){ return API.base.replace(/\/+$/,"") + "/" + path.replace(/^\/+/,""); }
+function authHeaders(token){ return { Authorization:`Bearer ${token}`, "Content-Type":"application/json" }; }
+function fetchWithTimeout(url, options = {}){
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), API.timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(id));
+}
+async function safeText(resp){ try { return await resp.text(); } catch { return ""; } }
+
+/* ================= INDEXEDDB (ROBUST, NO MIGRATION) ================= */
+const IDB = { name:"pwa-budget-app", version:4, store:"kv" };
+const KEY_TOKEN = "token";
+const KEY_NAME  = "name";
+
+function deleteDb(){
+  return new Promise((resolve) => {
+    const del = indexedDB.deleteDatabase(IDB.name);
+    del.onsuccess = () => resolve(true);
+    del.onerror = () => resolve(false);
+    del.onblocked = () => resolve(false);
   });
 }
-async function idbGet(k){const d=await openDb();return new Promise(r=>{const t=d.transaction(IDB.store);t.objectStore(IDB.store).get(k).onsuccess=e=>r(e.target.result)})}
-async function idbSet(k,v){const d=await openDb();d.transaction(IDB.store,"readwrite").objectStore(IDB.store).put(v,k)}
 
-const $=id=>document.getElementById(id);
-const join=(p)=>API.base+p;
-const hdr=t=>({Authorization:`Bearer ${t}`,"Content-Type":"application/json"});
-let CURRENT_STATE=null;
-
-function addWizRow(n="",b=""){
-  const d=document.createElement("div");
-  d.innerHTML=`<input placeholder="Category" value="${n}">
-               <input placeholder="$0.00" value="${b}">`;
-  $("wizCatList").appendChild(d);
+function openDbOnce(versionOverride){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB.name, versionOverride ?? IDB.version);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(IDB.store)) db.createObjectStore(IDB.store);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
 }
+
+async function openDb(){
+  try {
+    const db = await openDbOnce();
+    if (!db.objectStoreNames.contains(IDB.store)) {
+      db.close();
+      await deleteDb();
+      return await openDbOnce();
+    }
+    return db;
+  } catch (e) {
+    const msg = String(e?.message || e || "");
+    if (msg.includes("higher version")) {
+      await deleteDb();
+      return await openDbOnce();
+    }
+    throw e;
+  }
+}
+
+async function idbGet(key){
+  const db = await openDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB.store, "readonly");
+      const store = tx.objectStore(IDB.store);
+      const req = store.get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => reject(req.error);
+    });
+  } finally { db.close(); }
+}
+
+async function idbSet(key, value){
+  const db = await openDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB.store, "readwrite");
+      const store = tx.objectStore(IDB.store);
+      const req = store.put(value, key);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
+    });
+  } finally { db.close(); }
+}
+
+async function idbDel(key){
+  const db = await openDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB.store, "readwrite");
+      const store = tx.objectStore(IDB.store);
+      const req = store.delete(key);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
+    });
+  } finally { db.close(); }
+}
+
+/* ================= API ================= */
+async function validateToken(token){
+  const url = join(API.validate);
+  const resp = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(token) });
+  if (resp.ok) return true;
+  if (resp.status === 401 || resp.status === 403) return false;
+  const t = await safeText(resp);
+  throw new Error(`Token validate failed (${resp.status}): ${t || resp.statusText}`);
+}
+
+async function fetchState(token){
+  const url = join(API.state);
+  const resp = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(token) });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, state:null };
+    const t = await safeText(resp);
+    throw new Error(`State failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, state: await resp.json().catch(()=> ({})) };
+}
+
+async function postInit(token, payload){
+  const url = join(API.init);
+  const resp = await fetchWithTimeout(url, { method:"POST", headers: authHeaders(token), body: JSON.stringify(payload) });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Init failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function postTransaction(token, payload){
+  const url = join(API.tx);
+  const resp = await fetchWithTimeout(url, { method:"POST", headers: authHeaders(token), body: JSON.stringify(payload) });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Transaction failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+/* ================= DATE + MONEY ================= */
+const pad2 = (n) => String(n).padStart(2, "0");
+function todayYMD(){
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+}
+function ymdToMdy(ymd){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd||""));
+  if (!m) return "";
+  return `${m[2]}-${m[3]}-${m[1]}`;
+}
+function mdyToYmd(mdy){
+  const s = String(mdy||"").trim();
+  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s);
+  if (!m) return null;
+  const mm = Number(m[1]), dd = Number(m[2]), yyyy = Number(m[3]);
+  if (yyyy < 1900 || yyyy > 2100) return null;
+  const dt = new Date(yyyy, mm-1, dd);
+  if (dt.getFullYear() !== yyyy || dt.getMonth() !== (mm-1) || dt.getDate() !== dd) return null;
+  return `${yyyy}-${pad2(mm)}-${pad2(dd)}`;
+}
+function normalizeMoneyDisplay(s){
+  const raw = String(s||"").trim().replace(/[^0-9.]/g,"");
+  if (!raw) return "";
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return "";
+  return "$" + n.toFixed(2);
+}
+function dollarsToCentsFromInput(s){
+  const raw = String(s||"").trim().replace(/[^0-9.]/g,"");
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n*100);
+}
+function fmtCents(c){
+  const n = Number(c);
+  if (!Number.isFinite(n)) return "—";
+  return "$" + (n/100).toFixed(2);
+}
+
+/* ================= WIZARD ================= */
+function showWizardStep(n){
+  [wizStep1, wizStep2, wizStep3].forEach((el, idx) => el.classList.toggle("hidden", idx !== n));
+}
+
+function addWizRow(name = "", budget = ""){
+  const wrap = document.createElement("div");
+  wrap.className = "row";
+  wrap.style.marginTop = "10px";
+  wrap.innerHTML = `
+    <input class="wizCatName" placeholder="Category" value="${String(name).replaceAll('"','&quot;')}" />
+    <input class="wizCatBudget" placeholder="$0.00" value="${String(budget).replaceAll('"','&quot;')}" inputmode="decimal" />
+    <button type="button" class="secondary wizRemoveBtn">Remove</button>
+  `;
+  const b = wrap.querySelector(".wizCatBudget");
+  b.addEventListener("blur", () => { b.value = normalizeMoneyDisplay(b.value); });
+  wrap.querySelector(".wizRemoveBtn").addEventListener("click", () => wrap.remove());
+  wizCatList.appendChild(wrap);
+}
+
 function initWizard(){
-  $("wizCatList").innerHTML="";
-  addWizRow("Groceries","300");
-  addWizRow("Gas","120");
-  $("wizStep1").classList.remove("hidden");
-  $("wizStep2").classList.add("hidden");
-  $("wizStep3").classList.add("hidden");
+  wizCatList.innerHTML = "";
+  wizStartDate.value = ymdToMdy(todayYMD());
+  addWizRow("Groceries", "300.00");
+  addWizRow("Gas", "120.00");
+  setStatus(wizStatus1, "");
+  setStatus(wizStatus2, "");
+  setStatus(wizStatus3, "");
+  wizReview.textContent = "";
+  showWizardStep(0);
+}
+
+function readWizardCategories(){
+  const rows = Array.from(wizCatList.querySelectorAll(".row"));
+  const cats = [];
+  for (let i = 0; i < rows.length; i++){
+    const name = (rows[i].querySelector(".wizCatName")?.value || "").trim();
+    const money = (rows[i].querySelector(".wizCatBudget")?.value || "").trim();
+    const dollars = money.replace(/[^0-9.]/g,"");
+    if (!name) continue;
+    cats.push({ name, sort_order: cats.length + 1, budget_dollars: dollars });
+  }
+  return cats;
+}
+
+function validateWizardStep1(){
+  const pt = String(wizPeriodType.value || "").trim();
+  const allowed = new Set(["daily","weekly","biweekly","semi_monthly","monthly","quarterly"]);
+  if (!allowed.has(pt)) return "Invalid period type.";
+
+  // For simplicity and consistency with your Worker, we require a valid MM-DD-YYYY always.
+  // (You can later relax this based on period type if desired.)
+  const ymd = mdyToYmd(wizStartDate.value);
+  if (!ymd) return "Start date must be MM-DD-YYYY.";
+  return null;
+}
+
+function validateWizardStep2(){
+  const cats = readWizardCategories();
+  if (cats.length < 1 || cats.length > 10) return "Please provide 1 to 10 categories.";
+  const seen = new Set();
+  for (const c of cats){
+    if (!c.name) return "Category name cannot be blank.";
+    if (!c.budget_dollars) return `Please enter a budget for: ${c.name}`;
+    const k = c.name.toLowerCase();
+    if (seen.has(k)) return `Duplicate category name: ${c.name}`;
+    seen.add(k);
+  }
+  return null;
+}
+
+function renderWizardReview(){
+  const pt = String(wizPeriodType.value || "").trim();
+  const ymd = mdyToYmd(wizStartDate.value) || "(invalid date)";
+  const cats = readWizardCategories();
+  let total = 0;
+
+  const lines = [];
+  lines.push(`Period type: ${pt}`);
+  lines.push(`Start date: ${wizStartDate.value}`);
+  lines.push(`Categories (${cats.length}):`);
+  for (const c of cats){
+    const n = Number(c.budget_dollars);
+    if (Number.isFinite(n)) total += n;
+    lines.push(`• ${c.name}: $${Number(c.budget_dollars || 0).toFixed(2)}`);
+  }
+  lines.push(`Total starting budget: $${total.toFixed(2)}`);
+  wizReview.textContent = lines.join("\n");
 }
 
 async function submitInit(){
-  const cats=[...$("wizCatList").children].map((r,i)=>({
-    name:r.children[0].value,
-    sort_order:i+1,
-    budget_dollars:r.children[1].value.replace(/[^0-9.]/g,"")
-  }));
-  const body={
-    period_type:$("wizPeriodType").value,
-    period_anchor_date:new Date().toISOString().slice(0,10),
-    categories:cats
-  };
-  const t=await idbGet(KEY_TOKEN);
-  await fetch(join(API.init),{method:"POST",headers:hdr(t),body:JSON.stringify(body)});
-  bootstrap();
+  const err1 = validateWizardStep1();
+  if (err1){ showWizardStep(0); return setStatus(wizStatus1, err1, "error"); }
+  const err2 = validateWizardStep2();
+  if (err2){ showWizardStep(1); return setStatus(wizStatus2, err2, "error"); }
+
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return showAuth("Missing token. Please re-enter.", true);
+
+  const period_type = String(wizPeriodType.value || "").trim();
+  const period_anchor_date = mdyToYmd(wizStartDate.value);
+  const categories = readWizardCategories();
+
+  const payload = { period_type, period_anchor_date, categories };
+
+  setStatus(wizStatus3, "Initializing…");
+  try {
+    const res = await postInit(token, payload);
+    if (res.authFailed){
+      await idbDel(KEY_TOKEN);
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+    setStatus(wizStatus3, "Initialized. Loading…", "ok");
+    await bootstrap();
+  } catch (e) {
+    setStatus(wizStatus3, e?.message || String(e), "error");
+  }
 }
 
-function renderDashboard(state){
-  CURRENT_STATE=state;
-  $("periodLabel").textContent=state.period.start_ts.slice(0,10)+" → "+state.period.end_ts.slice(0,10);
-  $("catTableBody").innerHTML="";
-  state.categories.forEach(c=>{
-    $("catTableBody").innerHTML+=
-      `<tr><td>${c.name}</td>
-           <td class="right">$${(c.spent_cents/100).toFixed(2)}</td>
-           <td class="right">$${(c.remaining_cents/100).toFixed(2)}</td></tr>`;
-  });
+/* ================= AUTH/UI FLOW ================= */
+function showAuth(message = "", isError = false){
+  show(authView);
+  hide(appView);
+  hide(noCategoriesView);
+  setStatus(authStatus, message, isError ? "error" : "");
+  setStatus(globalStatus, "");
+  userNameInput?.focus();
 }
-async function bootstrap(){
-  const t=await idbGet(KEY_TOKEN);
-  if(!t){$("authView").classList.remove("hidden");return}
-  const ok=await fetch(join(API.validate),{headers:hdr(t)});
-  if(!ok.ok){$("authView").classList.remove("hidden");return}
-  const st=await fetch(join(API.state),{headers:hdr(t)}).then(r=>r.json());
-  $("authView").classList.add("hidden");
-  if(!st.initialized){
-    $("noCategoriesView").classList.remove("hidden");
+
+function showApp(){
+  hide(authView);
+  show(appView);
+}
+
+/* ================= DASHBOARD ================= */
+function renderDashboard(state){
+  const p = state?.period;
+  if (p?.start_ts && p?.end_ts) {
+    periodLabel.textContent = `${String(p.start_ts).slice(0,10)} → ${String(p.end_ts).slice(0,10)}`;
+  } else {
+    periodLabel.textContent = "—";
+  }
+
+  const cats = Array.isArray(state?.categories) ? state.categories : [];
+  catTableBody.innerHTML = "";
+  for (const c of cats){
+    const tr = document.createElement("tr");
+    const tdName = document.createElement("td");
+    tdName.textContent = String(c.name || "");
+
+    const tdSpent = document.createElement("td");
+    tdSpent.className = "right";
+    tdSpent.textContent = fmtCents(c.spent_cents);
+
+    const tdRem = document.createElement("td");
+    tdRem.className = "right";
+    tdRem.textContent = fmtCents(c.remaining_cents);
+
+    tr.appendChild(tdName);
+    tr.appendChild(tdSpent);
+    tr.appendChild(tdRem);
+    catTableBody.appendChild(tr);
+  }
+
+  // Category dropdown
+  txCategory.innerHTML = "";
+  for (const c of cats){
+    const opt = document.createElement("option");
+    opt.value = String(c.category_id || "");
+    opt.textContent = String(c.name || "");
+    txCategory.appendChild(opt);
+  }
+}
+
+/* ================= BOOTSTRAP ================= */
+async function loadAppStateAndRender(token){
+  showApp();
+  hide(dashboardView);
+  hide(noCategoriesView);
+
+  const result = await fetchState(token);
+  if (result.authFailed){
+    await idbDel(KEY_TOKEN);
+    return showAuth("Stored token is invalid/expired. Please re-enter.", true);
+  }
+
+  const state = result.state || {};
+  if (state.initialized === false){
+    show(noCategoriesView);
     initWizard();
     return;
   }
-  $("appView").classList.remove("hidden");
-  $("dashboardView").classList.remove("hidden");
-  renderDashboard(st);
+
+  show(dashboardView);
+  renderDashboard(state);
 }
 
-$("saveTokenBtn").onclick=async()=>{
-  await idbSet(KEY_NAME,$("userNameInput").value);
-  await idbSet(KEY_TOKEN,$("tokenInput").value);
-  bootstrap();
-};
-$("toggleTokenBtn").onclick=()=>{$("tokenInput").type=$("tokenInput").type==="password"?"text":"password"};
-$("wizAddCat").onclick=()=>addWizRow();
-$("wizNext1").onclick=()=>{$("wizStep1").classList.add("hidden");$("wizStep2").classList.remove("hidden")};
-$("wizNext2").onclick=()=>{$("wizStep2").classList.add("hidden");$("wizStep3").classList.remove("hidden")};
-$("wizSubmit").onclick=submitInit;
+async function bootstrap(){
+  setStatus(globalStatus, "Starting…");
 
+  const token = await idbGet(KEY_TOKEN);
+  const name = await idbGet(KEY_NAME);
+
+  if (!token){
+    userNameInput.value = name || "";
+    setStatus(globalStatus, "");
+    return showAuth("No token saved. Enter your name and bearer token to continue.");
+  }
+
+  try {
+    setStatus(globalStatus, "Validating token…");
+    const ok = await validateToken(token);
+    if (!ok){
+      await idbDel(KEY_TOKEN);
+      setStatus(globalStatus, "");
+      return showAuth("Saved token is invalid or expired. Please enter a new token.", true);
+    }
+    await loadAppStateAndRender(token);
+    setStatus(globalStatus, "");
+  } catch (e) {
+    setStatus(globalStatus, "");
+    showAuth(`Startup error: ${e?.message || String(e)}`, true);
+  }
+}
+
+/* ================= EVENTS ================= */
+saveTokenBtn.addEventListener("click", async () => {
+  const token = (tokenInput.value || "").trim();
+  const name = (userNameInput.value || "").trim();
+  if (!name) return setStatus(authStatus, "Please enter your name.", "error");
+  if (!token) return setStatus(authStatus, "Please enter a token.", "error");
+
+  setStatus(authStatus, "Validating token…");
+  try {
+    const ok = await validateToken(token);
+    if (!ok) return setStatus(authStatus, "Token is invalid or expired.", "error");
+
+    await idbSet(KEY_NAME, name);
+    await idbSet(KEY_TOKEN, token);
+
+    setStatus(authStatus, "Saved. Loading…", "ok");
+    await loadAppStateAndRender(token);
+  } catch (e) {
+    setStatus(authStatus, `Unable to validate token: ${e?.message || String(e)}`, "error");
+  }
+});
+
+toggleTokenBtn.addEventListener("click", () => {
+  const isPw = tokenInput.type === "password";
+  tokenInput.type = isPw ? "text" : "password";
+  toggleTokenBtn.textContent = isPw ? "Hide" : "Show";
+  tokenInput.focus();
+});
+
+wizNext1.addEventListener("click", () => {
+  const err = validateWizardStep1();
+  if (err) return setStatus(wizStatus1, err, "error");
+  setStatus(wizStatus1, "");
+  showWizardStep(1);
+});
+
+wizAddCat.addEventListener("click", () => addWizRow());
+
+wizNext2.addEventListener("click", () => {
+  const err = validateWizardStep2();
+  if (err) return setStatus(wizStatus2, err, "error");
+  setStatus(wizStatus2, "");
+  renderWizardReview();
+  showWizardStep(2);
+});
+
+wizSubmit.addEventListener("click", submitInit);
+
+txAmount.addEventListener("blur", () => { txAmount.value = normalizeMoneyDisplay(txAmount.value); });
+
+txSubmitBtn.addEventListener("click", async () => {
+  const token = await idbGet(KEY_TOKEN);
+  const name = await idbGet(KEY_NAME);
+
+  if (!token) return showAuth("Missing token. Please re-enter.", true);
+  if (!name) return showAuth("Missing name. Please re-enter.", true);
+
+  const categoryId = Number(txCategory.value);
+  if (!Number.isFinite(categoryId) || categoryId <= 0) return setStatus(txStatus, "Please choose a category.", "error");
+
+  const cents = dollarsToCentsFromInput(txAmount.value);
+  if (cents === null) return setStatus(txStatus, "Enter a valid amount greater than $0.00.", "error");
+
+  const isRefund = String(txType.value || "expense") === "refund";
+  const note = String(txNote.value || "").trim().slice(0, 240) || undefined;
+
+  const body = {
+    created_by_label: name,
+    items: [{
+      category_id: categoryId,
+      amount_cents: cents,
+      is_refund: isRefund,
+      note
+    }]
+  };
+
+  setStatus(txStatus, "Saving…");
+  try {
+    const res = await postTransaction(token, body);
+    if (res.authFailed){
+      await idbDel(KEY_TOKEN);
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+    renderDashboard(res.result || {});
+    setStatus(txStatus, "Saved.", "ok");
+    txAmount.value = "";
+    txNote.value = "";
+  } catch (e) {
+    setStatus(txStatus, e?.message || String(e), "error");
+  }
+});
+
+/* Settings modal open/close (shell) */
+function openSettings(){
+  settingsOverlay.classList.remove("hidden");
+  settingsOverlay.setAttribute("aria-hidden", "false");
+}
+function closeSettings(){
+  settingsOverlay.classList.add("hidden");
+  settingsOverlay.setAttribute("aria-hidden", "true");
+}
+openSettingsBtn.addEventListener("click", openSettings);
+settingsCloseBtn.addEventListener("click", closeSettings);
+settingsOverlay.addEventListener("click", (e) => {
+  if (e.target === settingsOverlay) closeSettings();
+});
+
+/* Safety: surface unhandled rejections */
+window.addEventListener("unhandledrejection", (ev) => {
+  const msg = ev?.reason?.message || String(ev?.reason || "Unknown error");
+  setStatus(globalStatus, `Error: ${msg}`, "error");
+});
+
+/* ================= START ================= */
 bootstrap();
 </script>
 </body>
