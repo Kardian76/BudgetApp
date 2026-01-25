@@ -61,18 +61,27 @@ td.right{text-align:right}
 
 .fab{position:fixed;right:18px;bottom:18px;z-index:50}
 
+/* Overlay + modal */
 .modalOverlay{
-  position:fixed;inset:0;background:rgba(0,0,0,.6);
+  position:fixed;inset:0;
+  /* Slightly darker overlay so the modal reads cleanly */
+  background:rgba(0,0,0,.74);
   display:flex;align-items:flex-start;justify-content:center;
-  padding:18px;z-index:100
+  padding:18px;z-index:100;
 }
 .modal{
   max-width:780px;width:100%;
   max-height:calc(100vh - 36px);
   overflow:auto;
-  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.045));
-  border:1px solid var(--border);
-  border-radius:16px;padding:16px
+  -webkit-overflow-scrolling: touch;
+
+  /* OPAQUE panel background so main UI does not show through */
+  background: #0b1320; /* matches theme-color / bg1 */
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:16px;
+  padding:16px;
+
+  box-shadow: 0 18px 46px rgba(0,0,0,.45);
 }
 .modalHeader{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .divider{height:1px;background:rgba(255,255,255,.10);margin:12px 0}
@@ -427,7 +436,8 @@ async function idbDel(key){
     });
   } finally { db.close(); }
 }
-  /* ================= API ================= */
+
+/* ================= API ================= */
 async function validateToken(token){
   const url = join(API.validate);
   const resp = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(token) });
@@ -646,7 +656,8 @@ async function submitInit(){
     setStatus(wizStatus3, e?.message || String(e), "error");
   }
 }
-  /* ================= AUTH/UI FLOW ================= */
+
+/* ================= AUTH/UI FLOW ================= */
 function showAuth(message = "", isError = false){
   show(authView);
   hide(appView);
@@ -752,15 +763,6 @@ function closeSettings(){
   settingsOverlay.setAttribute("aria-hidden", "true");
 }
 
-async function buildReorderListFromCurrentState(){
-  // Rebuild list from what’s currently shown in the table (source is latest render order)
-  const rows = Array.from(catTableBody.querySelectorAll("tr"));
-  const names = rows.map(r => r.firstChild?.textContent || "").filter(Boolean);
-
-  // We need ids: derive from CURRENT_STATE
-  // We'll keep an in-memory snapshot each load.
-}
-
 let CURRENT_STATE = null;
 
 async function openReorderPanel(){
@@ -838,10 +840,10 @@ async function saveReorder(){
   await idbSet(KEY_CAT_ORDER, ids);
   setStatus(settingsReorderStatus, "Saved.", "ok");
 
-  // Re-render dashboard in the new order
   await renderDashboard(CURRENT_STATE);
 }
-  /* ================= BOOTSTRAP ================= */
+
+/* ================= BOOTSTRAP ================= */
 async function loadAppStateAndRender(token){
   showApp();
   hide(dashboardView);
@@ -1030,13 +1032,11 @@ settingsResetBtn.addEventListener("click", async () => {
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
 
-    // Clear local ordering (fresh start)
     await idbDel(KEY_CAT_ORDER);
 
     setStatus(settingsAccountStatus, "Reset complete.", "ok");
     closeSettings();
 
-    // Immediately go to wizard
     await loadAppStateAndRender(token);
   } catch (e) {
     setStatus(settingsAccountStatus, e?.message || String(e), "error");
