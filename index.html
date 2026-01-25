@@ -1,1186 +1,304 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#0b1320" />
-  <title>Purrfect Budget</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="theme-color" content="#0b1320" />
+<title>Purrfect Budget</title>
 
-  <style>
-    :root{
-      --bg0:#070b12;
-      --bg1:#0b1320;
-      --card:rgba(255,255,255,0.06);
-      --cardBorder:rgba(255,255,255,0.10);
-      --text:#e9eef7;
-      --muted:rgba(233,238,247,0.82);
-      --muted2:rgba(233,238,247,0.68);
-      --fieldBg:rgba(10,14,22,0.72);
-      --fieldBorder:rgba(255,255,255,0.12);
-      --fieldBorderHover:rgba(255,255,255,0.18);
-      --fieldBorderFocus:rgba(130,190,255,0.65);
-      --primary:#2d6cdf;
-      --primary2:#1f57c8;
-      --danger:#ffb4b4;
-      --success:#b6ffcf;
-      --shadow:0 18px 46px rgba(0,0,0,0.38);
-      --shadow2:0 10px 24px rgba(0,0,0,0.28);
-      --radius:16px;
-      --radiusField:12px;
-      --ring:0 0 0 4px rgba(45,108,223,0.16);
-    }
-
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
-    body{
-      margin:0;
-      color:var(--text);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      background:
-        radial-gradient(900px 480px at 10% 0%, rgba(45,108,223,0.22), transparent 60%),
-        radial-gradient(720px 360px at 90% 10%, rgba(182,255,207,0.10), transparent 60%),
-        linear-gradient(180deg, var(--bg0), var(--bg1));
-    }
-
-    .wrap{ max-width:1100px; margin:0 auto; padding:18px; }
-    h1{ font-size:18px; margin:0 0 10px; letter-spacing:0.2px; }
-    p{ margin:10px 0; line-height:1.35; color:var(--muted); }
-
-    .card{
-      background:linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.045));
-      border:1px solid var(--cardBorder);
-      border-radius:var(--radius);
-      padding:18px;
-      box-shadow:var(--shadow);
-      backdrop-filter:blur(8px);
-    }
-    .subcard{ margin-top:14px; box-shadow:var(--shadow2); }
-
-    label{ display:block; margin:12px 0 6px; font-size:13px; color:var(--muted); }
-
-    input[type="text"], input[type="password"], select{
-      width:100%;
-      padding:11px 12px;
-      border-radius:var(--radiusField);
-      border:1px solid var(--fieldBorder);
-      background:var(--fieldBg);
-      color:var(--text);
-      outline:none;
-      transition:border-color .16s ease, box-shadow .16s ease;
-    }
-    input[type="text"]:hover, input[type="password"]:hover, select:hover{ border-color:var(--fieldBorderHover); }
-    input[type="text"]:focus, input[type="password"]:focus, select:focus{
-      border-color:var(--fieldBorderFocus);
-      box-shadow:var(--ring);
-    }
-    input:disabled{ opacity:.82; cursor:not-allowed; }
-
-    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px; }
-
-    button{
-      appearance:none;
-      border:0;
-      border-radius:12px;
-      padding:11px 14px;
-      cursor:pointer;
-      color:#fff;
-      font-weight:650;
-      background:linear-gradient(180deg, var(--primary), var(--primary2));
-      box-shadow:0 10px 18px rgba(45,108,223,0.22);
-      transition:transform .06s ease, filter .16s ease, opacity .16s ease;
-    }
-    button:hover{ filter:brightness(1.05); }
-    button:active{ transform:translateY(1px); }
-    button.secondary{
-      background:rgba(255,255,255,0.10);
-      color:var(--text);
-      box-shadow:none;
-      border:1px solid rgba(255,255,255,0.12);
-    }
-    button.danger{
-      background:rgba(255,180,180,0.18);
-      color:#ffd7d7;
-      border:1px solid rgba(255,180,180,0.22);
-      box-shadow:none;
-    }
-    button:disabled{ opacity:.55; cursor:not-allowed; }
-
-    .status{ margin-top:12px; font-size:13px; color:var(--muted2); }
-    .error{ color:var(--danger); }
-    .ok{ color:var(--success); }
-    .hidden{ display:none !important; }
-
-    .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; }
-    @media (max-width: 860px){ .grid2{ grid-template-columns:1fr; } }
-
-    table{ width:100%; border-collapse:collapse; margin-top:10px; }
-    th,td{ padding:8px 6px; border-bottom:1px solid rgba(255,255,255,0.10); }
-    th{ text-align:left; font-size:13px; color:var(--muted); }
-    td.right, th.right{ text-align:right; }
-    .tableScroll{ max-height:360px; overflow:auto; border-radius:12px; }
-
-    /* Floating Settings button */
-    .fab{
-      position:fixed;
-      right:18px;
-      bottom:18px;
-      z-index:900;
-      box-shadow:0 14px 28px rgba(0,0,0,0.40);
-    }
-
-    /* Modal */
-    body.modalOpen{ overflow:hidden; }
-    .modalOverlay{
-      position:fixed; inset:0;
-      background:rgba(0,0,0,0.55);
-      display:flex;
-      align-items:flex-start;
-      justify-content:center;
-      padding:18px;
-      z-index:1000;
-    }
-    .modal{
-      width:100%;
-      max-width:760px;
-      max-height:calc(100vh - 36px);
-      overflow:auto;
-      background:linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.045));
-      border:1px solid var(--cardBorder);
-      border-radius:16px;
-      padding:16px;
-      box-shadow:var(--shadow);
-      backdrop-filter:blur(8px);
-    }
-    .modalHeader{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:12px;
-    }
-    .modalSection{ margin-top:14px; }
-
-    .settingsCatRow{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      justify-content:space-between;
-      padding:10px 10px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,0.10);
-      background:rgba(0,0,0,0.18);
-      margin-top:10px;
-    }
-    .settingsCatRow .name{ font-weight:650; color:var(--text); }
-    .settingsCatRow .meta{ display:flex; gap:8px; align-items:center; }
-  </style>
+<style>
+:root{
+  --bg0:#070b12; --bg1:#0b1320;
+  --card:rgba(255,255,255,.06);
+  --border:rgba(255,255,255,.10);
+  --text:#e9eef7; --muted:rgba(233,238,247,.75);
+  --primary:#2d6cdf; --danger:#ffb4b4; --ok:#b6ffcf;
+  --radius:16px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  color:var(--text);
+  background:
+    radial-gradient(900px 480px at 10% 0%, rgba(45,108,223,.22), transparent 60%),
+    radial-gradient(720px 360px at 90% 10%, rgba(182,255,207,.10), transparent 60%),
+    linear-gradient(180deg,var(--bg0),var(--bg1));
+}
+.wrap{max-width:1100px;margin:0 auto;padding:18px}
+h1{font-size:18px;margin:0 0 10px}
+.card{
+  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.045));
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:16px;
+}
+.subcard{margin-top:14px}
+.hidden{display:none!important}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+label{font-size:13px;color:var(--muted);margin-top:10px;display:block}
+input,select{
+  width:100%;padding:10px;border-radius:12px;
+  background:rgba(0,0,0,.35);color:var(--text);
+  border:1px solid var(--border)
+}
+button{
+  border:0;border-radius:12px;padding:10px 14px;
+  font-weight:600;color:#fff;cursor:pointer;
+  background:linear-gradient(180deg,#2d6cdf,#1f57c8)
+}
+button.secondary{background:rgba(255,255,255,.12)}
+button.danger{background:rgba(255,180,180,.18);color:#ffd7d7}
+button:disabled{opacity:.55}
+.status{font-size:13px;color:var(--muted);margin-top:8px}
+.status.ok{color:var(--ok)} .status.error{color:var(--danger)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{padding:6px;border-bottom:1px solid var(--border)}
+th{text-align:left;font-size:13px;color:var(--muted)}
+td.right{text-align:right}
+.tableScroll{max-height:360px;overflow:auto}
+.fab{position:fixed;right:18px;bottom:18px;z-index:50}
+.modalOverlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:18px;z-index:100
+}
+.modal{max-width:760px;width:100%;max-height:calc(100vh - 36px);
+  overflow:auto;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.045));
+  border:1px solid var(--border);border-radius:16px;padding:16px}
+.modalHeader{display:flex;justify-content:space-between;align-items:center}
+.settingsRow{display:flex;justify-content:space-between;gap:10px;margin-top:10px}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>Purrfect Budget</h1>
+<div class="wrap">
+<h1>Purrfect Budget</h1>
 
-    <!-- ================= AUTH ================= -->
-    <div id="authView" class="card hidden">
-      <p class="status" style="margin-top:0;">Enter your name and bearer token. Both are stored locally in IndexedDB.</p>
+<!-- AUTH -->
+<div id="authView" class="card hidden">
+  <label>Your name</label>
+  <input id="userNameInput" placeholder="e.g. Alex" />
+  <label>Bearer token</label>
+  <input id="tokenInput" type="password" />
+  <div class="row">
+    <button id="saveTokenBtn">Continue</button>
+    <button id="toggleTokenBtn" class="secondary">Show</button>
+  </div>
+  <div id="authStatus" class="status"></div>
+</div>
 
-      <label for="userNameInput">Your name</label>
-      <input id="userNameInput" type="text" placeholder="e.g., Jeremy" autocomplete="off" />
-
-      <label for="tokenInput">Bearer Token</label>
-      <input id="tokenInput" type="password" placeholder="Paste token…" autocomplete="off" />
-
-      <div class="row">
-        <button id="saveTokenBtn" type="button">Save & Continue</button>
-        <button id="toggleTokenBtn" class="secondary" type="button">Show</button>
-      </div>
-
-      <div id="authStatus" class="status"></div>
-    </div>
-
-    <!-- ================= APP ================= -->
-    <div id="appView" class="hidden">
-      <div id="dashboardView" class="hidden">
-
-        <!-- Budget Summary (top) -->
-        <div class="card">
-          <div class="row" style="margin-top:0; justify-content:space-between;">
-            <h1 style="margin:0;">Budget Summary</h1>
-            <button id="refreshBtn" class="secondary" type="button">Refresh</button>
-          </div>
-
-          <div class="status" style="margin-top:10px;">
-            Period: <strong id="periodLabel">—</strong>
-          </div>
-
-          <div class="tableScroll" style="margin-top:10px;">
-            <table>
-              <thead>
-                <tr>
-                  <th>Category</th>
-                  <th class="right">Spent</th>
-                  <th class="right">Remaining</th>
-                </tr>
-              </thead>
-              <tbody id="catTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Add Transaction -->
-        <div class="grid2">
-          <div class="card subcard">
-            <h1>Add Transaction</h1>
-
-            <label for="txType">Type</label>
-            <select id="txType">
-              <option value="expense">Expense</option>
-              <option value="refund">Refund</option>
-            </select>
-
-            <label for="txCategory">Category</label>
-            <select id="txCategory"></select>
-
-            <label for="txAmount">Amount</label>
-            <input id="txAmount" type="text" inputmode="decimal" placeholder="$0.00" />
-
-            <label for="txNote">Note (optional)</label>
-            <input id="txNote" type="text" placeholder="Optional note…" />
-
-            <div class="row">
-              <button id="txSubmitBtn" type="button">Save</button>
-            </div>
-
-            <div id="txStatus" class="status"></div>
-          </div>
-
-          <div class="card subcard">
-            <h1>Tips</h1>
-            <p class="status" style="margin-top:0;">
-              Use Refund to undo an expense. Refresh updates everyone’s shared budget state.
-            </p>
-            <div class="status">
-              Manage categories via Settings.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div id="notInitView" class="card hidden">
-        <h1>Not initialized</h1>
-        <p class="status" style="margin-top:0;">
-          Your budget is not initialized yet. Initialize via your existing setup flow or your API.
-        </p>
-      </div>
-    </div>
-
-    <!-- Settings FAB -->
-    <button id="openSettingsBtn" class="fab" type="button">Settings</button>
-
-    <div id="globalStatus" class="status"></div>
+<!-- SETUP WIZARD -->
+<div id="noCategoriesView" class="hidden">
+  <div id="wizStep1" class="card">
+    <h1>Step 1 — Budget period</h1>
+    <label>Period type</label>
+    <select id="wizPeriodType">
+      <option value="biweekly">Every Two Weeks</option>
+      <option value="weekly">Weekly</option>
+      <option value="monthly">Monthly</option>
+    </select>
+    <label>Start date (MM-DD-YYYY)</label>
+    <input id="wizStartDate" placeholder="MM-DD-YYYY" />
+    <button id="wizNext1">Next</button>
+    <div id="wizStatus1" class="status"></div>
   </div>
 
-  <!-- ================= SETTINGS MODAL ================= -->
-  <div id="settingsOverlay" class="modalOverlay hidden" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-      <div class="modalHeader">
-        <h1 id="settingsTitle" style="margin:0;">Settings</h1>
-        <button id="settingsCloseBtn" class="secondary" type="button">Close</button>
+  <div id="wizStep2" class="card hidden">
+    <h1>Step 2 — Categories</h1>
+    <div id="wizCatList"></div>
+    <div class="row">
+      <button id="wizAddCat" class="secondary">Add Category</button>
+      <button id="wizNext2">Next</button>
+    </div>
+    <div id="wizStatus2" class="status"></div>
+  </div>
+
+  <div id="wizStep3" class="card hidden">
+    <h1>Step 3 — Confirm</h1>
+    <div id="wizReview"></div>
+    <button id="wizSubmit">Initialize Budget</button>
+    <div id="wizStatus3" class="status"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appView" class="hidden">
+  <div id="dashboardView" class="hidden">
+
+    <div class="card">
+      <h1>Budget Summary</h1>
+      <div class="status">Period: <strong id="periodLabel">—</strong></div>
+      <div class="tableScroll">
+        <table>
+          <thead>
+            <tr><th>Category</th><th class="right">Spent</th><th class="right">Remaining</th></tr>
+          </thead>
+          <tbody id="catTableBody"></tbody>
+        </table>
       </div>
+    </div>
 
-      <div class="modalSection">
-        <div class="card subcard" style="margin-top:12px;">
-          <h1 style="margin:0 0 10px;">Budget Categories</h1>
-
-          <div class="row" style="margin-top:10px;">
-            <button id="settingsAddOpenBtn" class="secondary" type="button">Add Budget Categories</button>
-            <button id="settingsReorderBtn" class="secondary" type="button">Reorder Budget Categories</button>
-            <button id="settingsApplyRemoveBtn" type="button">Apply Removals</button>
-          </div>
-
-          <div id="settingsCatList" style="margin-top:12px;"></div>
-          <div id="settingsCatStatus" class="status"></div>
-
-          <!-- Add panel -->
-          <div id="settingsAddPanel" class="card subcard hidden" style="margin-top:12px;">
-            <h1 style="margin:0 0 10px;">Add budget categories</h1>
-
-            <label for="settingsNewCatName">Category name</label>
-            <input id="settingsNewCatName" type="text" placeholder="e.g., Dining" />
-
-            <label for="settingsNewCatBudget">Starting budget (optional)</label>
-            <input id="settingsNewCatBudget" type="text" inputmode="decimal" placeholder="$0.00" />
-
-            <div class="row">
-              <button id="settingsAddCatBtn" type="button">Add</button>
-              <button id="settingsAddCloseBtn" class="secondary" type="button">Done</button>
-            </div>
-          </div>
-
-          <!-- Reorder panel -->
-          <div id="settingsReorderPanel" class="card subcard hidden" style="margin-top:12px;">
-            <h1 style="margin:0 0 10px;">Reorder categories</h1>
-
-            <div id="settingsReorderList" style="margin-top:10px;"></div>
-
-            <div class="row">
-              <button id="settingsSaveOrderBtn" type="button">Save Order</button>
-              <button id="settingsReorderCloseBtn" class="secondary" type="button">Done</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modalSection">
-        <div class="card subcard">
-          <h1 style="margin:0 0 10px;">Account</h1>
-
-          <div class="row">
-            <button id="settingsLogoutBtn" class="secondary" type="button">Log Out</button>
-            <button id="settingsStartOverBtn" class="danger" type="button">Start Over</button>
-          </div>
-
-          <div id="settingsResetStatus" class="status"></div>
-        </div>
+    <div class="grid2">
+      <div class="card subcard">
+        <h1>Add Transaction</h1>
+        <label>Type</label>
+        <select id="txType"><option value="expense">Expense</option><option value="refund">Refund</option></select>
+        <label>Category</label>
+        <select id="txCategory"></select>
+        <label>Amount</label>
+        <input id="txAmount" placeholder="$0.00" />
+        <label>Note</label>
+        <input id="txNote" />
+        <button id="txSubmitBtn">Save</button>
+        <div id="txStatus" class="status"></div>
       </div>
     </div>
   </div>
+</div>
 
+<button id="openSettingsBtn" class="fab">Settings</button>
+<div id="globalStatus" class="status"></div>
+</div>
+<div id="settingsOverlay" class="modalOverlay hidden">
+<div class="modal">
+  <div class="modalHeader">
+    <h1>Settings</h1>
+    <button id="settingsCloseBtn" class="secondary">Close</button>
+  </div>
+
+  <div class="card subcard">
+    <h1>Budget Categories</h1>
+    <div class="row">
+      <button id="settingsAddOpenBtn" class="secondary">Add Budget Categories</button>
+      <button id="settingsReorderBtn" class="secondary">Reorder Budget Categories</button>
+      <button id="settingsApplyRemoveBtn">Apply Removals</button>
+    </div>
+    <div id="settingsCatList"></div>
+    <div id="settingsCatStatus" class="status"></div>
+
+    <div id="settingsAddPanel" class="subcard hidden">
+      <label>Name</label>
+      <input id="settingsNewCatName" />
+      <label>Budget</label>
+      <input id="settingsNewCatBudget" placeholder="$0.00" />
+      <button id="settingsAddCatBtn">Add</button>
+    </div>
+
+    <div id="settingsReorderPanel" class="subcard hidden">
+      <div id="settingsReorderList"></div>
+      <button id="settingsSaveOrderBtn">Save Order</button>
+    </div>
+  </div>
+
+  <div class="card subcard">
+    <h1>Account</h1>
+    <button id="settingsLogoutBtn" class="secondary">Log Out</button>
+    <button id="settingsStartOverBtn" class="danger">Start Over</button>
+    <div id="settingsResetStatus" class="status"></div>
+  </div>
+</div>
+</div>
 <script>
-/* ================= CONFIG ================= */
-const API = {
-  baseUrl: "https://purrfect-budget-api.kardian.workers.dev",
-  validatePath: "/api/auth/validate",
-  statePath: "/api/budget/state",
-  txPath: "/api/budget/transactions",
-  categoriesPath: "/api/budget/categories", // POST add/remove
-  resetPath: "/api/budget/reset",
-  timeoutMs: 12000
+const API={
+  base:"https://purrfect-budget-api.kardian.workers.dev",
+  validate:"/api/auth/validate",
+  state:"/api/budget/state",
+  init:"/api/budget/init",
+  tx:"/api/budget/transactions",
+  cats:"/api/budget/categories",
+  reset:"/api/budget/reset"
 };
 
-/* ================= DOM ================= */
-const $ = (id) => document.getElementById(id);
+const IDB={name:"pwa-budget-app",version:4,store:"kv"};
+const KEY_TOKEN="token",KEY_NAME="name";
 
-const authView = $("authView");
-const userNameInput = $("userNameInput");
-const tokenInput = $("tokenInput");
-const saveTokenBtn = $("saveTokenBtn");
-const toggleTokenBtn = $("toggleTokenBtn");
-const authStatus = $("authStatus");
-
-const appView = $("appView");
-const dashboardView = $("dashboardView");
-const notInitView = $("notInitView");
-
-const refreshBtn = $("refreshBtn");
-const periodLabelEl = $("periodLabel");
-const catTableBody = $("catTableBody");
-
-const txType = $("txType");
-const txCategory = $("txCategory");
-const txAmount = $("txAmount");
-const txNote = $("txNote");
-const txSubmitBtn = $("txSubmitBtn");
-const txStatus = $("txStatus");
-
-const globalStatus = $("globalStatus");
-
-const openSettingsBtn = $("openSettingsBtn");
-const settingsOverlay = $("settingsOverlay");
-const settingsCloseBtn = $("settingsCloseBtn");
-
-const settingsCatList = $("settingsCatList");
-const settingsCatStatus = $("settingsCatStatus");
-
-const settingsAddOpenBtn = $("settingsAddOpenBtn");
-const settingsAddPanel = $("settingsAddPanel");
-const settingsNewCatName = $("settingsNewCatName");
-const settingsNewCatBudget = $("settingsNewCatBudget");
-const settingsAddCatBtn = $("settingsAddCatBtn");
-const settingsAddCloseBtn = $("settingsAddCloseBtn");
-
-const settingsReorderBtn = $("settingsReorderBtn");
-const settingsReorderPanel = $("settingsReorderPanel");
-const settingsReorderList = $("settingsReorderList");
-const settingsSaveOrderBtn = $("settingsSaveOrderBtn");
-const settingsReorderCloseBtn = $("settingsReorderCloseBtn");
-
-const settingsApplyRemoveBtn = $("settingsApplyRemoveBtn");
-const settingsLogoutBtn = $("settingsLogoutBtn");
-const settingsStartOverBtn = $("settingsStartOverBtn");
-const settingsResetStatus = $("settingsResetStatus");
-
-/* ================= UI HELPERS ================= */
-function show(el){ if (el) el.classList.remove("hidden"); }
-function hide(el){ if (el) el.classList.add("hidden"); }
-
-function setStatus(el, msg, kind){
-  if (!el) return;
-  el.textContent = msg || "";
-  el.classList.remove("error","ok");
-  if (kind) el.classList.add(kind);
-}
-
-function setBusy(isBusy){
-  const btns = [
-    saveTokenBtn, toggleTokenBtn,
-    refreshBtn, txSubmitBtn,
-    openSettingsBtn, settingsCloseBtn,
-    settingsAddOpenBtn, settingsAddCatBtn, settingsAddCloseBtn,
-    settingsReorderBtn, settingsSaveOrderBtn, settingsReorderCloseBtn,
-    settingsApplyRemoveBtn, settingsLogoutBtn, settingsStartOverBtn
-  ].filter(Boolean);
-  for (const b of btns) b.disabled = !!isBusy;
-}
-
-function showAuth(message = "", isError = false){
-  show(authView);
-  hide(appView);
-  setStatus(authStatus, message, isError ? "error" : "");
-  setStatus(globalStatus, "");
-  userNameInput?.focus();
-}
-
-function showApp(){
-  hide(authView);
-  show(appView);
-}
-
-  /* ================= INDEXEDDB (ROBUST, NO MIGRATION) =================
-   Recovers from:
-   - "stored database is a higher version than the version requested"
-   - "object store was not found" (store name changed across versions)
-   Strategy: delete DB + recreate (you said no migration needed).
-*/
-const IDB = {
-  name: "pwa-budget-app",
-  version: 4,
-  store: "kv"
-};
-
-function deleteDb(){
-  return new Promise((resolve) => {
-    const del = indexedDB.deleteDatabase(IDB.name);
-    del.onsuccess = () => resolve(true);
-    del.onerror = () => resolve(false);
-    del.onblocked = () => resolve(false);
+function openDb(){
+  return new Promise((res)=>{
+    const r=indexedDB.open(IDB.name,IDB.version);
+    r.onupgradeneeded=()=>r.result.createObjectStore(IDB.store);
+    r.onsuccess=()=>res(r.result);
   });
 }
+async function idbGet(k){const d=await openDb();return new Promise(r=>{const t=d.transaction(IDB.store);t.objectStore(IDB.store).get(k).onsuccess=e=>r(e.target.result)})}
+async function idbSet(k,v){const d=await openDb();d.transaction(IDB.store,"readwrite").objectStore(IDB.store).put(v,k)}
 
-function openDbOnce(versionOverride){
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(IDB.name, versionOverride ?? IDB.version);
+const $=id=>document.getElementById(id);
+const join=(p)=>API.base+p;
+const hdr=t=>({Authorization:`Bearer ${t}`,"Content-Type":"application/json"});
+let CURRENT_STATE=null;
 
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(IDB.store)) {
-        db.createObjectStore(IDB.store);
-      }
-    };
-
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+function addWizRow(n="",b=""){
+  const d=document.createElement("div");
+  d.innerHTML=`<input placeholder="Category" value="${n}">
+               <input placeholder="$0.00" value="${b}">`;
+  $("wizCatList").appendChild(d);
+}
+function initWizard(){
+  $("wizCatList").innerHTML="";
+  addWizRow("Groceries","300");
+  addWizRow("Gas","120");
+  $("wizStep1").classList.remove("hidden");
+  $("wizStep2").classList.add("hidden");
+  $("wizStep3").classList.add("hidden");
 }
 
-async function openDb(){
-  try {
-    const db = await openDbOnce();
-    if (!db.objectStoreNames.contains(IDB.store)) {
-      db.close();
-      await deleteDb();
-      return await openDbOnce();
-    }
-    return db;
-  } catch (e) {
-    const msg = String(e?.message || e || "");
-    if (msg.includes("higher version")) {
-      await deleteDb();
-      return await openDbOnce();
-    }
-    throw e;
-  }
-}
-
-async function idbGet(key){
-  const db = await openDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB.store, "readonly");
-      const store = tx.objectStore(IDB.store);
-      const req = store.get(key);
-      req.onsuccess = () => resolve(req.result ?? null);
-      req.onerror = () => reject(req.error);
-    });
-  } finally { db.close(); }
-}
-
-async function idbSet(key, value){
-  const db = await openDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB.store, "readwrite");
-      const store = tx.objectStore(IDB.store);
-      const req = store.put(value, key);
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => reject(req.error);
-    });
-  } finally { db.close(); }
-}
-
-async function idbDel(key){
-  const db = await openDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB.store, "readwrite");
-      const store = tx.objectStore(IDB.store);
-      const req = store.delete(key);
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => reject(req.error);
-    });
-  } finally { db.close(); }
-}
-
-/* Keys */
-const KEY_TOKEN = "bearerToken";
-const KEY_NAME  = "userName";
-
-/* ================= URL + FETCH ================= */
-function joinUrl(base, path){
-  return base.replace(/\/+$/, "") + "/" + path.replace(/^\/+/, "");
-}
-function authHeaders(token){
-  return { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
-}
-function fetchWithTimeout(url, options = {}){
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), API.timeoutMs);
-  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(id));
-}
-async function safeText(resp){ try { return await resp.text(); } catch { return ""; } }
-
-/* ================= API ================= */
-async function validateToken(token){
-  const url = joinUrl(API.baseUrl, API.validatePath);
-  const resp = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(token) });
-  if (resp.ok) return true;
-  if (resp.status === 401 || resp.status === 403) return false;
-  const t = await safeText(resp);
-  throw new Error(`Token validate failed (${resp.status}): ${t || resp.statusText}`);
-}
-
-async function fetchState(token){
-  const url = joinUrl(API.baseUrl, API.statePath);
-  const resp = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(token) });
-  if (!resp.ok){
-    if (resp.status === 401 || resp.status === 403) return { authFailed:true, state:null };
-    const t = await safeText(resp);
-    throw new Error(`State failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed:false, state: await resp.json().catch(()=> ({})) };
-}
-
-async function postTransaction(token, body){
-  const url = joinUrl(API.baseUrl, API.txPath);
-  const resp = await fetchWithTimeout(url, { method:"POST", headers: authHeaders(token), body: JSON.stringify(body) });
-  if (!resp.ok){
-    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
-    const t = await safeText(resp);
-    throw new Error(`Transaction failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
-}
-
-async function postCategories(token, body){
-  const url = joinUrl(API.baseUrl, API.categoriesPath);
-  const resp = await fetchWithTimeout(url, { method:"POST", headers: authHeaders(token), body: JSON.stringify(body) });
-  if (!resp.ok){
-    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
-    const t = await safeText(resp);
-    throw new Error(`Categories failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
-}
-
-async function postReset(token){
-  const url = joinUrl(API.baseUrl, API.resetPath);
-  const resp = await fetchWithTimeout(url, { method:"POST", headers: authHeaders(token), body: JSON.stringify({ confirm:"RESET" }) });
-  if (!resp.ok){
-    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
-    const t = await safeText(resp);
-    throw new Error(`Reset failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
-}
-
-/* ================= MONEY HELPERS ================= */
-function normalizeMoneyDisplay(s){
-  const raw = String(s || "").trim().replace(/[^0-9.]/g, "");
-  if (!raw) return "";
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return "";
-  return "$" + n.toFixed(2);
-}
-function dollarsToCentsFromInput(s){
-  const raw = String(s || "").trim().replace(/[^0-9.]/g, "");
-  if (!raw) return null;
-  const n = Number(raw);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  return Math.round(n * 100);
-}
-function fmtCents(c){
-  const n = Number(c);
-  if (!Number.isFinite(n)) return "—";
-  return "$" + (n/100).toFixed(2);
-                       }
-
-  /* ================= DASHBOARD STATE ================= */
-let CURRENT_STATE = null;
-let CURRENT_CATEGORIES = [];
-let settingsLocalOrder = [];
-let settingsPendingRemove = new Set();
-
-/* Local display order persistence */
-function getSavedOrder(){
-  try {
-    const s = localStorage.getItem("pb_category_order");
-    const arr = JSON.parse(s || "[]");
-    return Array.isArray(arr) ? arr.map(Number).filter(n => Number.isFinite(n) && n > 0) : [];
-  } catch { return []; }
-}
-function saveOrder(arr){
-  try { localStorage.setItem("pb_category_order", JSON.stringify(arr || [])); } catch {}
-}
-
-function fmtPeriodRange(period){
-  if (!period || !period.start_ts || !period.end_ts) return "—";
-  const s = String(period.start_ts).slice(0,10);
-  const e = String(period.end_ts).slice(0,10);
-  return `${s} → ${e}`;
-}
-
-function normalizeCategoriesFromState(state){
-  const arr = Array.isArray(state?.categories) ? state.categories : [];
-  return arr.map(r => ({
-    category_id: Number(r.category_id),
-    name: String(r.name || "").trim(),
-    spent_cents: Number(r.spent_cents) || 0,
-    remaining_cents: Number(r.remaining_cents) || 0
-  })).filter(c => c.name && Number.isFinite(c.category_id) && c.category_id > 0);
-}
-
-function applyOrder(categories){
-  const saved = getSavedOrder();
-  const byId = new Map(categories.map(c => [c.category_id, c]));
-  const ordered = [];
-
-  for (const id of saved){
-    const c = byId.get(id);
-    if (c) ordered.push(c);
-  }
-  for (const c of categories){
-    if (!saved.includes(c.category_id)) ordered.push(c);
-  }
-  settingsLocalOrder = ordered.map(c => c.category_id);
-  return ordered;
-}
-
-function renderDashboardFromState(state){
-  CURRENT_STATE = state || {};
-  const normalized = normalizeCategoriesFromState(CURRENT_STATE);
-  CURRENT_CATEGORIES = applyOrder(normalized);
-
-  if (periodLabelEl) periodLabelEl.textContent = fmtPeriodRange(CURRENT_STATE.period);
-
-  if (txCategory){
-    txCategory.innerHTML = "";
-    for (const c of CURRENT_CATEGORIES){
-      const opt = document.createElement("option");
-      opt.value = String(c.category_id);
-      opt.textContent = c.name;
-      txCategory.appendChild(opt);
-    }
-  }
-
-  if (catTableBody){
-    catTableBody.innerHTML = "";
-    for (const c of CURRENT_CATEGORIES){
-      const tr = document.createElement("tr");
-
-      const tdName = document.createElement("td");
-      tdName.textContent = c.name;
-
-      const tdSpent = document.createElement("td");
-      tdSpent.className = "right";
-      tdSpent.textContent = fmtCents(c.spent_cents);
-
-      const tdRem = document.createElement("td");
-      tdRem.className = "right";
-      tdRem.textContent = fmtCents(c.remaining_cents);
-
-      tr.appendChild(tdName);
-      tr.appendChild(tdSpent);
-      tr.appendChild(tdRem);
-
-      catTableBody.appendChild(tr);
-    }
-  }
-}
-
-/* ================= SETTINGS RENDERING ================= */
-function renderSettingsCategories(){
-  if (!settingsCatList) return;
-
-  if (!Array.isArray(settingsLocalOrder) || settingsLocalOrder.length === 0){
-    settingsLocalOrder = CURRENT_CATEGORIES.map(c => c.category_id);
-  }
-
-  const byId = new Map(CURRENT_CATEGORIES.map(c => [c.category_id, c]));
-  const ordered = settingsLocalOrder.map(id => byId.get(id)).filter(Boolean);
-
-  settingsCatList.innerHTML = "";
-
-  if (ordered.length === 0){
-    const d = document.createElement("div");
-    d.className = "status";
-    d.textContent = "No categories available.";
-    settingsCatList.appendChild(d);
-    return;
-  }
-
-  for (const c of ordered){
-    const row = document.createElement("div");
-    row.className = "settingsCatRow";
-
-    const left = document.createElement("div");
-    left.className = "name";
-    left.textContent = c.name;
-
-    const meta = document.createElement("div");
-    meta.className = "meta";
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "secondary";
-    const marked = settingsPendingRemove.has(c.category_id);
-    btn.textContent = marked ? "Undo Remove" : "Remove";
-
-    btn.addEventListener("click", () => {
-      if (settingsPendingRemove.has(c.category_id)) settingsPendingRemove.delete(c.category_id);
-      else settingsPendingRemove.add(c.category_id);
-      renderSettingsCategories();
-    });
-
-    if (marked){
-      left.style.opacity = "0.55";
-      left.style.textDecoration = "line-through";
-    } else {
-      left.style.opacity = "1";
-      left.style.textDecoration = "none";
-    }
-
-    meta.appendChild(btn);
-    row.appendChild(left);
-    row.appendChild(meta);
-    settingsCatList.appendChild(row);
-  }
-
-  if (settingsReorderPanel && !settingsReorderPanel.classList.contains("hidden")){
-    renderReorderList();
-  }
-}
-
-function renderReorderList(){
-  if (!settingsReorderList) return;
-
-  const byId = new Map(CURRENT_CATEGORIES.map(c => [c.category_id, c]));
-  const ordered = settingsLocalOrder.map(id => byId.get(id)).filter(Boolean);
-
-  settingsReorderList.innerHTML = "";
-
-  for (let i = 0; i < ordered.length; i++){
-    const c = ordered[i];
-
-    const row = document.createElement("div");
-    row.className = "settingsCatRow";
-
-    const left = document.createElement("div");
-    left.className = "name";
-    left.textContent = c.name;
-
-    const meta = document.createElement("div");
-    meta.className = "meta";
-
-    const up = document.createElement("button");
-    up.type = "button";
-    up.className = "secondary";
-    up.textContent = "Up";
-    up.disabled = i === 0;
-    up.addEventListener("click", () => {
-      const tmp = settingsLocalOrder[i - 1];
-      settingsLocalOrder[i - 1] = settingsLocalOrder[i];
-      settingsLocalOrder[i] = tmp;
-      renderReorderList();
-    });
-
-    const down = document.createElement("button");
-    down.type = "button";
-    down.className = "secondary";
-    down.textContent = "Down";
-    down.disabled = i === ordered.length - 1;
-    down.addEventListener("click", () => {
-      const tmp = settingsLocalOrder[i + 1];
-      settingsLocalOrder[i + 1] = settingsLocalOrder[i];
-      settingsLocalOrder[i] = tmp;
-      renderReorderList();
-    });
-
-    meta.appendChild(up);
-    meta.appendChild(down);
-
-    row.appendChild(left);
-    row.appendChild(meta);
-    settingsReorderList.appendChild(row);
-  }
-}
-
-/* ================= MODAL CONTROL ================= */
-function openSettings(){
-  settingsPendingRemove = new Set();
-  settingsLocalOrder = CURRENT_CATEGORIES.map(c => c.category_id);
-  setStatus(settingsCatStatus, "");
-  setStatus(settingsResetStatus, "");
-  if (settingsNewCatName) settingsNewCatName.value = "";
-  if (settingsNewCatBudget) settingsNewCatBudget.value = "";
-  hide(settingsAddPanel);
-  hide(settingsReorderPanel);
-  renderSettingsCategories();
-
-  document.body.classList.add("modalOpen");
-  show(settingsOverlay);
-  settingsOverlay.setAttribute("aria-hidden", "false");
-}
-
-function closeSettings(){
-  document.body.classList.remove("modalOpen");
-  hide(settingsOverlay);
-  settingsOverlay.setAttribute("aria-hidden", "true");
-}
-
-  /* ================= APP FLOW ================= */
-async function loadAppStateAndRender(token){
-  showApp();
-  hide(notInitView);
-  hide(dashboardView);
-
-  const result = await fetchState(token);
-  if (result.authFailed){
-    await idbDel(KEY_TOKEN);
-    return showAuth("Stored token is invalid/expired. Please re-enter.", true);
-  }
-
-  const state = result.state || {};
-  if (state.initialized === false){
-    show(notInitView);
-    setStatus(globalStatus, "");
-    return;
-  }
-
-  show(dashboardView);
-  renderDashboardFromState(state);
-  setStatus(globalStatus, "");
-}
-
-async function bootstrap(){
-  setBusy(true);
-  setStatus(globalStatus, "Starting…");
-
-  const token = await idbGet(KEY_TOKEN);
-  const name = await idbGet(KEY_NAME);
-
-  if (!token){
-    setBusy(false);
-    setStatus(globalStatus, "");
-    userNameInput.value = name || "";
-    return showAuth("No token saved. Enter your name and bearer token to continue.");
-  }
-
-  try {
-    setStatus(globalStatus, "Validating token…");
-    const ok = await validateToken(token);
-    if (!ok){
-      await idbDel(KEY_TOKEN);
-      setBusy(false);
-      return showAuth("Saved token is invalid or expired. Please enter a new token.", true);
-    }
-
-    await loadAppStateAndRender(token);
-    setBusy(false);
-  } catch (e) {
-    setBusy(false);
-    showAuth(`Startup error: ${e?.message || String(e)}`, true);
-  }
-}
-
-/* ================= EVENTS: AUTH ================= */
-saveTokenBtn.addEventListener("click", async () => {
-  const token = (tokenInput.value || "").trim();
-  const name = (userNameInput.value || "").trim();
-
-  if (!name) return setStatus(authStatus, "Please enter your name.", "error");
-  if (!token) return setStatus(authStatus, "Please enter a token.", "error");
-
-  setBusy(true);
-  setStatus(authStatus, "Validating token…");
-
-  try {
-    const ok = await validateToken(token);
-    if (!ok){
-      setBusy(false);
-      return setStatus(authStatus, "Token is invalid or expired.", "error");
-    }
-
-    await idbSet(KEY_NAME, name);
-    await idbSet(KEY_TOKEN, token);
-
-    setStatus(authStatus, "Saved. Loading…", "ok");
-    await loadAppStateAndRender(token);
-    setBusy(false);
-  } catch (e){
-    setBusy(false);
-    setStatus(authStatus, `Unable to validate token: ${e?.message || String(e)}`, "error");
-  }
-});
-
-toggleTokenBtn.addEventListener("click", () => {
-  const isPw = tokenInput.type === "password";
-  tokenInput.type = isPw ? "text" : "password";
-  toggleTokenBtn.textContent = isPw ? "Hide" : "Show";
-  tokenInput.focus();
-});
-
-/* ================= EVENTS: DASHBOARD ================= */
-refreshBtn.addEventListener("click", async () => {
-  const token = await idbGet(KEY_TOKEN);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-
-  setBusy(true);
-  setStatus(txStatus, "Refreshing…");
-  try {
-    const st = await fetchState(token);
-    if (st.authFailed){
-      await idbDel(KEY_TOKEN);
-      setBusy(false);
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-    renderDashboardFromState(st.state || {});
-    setStatus(txStatus, "Refreshed.", "ok");
-    setBusy(false);
-  } catch (e){
-    setBusy(false);
-    setStatus(txStatus, e?.message || String(e), "error");
-  }
-});
-
-txAmount.addEventListener("blur", () => { txAmount.value = normalizeMoneyDisplay(txAmount.value); });
-
-txSubmitBtn.addEventListener("click", async () => {
-  const token = await idbGet(KEY_TOKEN);
-  const name = await idbGet(KEY_NAME);
-
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-  if (!name) return showAuth("Missing name. Please re-enter.", true);
-
-  const categoryId = Number(txCategory.value);
-  if (!Number.isFinite(categoryId) || categoryId <= 0) return setStatus(txStatus, "Please choose a category.", "error");
-
-  const cents = dollarsToCentsFromInput(txAmount.value);
-  if (cents === null) return setStatus(txStatus, "Enter a valid amount greater than $0.00.", "error");
-
-  const isRefund = String(txType.value || "expense") === "refund";
-  const note = String(txNote.value || "").trim().slice(0, 240) || undefined;
-
-  const body = {
-    created_by_label: name,
-    items: [{
-      category_id: categoryId,
-      amount_cents: cents,
-      is_refund: isRefund,
-      note
-    }]
+async function submitInit(){
+  const cats=[...$("wizCatList").children].map((r,i)=>({
+    name:r.children[0].value,
+    sort_order:i+1,
+    budget_dollars:r.children[1].value.replace(/[^0-9.]/g,"")
+  }));
+  const body={
+    period_type:$("wizPeriodType").value,
+    period_anchor_date:new Date().toISOString().slice(0,10),
+    categories:cats
   };
+  const t=await idbGet(KEY_TOKEN);
+  await fetch(join(API.init),{method:"POST",headers:hdr(t),body:JSON.stringify(body)});
+  bootstrap();
+}
 
-  setBusy(true);
-  setStatus(txStatus, "Saving…");
-  try {
-    const res = await postTransaction(token, body);
-    if (res.authFailed){
-      await idbDel(KEY_TOKEN);
-      setBusy(false);
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-    renderDashboardFromState(res.result || {});
-    setStatus(txStatus, "Saved.", "ok");
-    txAmount.value = "";
-    txNote.value = "";
-    setBusy(false);
-  } catch (e){
-    setBusy(false);
-    setStatus(txStatus, e?.message || String(e), "error");
+function renderDashboard(state){
+  CURRENT_STATE=state;
+  $("periodLabel").textContent=state.period.start_ts.slice(0,10)+" → "+state.period.end_ts.slice(0,10);
+  $("catTableBody").innerHTML="";
+  state.categories.forEach(c=>{
+    $("catTableBody").innerHTML+=
+      `<tr><td>${c.name}</td>
+           <td class="right">$${(c.spent_cents/100).toFixed(2)}</td>
+           <td class="right">$${(c.remaining_cents/100).toFixed(2)}</td></tr>`;
+  });
+}
+async function bootstrap(){
+  const t=await idbGet(KEY_TOKEN);
+  if(!t){$("authView").classList.remove("hidden");return}
+  const ok=await fetch(join(API.validate),{headers:hdr(t)});
+  if(!ok.ok){$("authView").classList.remove("hidden");return}
+  const st=await fetch(join(API.state),{headers:hdr(t)}).then(r=>r.json());
+  $("authView").classList.add("hidden");
+  if(!st.initialized){
+    $("noCategoriesView").classList.remove("hidden");
+    initWizard();
+    return;
   }
-});
+  $("appView").classList.remove("hidden");
+  $("dashboardView").classList.remove("hidden");
+  renderDashboard(st);
+}
 
-/* ================= EVENTS: SETTINGS ================= */
-openSettingsBtn.addEventListener("click", openSettings);
-settingsCloseBtn.addEventListener("click", closeSettings);
+$("saveTokenBtn").onclick=async()=>{
+  await idbSet(KEY_NAME,$("userNameInput").value);
+  await idbSet(KEY_TOKEN,$("tokenInput").value);
+  bootstrap();
+};
+$("toggleTokenBtn").onclick=()=>{$("tokenInput").type=$("tokenInput").type==="password"?"text":"password"};
+$("wizAddCat").onclick=()=>addWizRow();
+$("wizNext1").onclick=()=>{$("wizStep1").classList.add("hidden");$("wizStep2").classList.remove("hidden")};
+$("wizNext2").onclick=()=>{$("wizStep2").classList.add("hidden");$("wizStep3").classList.remove("hidden")};
+$("wizSubmit").onclick=submitInit;
 
-// Add Budget Categories
-settingsAddOpenBtn.addEventListener("click", () => {
-  show(settingsAddPanel);
-  hide(settingsReorderPanel);
-  setStatus(settingsCatStatus, "");
-  settingsNewCatName?.focus();
-});
-settingsAddCloseBtn.addEventListener("click", () => hide(settingsAddPanel));
-
-settingsNewCatBudget?.addEventListener("blur", () => {
-  settingsNewCatBudget.value = normalizeMoneyDisplay(settingsNewCatBudget.value);
-});
-
-settingsAddCatBtn.addEventListener("click", async () => {
-  const token = await idbGet(KEY_TOKEN);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-
-  const name = String(settingsNewCatName.value || "").trim();
-  if (!name) return setStatus(settingsCatStatus, "Please enter a category name.", "error");
-
-  const budgetRaw = String(settingsNewCatBudget.value || "").trim();
-  const budget = budgetRaw ? budgetRaw.replace(/[^0-9.]/g, "") : undefined;
-
-  setBusy(true);
-  setStatus(settingsCatStatus, "Adding…");
-  try {
-    const body = { add: [{ name, budget_dollars: budget }] };
-    const res = await postCategories(token, body);
-    if (res.authFailed){
-      await idbDel(KEY_TOKEN);
-      setBusy(false);
-      closeSettings();
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-
-    renderDashboardFromState(res.result || {});
-    renderSettingsCategories();
-
-    settingsNewCatName.value = "";
-    settingsNewCatBudget.value = "";
-    setStatus(settingsCatStatus, "Added.", "ok");
-    setBusy(false);
-  } catch (e){
-    setBusy(false);
-    setStatus(settingsCatStatus, e?.message || String(e), "error");
-  }
-});
-
-// Reorder Budget Categories
-settingsReorderBtn.addEventListener("click", () => {
-  show(settingsReorderPanel);
-  hide(settingsAddPanel);
-  setStatus(settingsCatStatus, "");
-  renderReorderList();
-});
-settingsReorderCloseBtn.addEventListener("click", () => hide(settingsReorderPanel));
-
-settingsSaveOrderBtn.addEventListener("click", () => {
-  saveOrder(settingsLocalOrder);
-  // re-render both dashboard + settings from current state
-  renderDashboardFromState(CURRENT_STATE || {});
-  renderSettingsCategories();
-  setStatus(settingsCatStatus, "Order saved.", "ok");
-});
-
-// Apply Removals
-settingsApplyRemoveBtn.addEventListener("click", async () => {
-  const token = await idbGet(KEY_TOKEN);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-
-  const ids = Array.from(settingsPendingRemove.values());
-  if (ids.length === 0) return setStatus(settingsCatStatus, "No categories marked for removal.", "error");
-
-  setBusy(true);
-  setStatus(settingsCatStatus, "Removing…");
-  try {
-    const body = { remove: ids.map(id => ({ category_id: id })) };
-    const res = await postCategories(token, body);
-    if (res.authFailed){
-      await idbDel(KEY_TOKEN);
-      setBusy(false);
-      closeSettings();
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-
-    // Update local order by removing deleted ids
-    const saved = getSavedOrder().filter(id => !ids.includes(id));
-    saveOrder(saved);
-
-    settingsPendingRemove = new Set();
-    renderDashboardFromState(res.result || {});
-    renderSettingsCategories();
-
-    setStatus(settingsCatStatus, "Removed.", "ok");
-    setBusy(false);
-  } catch (e){
-    setBusy(false);
-    setStatus(settingsCatStatus, e?.message || String(e), "error");
-  }
-});
-
-// Log Out
-settingsLogoutBtn.addEventListener("click", async () => {
-  setBusy(true);
-  await idbDel(KEY_TOKEN);
-  setBusy(false);
-  closeSettings();
-  showAuth("Logged out. Enter your name and bearer token to continue.");
-});
-
-// Start Over
-settingsStartOverBtn.addEventListener("click", async () => {
-  const token = await idbGet(KEY_TOKEN);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-
-  const ok = confirm("Start Over will permanently clear categories, budgets, and transaction history for everyone using this token. Continue?");
-  if (!ok) return;
-
-  setBusy(true);
-  setStatus(settingsResetStatus, "Resetting…");
-  try {
-    const res = await postReset(token);
-    if (res.authFailed){
-      await idbDel(KEY_TOKEN);
-      setBusy(false);
-      closeSettings();
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-
-    saveOrder([]);
-    settingsPendingRemove = new Set();
-    setStatus(settingsResetStatus, "Reset complete. Reloading…", "ok");
-
-    closeSettings();
-    await loadAppStateAndRender(token);
-    setBusy(false);
-  } catch (e){
-    setBusy(false);
-    setStatus(settingsResetStatus, e?.message || String(e), "error");
-  }
-});
-
-/* Safety: surface unhandled rejections */
-window.addEventListener("unhandledrejection", (ev) => {
-  const msg = ev?.reason?.message || String(ev?.reason || "Unknown error");
-  setStatus(globalStatus, `Error: ${msg}`, "error");
-});
-
-/* ================= START ================= */
 bootstrap();
 </script>
 </body>
