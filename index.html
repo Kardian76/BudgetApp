@@ -70,9 +70,17 @@ td.right{text-align:right}
   max-width:780px;width:100%;
   max-height:calc(100vh - 36px);
   overflow:auto;
-  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.045));
+
+  /* CHANGED: make modal itself opaque */
+  background: var(--bg1);              /* opaque */
+  /* or: background: #0b1320; */       /* same as --bg1 */
+
   border:1px solid var(--border);
-  border-radius:16px;padding:16px
+  border-radius:16px;
+  padding:16px;
+
+  /* Optional hardening */
+  opacity: 1;
 }
 .modalHeader{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .divider{height:1px;background:rgba(255,255,255,.10);margin:12px 0}
