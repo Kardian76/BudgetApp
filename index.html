@@ -64,7 +64,6 @@ td.right{text-align:right}
 /* Overlay + modal */
 .modalOverlay{
   position:fixed;inset:0;
-  /* Slightly darker overlay so the modal reads cleanly */
   background:rgba(0,0,0,.74);
   display:flex;align-items:flex-start;justify-content:center;
   padding:18px;z-index:100;
@@ -75,8 +74,7 @@ td.right{text-align:right}
   overflow:auto;
   -webkit-overflow-scrolling: touch;
 
-  /* OPAQUE panel background so main UI does not show through */
-  background: #0b1320; /* matches theme-color / bg1 */
+  background:#0b1320;
   border:1px solid rgba(255,255,255,.14);
   border-radius:16px;
   padding:16px;
@@ -93,6 +91,20 @@ td.right{text-align:right}
 }
 .reorderBtns{display:flex;gap:8px;flex:0 0 auto}
 .reorderBtns button{padding:8px 10px}
+
+/* Add-categories UI */
+.addCatRow{
+  display:flex;gap:10px;align-items:center;flex-wrap:nowrap;
+  margin-top:10px;
+}
+.addCatRow input{width:auto;min-width:0}
+.addCatRow .addCatName{flex:1 1 auto}
+.addCatRow .addCatBudget{flex:0 0 120px;text-align:right}
+.addCatRow .addCatRemove{flex:0 0 auto;white-space:nowrap}
+@media(max-width:520px){
+  .addCatRow{flex-wrap:wrap}
+  .addCatRow .addCatBudget{flex:1 1 140px}
+}
 </style>
 </head>
 <body>
@@ -241,6 +253,28 @@ td.right{text-align:right}
         </div>
         <div id="settingsReorderStatus" class="status"></div>
       </div>
+
+      <!-- NEW: Add Budget Categories (server-side) -->
+      <div class="subcard" style="margin-top:14px;">
+        <div class="row" style="margin-top:0;">
+          <button id="settingsOpenAddCatsBtn" class="secondary" type="button">Add Budget Categories</button>
+        </div>
+
+        <div id="settingsAddCatsPanel" class="hidden" style="margin-top:10px;">
+          <div class="status" style="margin-top:0;">
+            Add one or more categories and starting budgets. These will be saved to the shared budget on the server.
+          </div>
+
+          <div id="settingsAddCatsList"></div>
+
+          <div class="row">
+            <button id="settingsAddCatsAddRowBtn" class="secondary" type="button">Add Row</button>
+            <button id="settingsAddCatsSubmitBtn" type="button">Save Categories</button>
+            <button id="settingsAddCatsCancelBtn" class="secondary" type="button">Cancel</button>
+          </div>
+          <div id="settingsAddCatsStatus" class="status"></div>
+        </div>
+      </div>
     </div>
 
     <div class="card subcard">
@@ -256,6 +290,7 @@ td.right{text-align:right}
     </div>
   </div>
 </div>
+
 <script>
 /* ================= CONFIG ================= */
 const API = {
@@ -265,6 +300,7 @@ const API = {
   init: "/api/budget/init",
   tx: "/api/budget/transactions",
   reset: "/api/budget/reset",
+  categories: "/api/budget/categories", // POST add/remove
   timeoutMs: 12000
 };
 
@@ -318,6 +354,15 @@ const settingsReorderList = $("settingsReorderList");
 const settingsSaveOrderBtn = $("settingsSaveOrderBtn");
 const settingsCancelOrderBtn = $("settingsCancelOrderBtn");
 const settingsReorderStatus = $("settingsReorderStatus");
+
+/* NEW Add Cats DOM */
+const settingsOpenAddCatsBtn = $("settingsOpenAddCatsBtn");
+const settingsAddCatsPanel = $("settingsAddCatsPanel");
+const settingsAddCatsList = $("settingsAddCatsList");
+const settingsAddCatsAddRowBtn = $("settingsAddCatsAddRowBtn");
+const settingsAddCatsSubmitBtn = $("settingsAddCatsSubmitBtn");
+const settingsAddCatsCancelBtn = $("settingsAddCatsCancelBtn");
+const settingsAddCatsStatus = $("settingsAddCatsStatus");
 
 const settingsLogoutBtn = $("settingsLogoutBtn");
 const settingsResetBtn = $("settingsResetBtn");
@@ -491,6 +536,21 @@ async function postReset(token){
     if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
     const t = await safeText(resp);
     throw new Error(`Reset failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function postCategories(token, payload){
+  const url = join(API.categories);
+  const resp = await fetchWithTimeout(url, {
+    method:"POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Categories failed (${resp.status}): ${t || resp.statusText}`);
   }
   return { authFailed:false, result: await resp.json().catch(()=> ({})) };
 }
@@ -755,7 +815,9 @@ function openSettings(){
   settingsOverlay.setAttribute("aria-hidden", "false");
   setStatus(settingsAccountStatus, "");
   setStatus(settingsReorderStatus, "");
+  setStatus(settingsAddCatsStatus, "");
   hide(settingsReorderPanel);
+  hide(settingsAddCatsPanel);
 }
 
 function closeSettings(){
@@ -765,6 +827,7 @@ function closeSettings(){
 
 let CURRENT_STATE = null;
 
+/* ---------- Reorder Panel ---------- */
 async function openReorderPanel(){
   if (!CURRENT_STATE) return setStatus(settingsReorderStatus, "No budget loaded yet.", "error");
 
@@ -827,6 +890,7 @@ async function openReorderPanel(){
 
   refreshReorderButtons();
   show(settingsReorderPanel);
+  hide(settingsAddCatsPanel);
   setStatus(settingsReorderStatus, "");
 }
 
@@ -841,6 +905,99 @@ async function saveReorder(){
   setStatus(settingsReorderStatus, "Saved.", "ok");
 
   await renderDashboard(CURRENT_STATE);
+}
+
+/* ---------- Add Categories Panel (server-side) ---------- */
+function addSettingsCatRow(name = "", budget = ""){
+  const row = document.createElement("div");
+  row.className = "addCatRow";
+  row.innerHTML = `
+    <input class="addCatName" type="text" placeholder="Category" value="${String(name).replaceAll('"','&quot;')}" />
+    <input class="addCatBudget" type="text" inputmode="decimal" placeholder="$0.00" value="${String(budget).replaceAll('"','&quot;')}" />
+    <button class="secondary addCatRemove" type="button">Remove</button>
+  `;
+  const b = row.querySelector(".addCatBudget");
+  b.addEventListener("blur", () => { b.value = normalizeMoneyDisplay(b.value); });
+  row.querySelector(".addCatRemove").addEventListener("click", () => row.remove());
+  settingsAddCatsList.appendChild(row);
+}
+
+function openAddCatsPanel(){
+  settingsAddCatsList.innerHTML = "";
+  addSettingsCatRow("", "");
+  show(settingsAddCatsPanel);
+  hide(settingsReorderPanel);
+  setStatus(settingsAddCatsStatus, "");
+}
+
+function readSettingsCats(){
+  const rows = Array.from(settingsAddCatsList.querySelectorAll(".addCatRow"));
+  const out = [];
+  const seen = new Set();
+  for (const r of rows){
+    const name = (r.querySelector(".addCatName")?.value || "").trim();
+    const budgetRaw = (r.querySelector(".addCatBudget")?.value || "").trim();
+    const budgetDollars = budgetRaw.replace(/[^0-9.]/g,"");
+    if (!name && !budgetDollars) continue;
+
+    if (!name) return { error: "Category name cannot be blank.", cats: null };
+    if (!budgetDollars) return { error: `Please enter a budget for: ${name}`, cats: null };
+
+    const k = name.toLowerCase();
+    if (seen.has(k)) return { error: `Duplicate category name: ${name}`, cats: null };
+    seen.add(k);
+
+    out.push({ name, budget_dollars: budgetDollars });
+  }
+  if (out.length < 1) return { error: "Please add at least one category.", cats: null };
+  if (out.length > 10) return { error: "You can add up to 10 categories at a time.", cats: null };
+  return { error: null, cats: out };
+}
+
+async function submitAddCats(){
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return showAuth("Missing token. Please re-enter.", true);
+
+  const parsed = readSettingsCats();
+  if (parsed.error) return setStatus(settingsAddCatsStatus, parsed.error, "error");
+
+  setStatus(settingsAddCatsStatus, "Saving categories…");
+  try {
+    // Worker expects: { add: [{name, sort_order?, budget_dollars?}], remove: [] }
+    // We do not send sort_order; server assigns max+1.
+    const payload = { add: parsed.cats, remove: [] };
+    const res = await postCategories(token, payload);
+
+    if (res.authFailed){
+      await idbDel(KEY_TOKEN);
+      closeSettings();
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+
+    // Server returns full state (handleGetState), so refresh UI and rebuild local default ordering
+    CURRENT_STATE = res.result || {};
+    await idbDel(KEY_CAT_ORDER);           // force default order to incorporate new categories
+    await renderDashboard(CURRENT_STATE);
+
+    setStatus(settingsAddCatsStatus, "Saved.", "ok");
+  } catch (e) {
+    setStatus(settingsAddCatsStatus, e?.message || String(e), "error");
+  }
+}
+
+/* ================= AUTH/UI FLOW ================= */
+function showAuth(message = "", isError = false){
+  show(authView);
+  hide(appView);
+  hide(noCategoriesView);
+  setStatus(authStatus, message, isError ? "error" : "");
+  setStatus(globalStatus, "");
+  userNameInput?.focus();
+}
+
+function showApp(){
+  hide(authView);
+  show(appView);
 }
 
 /* ================= BOOTSTRAP ================= */
@@ -1006,6 +1163,24 @@ settingsCancelOrderBtn.addEventListener("click", () => {
 
 settingsSaveOrderBtn.addEventListener("click", async () => {
   await saveReorder();
+});
+
+/* NEW Add Cats handlers */
+settingsOpenAddCatsBtn.addEventListener("click", () => {
+  openAddCatsPanel();
+});
+
+settingsAddCatsAddRowBtn.addEventListener("click", () => {
+  addSettingsCatRow("", "");
+});
+
+settingsAddCatsCancelBtn.addEventListener("click", () => {
+  hide(settingsAddCatsPanel);
+  setStatus(settingsAddCatsStatus, "");
+});
+
+settingsAddCatsSubmitBtn.addEventListener("click", async () => {
+  await submitAddCats();
 });
 
 settingsLogoutBtn.addEventListener("click", async () => {
