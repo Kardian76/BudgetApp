@@ -1243,11 +1243,10 @@ function openReorderPanel(){
 }
 
 async function renderReorderList(cats){
-  const ordered = await applyUiOrder(cats);
   settingsReorderList.innerHTML = "";
 
-  for (let i = 0; i < ordered.length; i++){
-    const c = ordered[i];
+  for (let i = 0; i < cats.length; i++){
+    const c = cats[i];
     const wrap = document.createElement("div");
     wrap.className = "row";
     wrap.style.marginTop = "10px";
@@ -1269,7 +1268,7 @@ async function renderReorderList(cats){
     downBtn.className = "secondary";
     downBtn.type = "button";
     downBtn.textContent = "↓";
-    downBtn.disabled = i === ordered.length - 1;
+    downBtn.disabled = i === cats.length - 1;
     downBtn.addEventListener("click", () => moveCategory(i, 1));
 
     wrap.appendChild(label);
@@ -1277,31 +1276,6 @@ async function renderReorderList(cats){
     wrap.appendChild(downBtn);
     settingsReorderList.appendChild(wrap);
   }
-}
-
-function moveCategory(index, direction){
-  const rows = Array.from(settingsReorderList.querySelectorAll(".row"));
-  if (index < 0 || index >= rows.length) return;
-  
-  const newIndex = index + direction;
-  if (newIndex < 0 || newIndex >= rows.length) return;
-
-  const row = rows[index];
-  const targetRow = rows[newIndex];
-  
-  if (direction < 0) {
-    settingsReorderList.insertBefore(row, targetRow);
-  } else {
-    settingsReorderList.insertBefore(row, targetRow.nextSibling);
-  }
-
-  // Re-render to update button states
-  const cats = normalizeCategories(CURRENT_STATE);
-  const currentOrder = Array.from(settingsReorderList.querySelectorAll(".row"))
-    .map(r => Number(r.dataset.categoryId));
-  
-  const ordered = currentOrder.map(id => cats.find(c => c.category_id === id)).filter(Boolean);
-  renderReorderList(ordered);
 }
 
 async function saveReorder(){
