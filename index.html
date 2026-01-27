@@ -53,32 +53,29 @@ button:disabled{opacity:.55}
 .status.ok{color:var(--ok)} .status.error{color:var(--danger)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+
 table{width:100%;border-collapse:collapse;margin-top:10px}
 th,td{padding:6px;border-bottom:1px solid var(--border)}
 th{text-align:left;font-size:13px;color:var(--muted)}
 td.right{text-align:right}
-th.center, td.center { text-align:center; } /* NEW */
+td.center, th.center{text-align:center}
 .tableScroll{max-height:360px;overflow:auto}
 
 .fabWrap{
   position:fixed;right:18px;bottom:18px;z-index:50;
-  display:flex;flex-direction:column;gap:10px;align-items:flex-end;
+  display:flex;gap:10px;flex-direction:column;align-items:flex-end;
 }
-.fab{}
 
-/* Shared modal overlay */
 .modalOverlay{
   position:fixed;inset:0;background:rgba(0,0,0,.6);
   display:flex;align-items:flex-start;justify-content:center;
   padding:18px;z-index:100
 }
 .modal{
-  max-width:880px;width:100%;
+  max-width:780px;width:100%;
   max-height:calc(100vh - 36px);
   overflow:auto;
-
-  /* opaque modal */
-  background: var(--bg1);
+  background: var(--bg1); /* opaque */
   border:1px solid var(--border);
   border-radius:16px;
   padding:16px;
@@ -87,8 +84,6 @@ th.center, td.center { text-align:center; } /* NEW */
 .modalHeader{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .divider{height:1px;background:rgba(255,255,255,.10);margin:12px 0}
 .small{font-size:12px;color:var(--muted)}
-
-/* Reorder styles (existing) */
 .reorderItem{
   display:flex;align-items:center;justify-content:space-between;
   gap:10px;padding:8px;border:1px solid rgba(255,255,255,.10);
@@ -97,27 +92,15 @@ th.center, td.center { text-align:center; } /* NEW */
 .reorderBtns{display:flex;gap:8px;flex:0 0 auto}
 .reorderBtns button{padding:8px 10px}
 
-/* History list styles (NEW) */
-.historyToolbar{
-  display:flex;gap:10px;flex-wrap:wrap;align-items:center;
-}
-.historyToolbar .grow{flex:1 1 240px}
+/* History table tweaks */
+.historyTopRow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
 .pill{
-  display:inline-flex;gap:8px;align-items:center;
+  display:inline-flex;align-items:center;gap:8px;
   padding:8px 10px;border-radius:999px;
-  border:1px solid var(--border);
-  background:rgba(0,0,0,.22);
-  font-size:12px;color:var(--muted);
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(0,0,0,.18);
+  font-size:12px;color:var(--muted)
 }
-.badge{
-  display:inline-block;padding:2px 8px;border-radius:999px;
-  border:1px solid rgba(255,255,255,.14);
-  font-size:12px;color:var(--muted);
-}
-.badge.expense{color:#ffd7d7;background:rgba(255,180,180,.10)}
-.badge.refund{color:#b6ffcf;background:rgba(182,255,207,.08)}
-.badge.transfer{color:#cfe0ff;background:rgba(45,108,223,.14)}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
 </style>
 </head>
 
@@ -199,8 +182,8 @@ th.center, td.center { text-align:center; } /* NEW */
             <thead>
               <tr>
                 <th>Category</th>
-                <th class="center">Remaining</th> <!-- CHANGED -->
-                <th class="center">Spent</th>     <!-- CHANGED -->
+                <th class="center">Remaining</th>
+                <th class="center">Spent</th>
               </tr>
             </thead>
             <tbody id="catTableBody"></tbody>
@@ -216,29 +199,35 @@ th.center, td.center { text-align:center; } /* NEW */
           <select id="txType">
             <option value="expense">Expense</option>
             <option value="refund">Refund</option>
-            <option value="transfer">Transfer</option> <!-- NEW -->
+            <option value="transfer">Transfer</option>
           </select>
 
-          <!-- Single-category mode -->
-          <div id="txSingleCatWrap">
+          <!-- Expense/Refund fields -->
+          <div id="txStandardPanel">
             <label>Category</label>
             <select id="txCategory"></select>
+
+            <label>Amount</label>
+            <input id="txAmount" placeholder="$0.00" inputmode="decimal" />
+
+            <label>Note</label>
+            <input id="txNote" />
           </div>
 
-          <!-- Transfer mode -->
-          <div id="txTransferWrap" class="hidden">
+          <!-- Transfer fields -->
+          <div id="txTransferPanel" class="hidden">
             <label>Transfer from</label>
             <select id="txFromCategory"></select>
 
             <label>Transfer to</label>
             <select id="txToCategory"></select>
+
+            <label>Amount</label>
+            <input id="txTransferAmount" placeholder="$0.00" inputmode="decimal" />
+
+            <label>Note (optional)</label>
+            <input id="txTransferNote" placeholder="e.g. moved budget to cover overage" />
           </div>
-
-          <label>Amount</label>
-          <input id="txAmount" placeholder="$0.00" inputmode="decimal" />
-
-          <label>Note</label>
-          <input id="txNote" />
 
           <div class="row">
             <button id="txSubmitBtn" type="button">Save</button>
@@ -251,8 +240,8 @@ th.center, td.center { text-align:center; } /* NEW */
 
   <!-- Floating buttons -->
   <div class="fabWrap">
-    <button id="openHistoryBtn" class="fab secondary" type="button">History</button> <!-- NEW -->
-    <button id="openSettingsBtn" class="fab" type="button">Settings</button>
+    <button id="openHistoryBtn" type="button" class="secondary">History</button>
+    <button id="openSettingsBtn" type="button">Settings</button>
   </div>
 
   <div id="globalStatus" class="status"></div>
@@ -326,7 +315,8 @@ th.center, td.center { text-align:center; } /* NEW */
     </div>
   </div>
 </div>
-<!-- HISTORY MODAL (NEW) -->
+
+<!-- HISTORY MODAL -->
 <div id="historyOverlay" class="modalOverlay hidden" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true">
     <div class="modalHeader">
@@ -336,16 +326,10 @@ th.center, td.center { text-align:center; } /* NEW */
 
     <div class="divider"></div>
 
-    <div class="historyToolbar">
-      <div class="pill">
-        Viewing:
-        <strong id="historyWhichPeriodLabel">—</strong>
-      </div>
-
-      <div class="grow"></div>
-
-      <button id="historyViewCurrentBtn" class="secondary" type="button">Current Period</button>
-      <button id="historyViewPriorBtn" class="secondary" type="button">Prior Period</button>
+    <div class="historyTopRow">
+      <span class="pill">Showing: <strong id="historyWhichLabel" style="color:var(--text)">Current period</strong></span>
+      <button id="historyCurrentBtn" class="secondary" type="button">Current Period</button>
+      <button id="historyPriorBtn" class="secondary" type="button">Prior Period</button>
     </div>
 
     <div id="historyStatus" class="status"></div>
@@ -354,20 +338,16 @@ th.center, td.center { text-align:center; } /* NEW */
       <table>
         <thead>
           <tr>
-            <th>When</th>
+            <th>Date</th>
+            <th>Who</th>
             <th>Type</th>
             <th>Category</th>
-            <th>By</th>
             <th class="right">Amount</th>
             <th>Note</th>
           </tr>
         </thead>
-        <tbody id="historyTableBody"></tbody>
+        <tbody id="historyBody"></tbody>
       </table>
-    </div>
-
-    <div class="small" style="margin-top:10px;">
-      Tip: Transfers are shown as paired rows (Transfer Out / Transfer In).
     </div>
   </div>
 </div>
@@ -417,13 +397,18 @@ const periodLabel = $("periodLabel");
 const catTableBody = $("catTableBody");
 
 const txType = $("txType");
-const txSingleCatWrap = $("txSingleCatWrap");     // NEW
-const txTransferWrap = $("txTransferWrap");       // NEW
+const txStandardPanel = $("txStandardPanel");
+const txTransferPanel = $("txTransferPanel");
+
 const txCategory = $("txCategory");
-const txFromCategory = $("txFromCategory");       // NEW
-const txToCategory = $("txToCategory");           // NEW
 const txAmount = $("txAmount");
 const txNote = $("txNote");
+
+const txFromCategory = $("txFromCategory");
+const txToCategory = $("txToCategory");
+const txTransferAmount = $("txTransferAmount");
+const txTransferNote = $("txTransferNote");
+
 const txSubmitBtn = $("txSubmitBtn");
 const txStatus = $("txStatus");
 
@@ -452,15 +437,15 @@ const settingsLogoutBtn = $("settingsLogoutBtn");
 const settingsResetBtn = $("settingsResetBtn");
 const settingsAccountStatus = $("settingsAccountStatus");
 
-/* NEW: History modal DOM */
+/* History modal DOM */
 const openHistoryBtn = $("openHistoryBtn");
 const historyOverlay = $("historyOverlay");
 const historyCloseBtn = $("historyCloseBtn");
-const historyViewCurrentBtn = $("historyViewCurrentBtn");
-const historyViewPriorBtn = $("historyViewPriorBtn");
-const historyWhichPeriodLabel = $("historyWhichPeriodLabel");
+const historyCurrentBtn = $("historyCurrentBtn");
+const historyPriorBtn = $("historyPriorBtn");
+const historyWhichLabel = $("historyWhichLabel");
 const historyStatus = $("historyStatus");
-const historyTableBody = $("historyTableBody");
+const historyBody = $("historyBody");
 
 /* ================= UI HELPERS ================= */
 function show(el){ if (el) el.classList.remove("hidden"); }
@@ -490,7 +475,8 @@ function fetchWithTimeout(url, options = {}){
 async function safeText(resp){
   try { return await resp.text(); } catch { return ""; }
 }
-
+</script>
+<script>
 /* ================= INDEXEDDB (ROBUST) ================= */
 const IDB = { name:"pwa-budget-app", version:4, store:"kv" };
 const KEY_TOKEN = "token";
@@ -621,26 +607,6 @@ async function postTransaction(token, payload){
   return { authFailed:false, result: await resp.json().catch(()=> ({})) };
 }
 
-/* NEW: fetch transactions for history
-   NOTE: Your current Worker GET /api/budget/transactions returns *current* period.
-   The prior-period button will attempt ?period_key=... as a "clean follow-on" contract.
-   If you later add this param to the Worker, this UI will start showing prior transactions automatically. */
-async function fetchTransactions(token, opts = {}){
-  const params = new URLSearchParams();
-  if (opts?.sinceMs) params.set("since", String(opts.sinceMs));
-  if (opts?.limit) params.set("limit", String(opts.limit));
-  if (opts?.period_key) params.set("period_key", String(opts.period_key)); // follow-on support
-
-  const url = join(API.tx) + (params.toString() ? `?${params}` : "");
-  const resp = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(token) });
-  if (!resp.ok){
-    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
-    const t = await safeText(resp);
-    throw new Error(`History failed (${resp.status}): ${t || resp.statusText}`);
-  }
-  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
-}
-
 async function postReset(token){
   const url = join(API.reset);
   const resp = await fetchWithTimeout(url, {
@@ -656,6 +622,7 @@ async function postReset(token){
   return { authFailed:false, result: await resp.json().catch(()=> ({})) };
 }
 
+/* Add categories via API */
 async function postCategories(token, payload){
   const url = join(API.categories);
   const resp = await fetchWithTimeout(url, {
@@ -671,6 +638,22 @@ async function postCategories(token, payload){
   return { authFailed:false, result: await resp.json().catch(()=> ({})) };
 }
 
+/* NEW: Fetch transactions (current period) */
+async function fetchTransactions(token, opts = {}){
+  const url = new URL(join(API.tx));
+  if (opts?.sinceMs) url.searchParams.set("since", String(opts.sinceMs));
+  if (opts?.limit) url.searchParams.set("limit", String(opts.limit));
+  const resp = await fetchWithTimeout(url.toString(), { method:"GET", headers: authHeaders(token) });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Transactions failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+</script>
+
+<script>
 /* ================= DATE + MONEY ================= */
 const pad2 = (n) => String(n).padStart(2, "0");
 
@@ -717,295 +700,17 @@ function fmtCents(c){
   if (!Number.isFinite(n)) return "—";
   return "$" + (n/100).toFixed(2);
 }
-</script>
-<script>
-/* ================= CATEGORY ORDERING (UI ONLY) ================= */
-function normalizeCategories(state){
-  const cats = Array.isArray(state?.categories) ? state.categories : [];
-  return cats.map(c => ({
-    category_id: Number(c.category_id),
-    name: String(c.name || ""),
-    spent_cents: Number(c.spent_cents) || 0,
-    remaining_cents: Number(c.remaining_cents) || 0
-  })).filter(c => Number.isFinite(c.category_id) && c.category_id > 0 && c.name);
+
+/* History-friendly date label */
+function fmtLocalDateTime(iso){
+  const s = String(iso || "");
+  // Worker stores ET-offset ISO: YYYY-MM-DDTHH:mm:ss-05:00
+  const d = new Date(s);
+  if (!Number.isFinite(d.getTime())) return s;
+  return d.toLocaleString(undefined, { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" });
 }
-
-async function applyUiOrder(cats){
-  const saved = await idbGet(KEY_CAT_ORDER);
-  if (!Array.isArray(saved) || saved.length === 0) return cats;
-
-  const order = saved.map(Number).filter(n => Number.isFinite(n) && n > 0);
-  const byId = new Map(cats.map(c => [c.category_id, c]));
-
-  const out = [];
-  const seen = new Set();
-
-  for (const id of order){
-    const c = byId.get(id);
-    if (c) { out.push(c); seen.add(id); }
-  }
-  for (const c of cats){
-    if (!seen.has(c.category_id)) out.push(c);
-  }
-  return out;
-}
-
-async function ensureOrderDefaults(cats){
-  const saved = await idbGet(KEY_CAT_ORDER);
-
-  if (!Array.isArray(saved) || saved.length === 0) {
-    await idbSet(KEY_CAT_ORDER, cats.map(c => c.category_id));
-    return;
-  }
-
-  const order = saved.map(Number).filter(n => Number.isFinite(n) && n > 0);
-  const set = new Set(order);
-  let changed = false;
-  for (const c of cats){
-    if (!set.has(c.category_id)) { order.push(c.category_id); set.add(c.category_id); changed = true; }
-  }
-  if (changed) await idbSet(KEY_CAT_ORDER, order);
-}
-
-/* ================= DASHBOARD ================= */
-async function renderDashboard(state){
-  const p = state?.period;
-  if (p?.start_ts && p?.end_ts) {
-    periodLabel.textContent = `${String(p.start_ts).slice(0,10)} → ${String(p.end_ts).slice(0,10)}`;
-  } else {
-    periodLabel.textContent = "—";
-  }
-
-  let cats = normalizeCategories(state);
-  await ensureOrderDefaults(cats);
-  cats = await applyUiOrder(cats);
-
-  catTableBody.innerHTML = "";
-  for (const c of cats){
-    const tr = document.createElement("tr");
-
-    const tdName = document.createElement("td");
-    tdName.textContent = c.name;
-
-    const tdRem = document.createElement("td");
-    tdRem.className = "center";
-    tdRem.textContent = fmtCents(c.remaining_cents);
-
-    const tdSpent = document.createElement("td");
-    tdSpent.className = "center";
-    tdSpent.textContent = fmtCents(c.spent_cents);
-
-    tr.appendChild(tdName);
-    tr.appendChild(tdRem);
-    tr.appendChild(tdSpent);
-    catTableBody.appendChild(tr);
-  }
-
-  // Populate transaction selects
-  txCategory.innerHTML = "";
-  txFromCategory.innerHTML = "";
-  txToCategory.innerHTML = "";
-
-  for (const c of cats){
-    const opt = document.createElement("option");
-    opt.value = String(c.category_id);
-    opt.textContent = c.name;
-    txCategory.appendChild(opt);
-
-    const o1 = opt.cloneNode(true);
-    const o2 = opt.cloneNode(true);
-    txFromCategory.appendChild(o1);
-    txToCategory.appendChild(o2);
-  }
-}
-
-/* ================= SETTINGS + HISTORY MODALS ================= */
-function openSettings(){
-  settingsOverlay.classList.remove("hidden");
-  settingsOverlay.setAttribute("aria-hidden", "false");
-  setStatus(settingsAccountStatus, "");
-  setStatus(settingsReorderStatus, "");
-  setStatus(settingsAddCatsStatus, "");
-  hide(settingsReorderPanel);
-  hide(settingsAddCatsPanel);
-}
-
-function closeSettings(){
-  settingsOverlay.classList.add("hidden");
-  settingsOverlay.setAttribute("aria-hidden", "true");
-}
-
-function openHistory(){
-  historyOverlay.classList.remove("hidden");
-  historyOverlay.setAttribute("aria-hidden", "false");
-  historyTableBody.innerHTML = "";
-  setStatus(historyStatus, "Loading…");
-}
-
-function closeHistory(){
-  historyOverlay.classList.add("hidden");
-  historyOverlay.setAttribute("aria-hidden", "true");
-}
-
-/* ================= HISTORY RENDERING ================= */
-function renderHistoryRows(items){
-  historyTableBody.innerHTML = "";
-  if (!Array.isArray(items) || items.length === 0){
-    const tr = document.createElement("tr");
-    const td = document.createElement("td");
-    td.colSpan = 6;
-    td.className = "center";
-    td.textContent = "No transactions.";
-    tr.appendChild(td);
-    historyTableBody.appendChild(tr);
-    return;
-  }
-
-  for (const it of items){
-    const tr = document.createElement("tr");
-
-    const when = document.createElement("td");
-    when.className = "mono";
-    when.textContent = String(it.created_at || "").replace("T"," ").slice(0,19);
-
-    const type = document.createElement("td");
-    const badge = document.createElement("span");
-    if (it.is_refund){
-      badge.className = "badge refund";
-      badge.textContent = "Refund";
-    } else {
-      badge.className = "badge expense";
-      badge.textContent = "Expense";
-    }
-    if (String(it.note||"").toLowerCase().includes("transfer")){
-      badge.className = "badge transfer";
-      badge.textContent = "Transfer";
-    }
-    type.appendChild(badge);
-
-    const cat = document.createElement("td");
-    cat.textContent = String(it.category_name || it.category_id || "—");
-
-    const by = document.createElement("td");
-    by.textContent = String(it.created_by_label || "—");
-
-    const amt = document.createElement("td");
-    amt.className = "right";
-    const sign = it.is_refund ? "+" : "−";
-    amt.textContent = sign + fmtCents(it.amount_cents).replace("$","$");
-
-    const note = document.createElement("td");
-    note.textContent = String(it.note || "");
-
-    tr.appendChild(when);
-    tr.appendChild(type);
-    tr.appendChild(cat);
-    tr.appendChild(by);
-    tr.appendChild(amt);
-    tr.appendChild(note);
-
-    historyTableBody.appendChild(tr);
-  }
-}
-
-async function loadHistoryCurrent(){
-  const token = await idbGet(KEY_TOKEN);
-  if (!token) return;
-
-  historyWhichPeriodLabel.textContent = "Current period";
-  setStatus(historyStatus, "Loading current period…");
-
-  try {
-    const res = await fetchTransactions(token, { limit: 300 });
-    if (res.authFailed){
-      await idbDel(KEY_TOKEN);
-      closeHistory();
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-    renderHistoryRows(res.result?.items || []);
-    setStatus(historyStatus, "", "");
-  } catch (e) {
-    setStatus(historyStatus, e?.message || String(e), "error");
-  }
-}
-
-async function loadHistoryPrior(){
-  const token = await idbGet(KEY_TOKEN);
-  if (!token || !CURRENT_STATE?.prior_period?.period_key){
-    return setStatus(historyStatus, "No prior period available.", "error");
-  }
-
-  historyWhichPeriodLabel.textContent = "Prior period";
-  setStatus(historyStatus, "Loading prior period…");
-
-  try {
-    const res = await fetchTransactions(token, {
-      period_key: CURRENT_STATE.prior_period.period_key,
-      limit: 300
-    });
-    if (res.authFailed){
-      await idbDel(KEY_TOKEN);
-      closeHistory();
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-    renderHistoryRows(res.result?.items || []);
-    setStatus(historyStatus, "", "");
-  } catch (e) {
-    setStatus(historyStatus, e?.message || String(e), "error");
-  }
-}
-
-/* ================= TRANSFER TOGGLE ================= */
-txType.addEventListener("change", () => {
-  const isTransfer = txType.value === "transfer";
-  txSingleCatWrap.classList.toggle("hidden", isTransfer);
-  txTransferWrap.classList.toggle("hidden", !isTransfer);
-});
 </script>
 
-<script>
-/* ================= BOOTSTRAP + EVENTS ================= */
-let CURRENT_STATE = null;
-
-async function loadAppStateAndRender(token){
-  show(appView);
-  hide(dashboardView);
-  hide(noCategoriesView);
-
-  const result = await fetchState(token);
-  if (result.authFailed){
-    await idbDel(KEY_TOKEN);
-    return showAuth("Stored token is invalid/expired. Please re-enter.", true);
-  }
-
-  const state = result.state || {};
-  if (state.initialized === false){
-    show(noCategoriesView);
-    initWizard();
-    CURRENT_STATE = null;
-    return;
-  }
-
-  CURRENT_STATE = state;
-
-  show(dashboardView);
-  await renderDashboard(state);
-}
-
-/* ================= EVENTS: HISTORY ================= */
-openHistoryBtn.addEventListener("click", async () => {
-  openHistory();
-  await loadHistoryCurrent();
-});
-
-historyCloseBtn.addEventListener("click", closeHistory);
-historyViewCurrentBtn.addEventListener("click", loadHistoryCurrent);
-historyViewPriorBtn.addEventListener("click", loadHistoryPrior);
-
-historyOverlay.addEventListener("click", (e) => {
-  if (e.target === historyOverlay) closeHistory();
-});
-</script>
 <script>
 /* ================= WIZARD ================= */
 function showWizardStep(n){
@@ -1136,110 +841,142 @@ function showApp(){
   hide(authView);
   show(appView);
 }
-
-/* ================= ADD CATEGORIES PANEL ================= */
-function addSettingsCatRow(name = "", budget = ""){
-  const wrap = document.createElement("div");
-  wrap.className = "row";
-  wrap.style.marginTop = "10px";
-  wrap.innerHTML = `
-    <input class="setCatName" placeholder="Category" value="${String(name).replaceAll('"','&quot;')}" />
-    <input class="setCatBudget" placeholder="$0.00" value="${String(budget).replaceAll('"','&quot;')}" inputmode="decimal" />
-    <button type="button" class="secondary setRemoveBtn">Remove</button>
-  `;
-  const b = wrap.querySelector(".setCatBudget");
-  b.addEventListener("blur", () => { b.value = normalizeMoneyDisplay(b.value); });
-  wrap.querySelector(".setRemoveBtn").addEventListener("click", () => wrap.remove());
-  settingsAddCatsList.appendChild(wrap);
+</script>
+<script>
+/* ================= CATEGORY ORDERING (UI ONLY) ================= */
+function normalizeCategories(state){
+  const cats = Array.isArray(state?.categories) ? state.categories : [];
+  return cats.map(c => ({
+    category_id: Number(c.category_id),
+    name: String(c.name || ""),
+    spent_cents: Number(c.spent_cents) || 0,
+    remaining_cents: Number(c.remaining_cents) || 0
+  })).filter(c => Number.isFinite(c.category_id) && c.category_id > 0 && c.name);
 }
 
-function openAddCatsPanel(){
-  settingsAddCatsList.innerHTML = "";
-  addSettingsCatRow("", "");
-  setStatus(settingsAddCatsStatus, "");
-  show(settingsAddCatsPanel);
-  hide(settingsReorderPanel);
+async function applyUiOrder(cats){
+  const saved = await idbGet(KEY_CAT_ORDER);
+  if (!Array.isArray(saved) || saved.length === 0) return cats;
 
-  setTimeout(() => {
-    try { settingsAddCatsPanel.scrollIntoView({ block:"start", behavior:"smooth" }); } catch {}
-  }, 0);
-}
+  const order = saved.map(Number).filter(n => Number.isFinite(n) && n > 0);
+  const byId = new Map(cats.map(c => [c.category_id, c]));
 
-function readSettingsAddCats(){
-  const rows = Array.from(settingsAddCatsList.querySelectorAll(".row"));
   const out = [];
-  for (const r of rows){
-    const name = (r.querySelector(".setCatName")?.value || "").trim();
-    const budgetStr = (r.querySelector(".setCatBudget")?.value || "").trim();
-    if (!name && !budgetStr) continue;
+  const seen = new Set();
 
-    const cents = dollarsToCentsFromInput(budgetStr);
-    out.push({ name, cents });
+  for (const id of order){
+    const c = byId.get(id);
+    if (c) { out.push(c); seen.add(id); }
+  }
+  for (const c of cats){
+    if (!seen.has(c.category_id)) out.push(c);
   }
   return out;
 }
 
-async function saveAddedCategories(){
-  const token = await idbGet(KEY_TOKEN);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-  if (!CURRENT_STATE) return setStatus(settingsAddCatsStatus, "No budget loaded yet.", "error");
+async function ensureOrderDefaults(cats){
+  const saved = await idbGet(KEY_CAT_ORDER);
 
-  const rows = readSettingsAddCats();
-  if (rows.length < 1) return setStatus(settingsAddCatsStatus, "Add at least one category.", "error");
-
-  const existing = normalizeCategories(CURRENT_STATE);
-  const existingNames = new Set(existing.map(c => c.name.toLowerCase()));
-
-  const seen = new Set();
-  const add = [];
-
-  for (let i = 0; i < rows.length; i++){
-    const r = rows[i];
-    const name = String(r.name || "").trim();
-    if (!name) return setStatus(settingsAddCatsStatus, `Row ${i+1}: Category name is required.`, "error");
-    if (name.length > 64) return setStatus(settingsAddCatsStatus, `Row ${i+1}: Category name too long.`, "error");
-
-    const key = name.toLowerCase();
-    if (existingNames.has(key)) return setStatus(settingsAddCatsStatus, `Category already exists: ${name}`, "error");
-    if (seen.has(key)) return setStatus(settingsAddCatsStatus, `Duplicate in this list: ${name}`, "error");
-    seen.add(key);
-
-    if (!Number.isInteger(r.cents) || r.cents <= 0) {
-      return setStatus(settingsAddCatsStatus, `Row ${i+1}: Enter a budget amount greater than $0.00.`, "error");
-    }
-
-    add.push({ name, budget_cents: r.cents });
+  // If no saved order, create it.
+  if (!Array.isArray(saved) || saved.length === 0) {
+    await idbSet(KEY_CAT_ORDER, cats.map(c => c.category_id));
+    return;
   }
 
-  const afterCount = existing.length + add.length;
-  if (afterCount > 10) {
-    return setStatus(settingsAddCatsStatus, `You can have up to 10 active categories. You would have ${afterCount}.`, "error");
+  // If there IS an order, make sure it includes any new category IDs.
+  const order = saved.map(Number).filter(n => Number.isFinite(n) && n > 0);
+  const set = new Set(order);
+  let changed = false;
+  for (const c of cats){
+    if (!set.has(c.category_id)) { order.push(c.category_id); set.add(c.category_id); changed = true; }
   }
-
-  setStatus(settingsAddCatsStatus, "Saving…");
-
-  try {
-    const res = await postCategories(token, { add, remove: [] });
-    if (res.authFailed){
-      await idbDel(KEY_TOKEN);
-      closeSettings();
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-
-    CURRENT_STATE = res.result || {};
-    await renderDashboard(CURRENT_STATE);
-
-    setStatus(settingsAddCatsStatus, "Saved.", "ok");
-
-    settingsAddCatsList.innerHTML = "";
-    addSettingsCatRow("", "");
-
-  } catch (e) {
-    setStatus(settingsAddCatsStatus, e?.message || String(e), "error");
-  }
+  if (changed) await idbSet(KEY_CAT_ORDER, order);
 }
 
-/* ================= REORDER PANEL ================= */
+/* ================= DASHBOARD ================= */
+async function renderDashboard(state){
+  const p = state?.period;
+  if (p?.start_ts && p?.end_ts) {
+    periodLabel.textContent = `${String(p.start_ts).slice(0,10)} → ${String(p.end_ts).slice(0,10)}`;
+  } else {
+    periodLabel.textContent = "—";
+  }
+
+  let cats = normalizeCategories(state);
+  await ensureOrderDefaults(cats);
+  cats = await applyUiOrder(cats);
+
+  // Budget Summary table (Remaining in 2nd col, Spent in 3rd; both centered)
+  catTableBody.innerHTML = "";
+  for (const c of cats){
+    const tr = document.createElement("tr");
+
+    const tdName = document.createElement("td");
+    tdName.textContent = c.name;
+
+    const tdRemaining = document.createElement("td");
+    tdRemaining.className = "center";
+    tdRemaining.textContent = fmtCents(c.remaining_cents);
+
+    const tdSpent = document.createElement("td");
+    tdSpent.className = "center";
+    tdSpent.textContent = fmtCents(c.spent_cents);
+
+    tr.appendChild(tdName);
+    tr.appendChild(tdRemaining);
+    tr.appendChild(tdSpent);
+    catTableBody.appendChild(tr);
+  }
+
+  // Category dropdowns (used by Expense/Refund/Transfer)
+  txCategory.innerHTML = "";
+  for (const c of cats){
+    const opt = document.createElement("option");
+    opt.value = String(c.category_id);
+    opt.textContent = c.name;
+    txCategory.appendChild(opt);
+  }
+
+  // Transfer dropdowns (may not exist until later quarter's DOM section)
+  if (window.txFromCategory && window.txToCategory) {
+    txFromCategory.innerHTML = "";
+    txToCategory.innerHTML = "";
+    for (const c of cats){
+      const o1 = document.createElement("option");
+      o1.value = String(c.category_id);
+      o1.textContent = c.name;
+      txFromCategory.appendChild(o1);
+
+      const o2 = document.createElement("option");
+      o2.value = String(c.category_id);
+      o2.textContent = c.name;
+      txToCategory.appendChild(o2);
+    }
+  }
+
+  // Keep History modal category-name mapping fresh
+  HISTORY_CATEGORY_MAP = new Map(cats.map(c => [c.category_id, c.name]));
+}
+
+/* ================= SETTINGS MODAL ================= */
+function openSettings(){
+  settingsOverlay.classList.remove("hidden");
+  settingsOverlay.setAttribute("aria-hidden", "false");
+  setStatus(settingsAccountStatus, "");
+  setStatus(settingsReorderStatus, "");
+  setStatus(settingsAddCatsStatus, "");
+  hide(settingsReorderPanel);
+  hide(settingsAddCatsPanel);
+}
+
+function closeSettings(){
+  settingsOverlay.classList.add("hidden");
+  settingsOverlay.setAttribute("aria-hidden", "true");
+}
+
+/* ----------------- Reorder panel ----------------- */
+let CURRENT_STATE = null;
+
 async function openReorderPanel(){
   if (!CURRENT_STATE) return setStatus(settingsReorderStatus, "No budget loaded yet.", "error");
 
@@ -1319,8 +1056,325 @@ async function saveReorder(){
   await renderDashboard(CURRENT_STATE);
 }
 
-/* ================= TRANSACTIONS (Expense/Refund/Transfer) ================= */
+/* ----------------- Add categories panel ----------------- */
+function addSettingsCatRow(name = "", budget = ""){
+  const wrap = document.createElement("div");
+  wrap.className = "row";
+  wrap.style.marginTop = "10px";
+  wrap.innerHTML = `
+    <input class="setCatName" placeholder="Category" value="${String(name).replaceAll('"','&quot;')}" />
+    <input class="setCatBudget" placeholder="$0.00" value="${String(budget).replaceAll('"','&quot;')}" inputmode="decimal" />
+    <button type="button" class="secondary setRemoveBtn">Remove</button>
+  `;
+  const b = wrap.querySelector(".setCatBudget");
+  b.addEventListener("blur", () => { b.value = normalizeMoneyDisplay(b.value); });
+  wrap.querySelector(".setRemoveBtn").addEventListener("click", () => wrap.remove());
+  settingsAddCatsList.appendChild(wrap);
+}
+
+function openAddCatsPanel(){
+  settingsAddCatsList.innerHTML = "";
+  addSettingsCatRow("", "");
+  setStatus(settingsAddCatsStatus, "");
+  show(settingsAddCatsPanel);
+  hide(settingsReorderPanel);
+
+  setTimeout(() => {
+    try { settingsAddCatsPanel.scrollIntoView({ block:"start", behavior:"smooth" }); } catch {}
+  }, 0);
+}
+
+function readSettingsAddCats(){
+  const rows = Array.from(settingsAddCatsList.querySelectorAll(".row"));
+  const out = [];
+  for (const r of rows){
+    const name = (r.querySelector(".setCatName")?.value || "").trim();
+    const budgetStr = (r.querySelector(".setCatBudget")?.value || "").trim();
+    if (!name && !budgetStr) continue;
+
+    const cents = dollarsToCentsFromInput(budgetStr);
+    out.push({ name, cents });
+  }
+  return out;
+}
+</script>
+
+<script>
+/* ================= HISTORY MODAL (NO CATEGORY NUMBERS) ================= */
+// Category id -> name (kept in sync by renderDashboard)
+let HISTORY_CATEGORY_MAP = new Map();
+
+// DOM refs are created in the HTML quarter; these are declared later once elements exist.
+let historyOverlay, historyCloseBtn, historyTitle, historyStatus, historyTableBody;
+let historyCurBtn, historyPriorBtn;
+
+let HISTORY_MODE = "current"; // "current" | "prior"
+let HISTORY_CACHE_CURRENT = null; // { period_key, items }
+let HISTORY_CACHE_PRIOR = null;   // { period_key, items }
+
+function openHistory(mode = "current"){
+  HISTORY_MODE = mode === "prior" ? "prior" : "current";
+  if (!historyOverlay) return;
+
+  historyOverlay.classList.remove("hidden");
+  historyOverlay.setAttribute("aria-hidden", "false");
+
+  setStatus(historyStatus, "");
+  historyTableBody.innerHTML = "";
+
+  // Button state
+  if (historyCurBtn) historyCurBtn.disabled = HISTORY_MODE === "current";
+  if (historyPriorBtn) historyPriorBtn.disabled = HISTORY_MODE === "prior";
+
+  loadAndRenderHistory().catch((e) => {
+    setStatus(historyStatus, e?.message || String(e), "error");
+  });
+}
+
+function closeHistory(){
+  if (!historyOverlay) return;
+  historyOverlay.classList.add("hidden");
+  historyOverlay.setAttribute("aria-hidden", "true");
+}
+
+function normalizeLedgerItems(items){
+  const arr = Array.isArray(items) ? items : [];
+  return arr.map(x => ({
+    id: String(x.id || ""),
+    period_key: String(x.period_key || ""),
+    category_id: Number(x.category_id),
+    amount_cents: Number(x.amount_cents) || 0,
+    is_refund: Boolean(x.is_refund),
+    note: String(x.note || ""),
+    created_at: String(x.created_at || ""),
+    created_by_label: String(x.created_by_label || "")
+  })).filter(x => x.id && x.period_key && Number.isFinite(x.category_id));
+}
+
+function labelForCategoryId(id){
+  const name = HISTORY_CATEGORY_MAP.get(Number(id));
+  return name || "Unknown category";
+}
+
+function labelForType(it){
+  // expense/refund; transfer is represented as two ledger entries with a standardized note (see tx handler quarter)
+  if (it.is_refund) return "Refund";
+  // heuristic: if note begins with "Transfer:" treat as transfer
+  if (String(it.note || "").startsWith("Transfer:")) return "Transfer";
+  return "Expense";
+}
+
+function signedAmountCents(it){
+  // For display only: refunds shown as negative to be intuitive in history
+  const sign = it.is_refund ? -1 : 1;
+  return sign * Number(it.amount_cents || 0);
+}
+
+function renderHistoryTable(payload, periodLabelText){
+  const items = normalizeLedgerItems(payload?.items || payload?.result?.items || payload?.items);
+  const pk = String(payload?.period_key || payload?.result?.period_key || "");
+
+  if (historyTitle) historyTitle.textContent = periodLabelText || (HISTORY_MODE === "prior" ? "History — Prior Period" : "History — Current Period");
+
+  historyTableBody.innerHTML = "";
+  if (!items.length){
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 4;
+    td.className = "small";
+    td.textContent = "No transactions found for this period.";
+    tr.appendChild(td);
+    historyTableBody.appendChild(tr);
+    return;
+  }
+
+  for (const it of items){
+    const tr = document.createElement("tr");
+
+    const tdWhen = document.createElement("td");
+    tdWhen.textContent = fmtLocalDateTime(it.created_at);
+
+    const tdWho = document.createElement("td");
+    tdWho.textContent = it.created_by_label || "—";
+
+    const tdCat = document.createElement("td");
+    // Option A: never show category numbers
+    tdCat.textContent = labelForCategoryId(it.category_id);
+
+    const tdAmt = document.createElement("td");
+    tdAmt.className = "right";
+    const amt = signedAmountCents(it);
+    tdAmt.textContent = (amt < 0 ? "-" : "") + fmtCents(Math.abs(amt));
+
+    // small second-line detail for note/type without numbers
+    if (it.note) {
+      tdCat.innerHTML = `<div>${escapeHtml(tdCat.textContent)}</div><div class="small">${escapeHtml(labelForType(it))}${it.note ? " • " + escapeHtml(it.note) : ""}</div>`;
+    } else {
+      tdCat.innerHTML = `<div>${escapeHtml(tdCat.textContent)}</div><div class="small">${escapeHtml(labelForType(it))}</div>`;
+    }
+
+    tr.appendChild(tdWhen);
+    tr.appendChild(tdWho);
+    tr.appendChild(tdCat);
+    tr.appendChild(tdAmt);
+    historyTableBody.appendChild(tr);
+  }
+
+  // keep for potential debugging
+  void pk;
+}
+
+function escapeHtml(s){
+  return String(s || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+async function loadAndRenderHistory(){
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return showAuth("Missing token. Please re-enter.", true);
+  if (!CURRENT_STATE) return setStatus(historyStatus, "No budget loaded yet.", "error");
+
+  // Figure out which period key to show
+  const cur = CURRENT_STATE?.period;
+  const prior = CURRENT_STATE?.prior_period;
+
+  if (HISTORY_MODE === "prior") {
+    if (!prior?.period_key) {
+      historyTableBody.innerHTML = "";
+      return setStatus(historyStatus, "No prior period available yet.", "error");
+    }
+    // Worker GET /transactions returns CURRENT period only. For prior, we rely on the UI cache strategy:
+    // If you want true prior-ledger, add a period_key param server-side later.
+    // For now: show a clear message.
+    historyTableBody.innerHTML = "";
+    return setStatus(historyStatus, "Prior-period transaction history requires a small server change (period_key query). Current server returns only current-period ledger.", "error");
+  }
+
+  // Current period ledger
+  setStatus(historyStatus, "Loading…");
+  const res = await fetchTransactions(token, { limit: 500 });
+  if (res.authFailed){
+    await idbDel(KEY_TOKEN);
+    closeHistory();
+    return showAuth("Token invalid/expired. Please re-enter.", true);
+  }
+
+  setStatus(historyStatus, "");
+  const label = cur?.start_ts && cur?.end_ts
+    ? `History — ${String(cur.start_ts).slice(0,10)} → ${String(cur.end_ts).slice(0,10)}`
+    : "History — Current Period";
+
+  renderHistoryTable(res.result || res, label);
+}
+</script>
+<script>
+/* ================= API (add: GET transactions helper) ================= */
+async function fetchTransactions(token, { sinceMs=null, limit=200 } = {}){
+  const u = new URL(join(API.tx));
+  if (sinceMs) u.searchParams.set("since", String(sinceMs));
+  if (limit) u.searchParams.set("limit", String(limit));
+  const resp = await fetchWithTimeout(u.toString(), { method:"GET", headers: authHeaders(token) });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Transactions fetch failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+/* ================= DATE HELPERS (history display) ================= */
+function fmtLocalDateTime(iso){
+  const s = String(iso || "");
+  // created_at is already ET-offset ISO; Date() will render local time.
+  const d = new Date(s);
+  if (!Number.isFinite(d.getTime())) return s || "—";
+  return d.toLocaleString(undefined, { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" });
+}
+</script>
+
+<script>
+/* ================= TRANSFER UI (frontend-only) ================= */
+
+// These are created in HTML (quarter 1/4) - we attach here for robustness
+const txTransferPanel = $("txTransferPanel");
+const txFromCategory = $("txFromCategory");
+const txToCategory = $("txToCategory");
+const txTransferAmount = $("txTransferAmount");
+const txTransferNote = $("txTransferNote");
+
+// expose for renderDashboard dropdown population
+window.txFromCategory = txFromCategory;
+window.txToCategory = txToCategory;
+
+function syncTxTypeUi(){
+  const t = String(txType.value || "expense");
+  const isTransfer = t === "transfer";
+  if (txTransferPanel) txTransferPanel.classList.toggle("hidden", !isTransfer);
+
+  // Base fields
+  txCategory.closest?.(".txBaseFields")?.classList?.toggle?.("hidden", isTransfer);
+  // If wrapper isn't present (older markup), just hide individual nodes we know exist.
+  if (!txCategory.closest?.(".txBaseFields")){
+    if (txCategory?.parentElement) txCategory.parentElement.classList.toggle("hidden", isTransfer);
+    if (txAmount?.parentElement) txAmount.parentElement.classList.toggle("hidden", isTransfer);
+    if (txNote?.parentElement) txNote.parentElement.classList.toggle("hidden", isTransfer);
+  }
+
+  // Status reset
+  setStatus(txStatus, "");
+}
+
+/* ================= HISTORY MODAL DOM WIRING ================= */
+historyOverlay = $("historyOverlay");
+historyCloseBtn = $("historyCloseBtn");
+historyTitle = $("historyTitle");
+historyStatus = $("historyStatus");
+historyTableBody = $("historyTableBody");
+historyCurBtn = $("historyCurBtn");
+historyPriorBtn = $("historyPriorBtn");
+
+const openHistoryBtn = $("openHistoryBtn");
+
+if (openHistoryBtn) openHistoryBtn.addEventListener("click", () => openHistory("current"));
+if (historyCloseBtn) historyCloseBtn.addEventListener("click", closeHistory);
+if (historyOverlay) {
+  historyOverlay.addEventListener("click", (e) => {
+    if (e.target === historyOverlay) closeHistory();
+  });
+}
+if (historyCurBtn) historyCurBtn.addEventListener("click", () => openHistory("current"));
+if (historyPriorBtn) historyPriorBtn.addEventListener("click", () => openHistory("prior"));
+
+/* ================= EVENTS: TRANSACTIONS (updated for Transfer) ================= */
 txAmount.addEventListener("blur", () => { txAmount.value = normalizeMoneyDisplay(txAmount.value); });
+if (txTransferAmount) txTransferAmount.addEventListener("blur", () => { txTransferAmount.value = normalizeMoneyDisplay(txTransferAmount.value); });
+
+txType.addEventListener("change", syncTxTypeUi);
+syncTxTypeUi();
+
+/**
+ * Transfer encoding (frontend-only, works with current worker schema):
+ * - We POST two ledger items:
+ *    1) from-category as an "expense" (is_refund=false)
+ *    2) to-category as a "refund" (is_refund=true)  <-- decreases spent, increasing remaining
+ * - Both items share a standardized note prefix "Transfer:" so History can label it.
+ *
+ * This keeps net total spent across all categories unchanged, but moves "spent" from one bucket to another.
+ */
+function buildTransferItems({ fromId, toId, cents, note }){
+  const n = String(note || "").trim().slice(0, 200);
+  const prefix = `Transfer: ${labelForCategoryId(fromId)} → ${labelForCategoryId(toId)}`;
+  const fullNote = n ? `${prefix} • ${n}` : prefix;
+
+  return [
+    { category_id: fromId, amount_cents: cents, is_refund: false, note: fullNote },
+    { category_id: toId,   amount_cents: cents, is_refund: true,  note: fullNote }
+  ];
+}
 
 txSubmitBtn.addEventListener("click", async () => {
   const token = await idbGet(KEY_TOKEN);
@@ -1328,60 +1382,59 @@ txSubmitBtn.addEventListener("click", async () => {
 
   if (!token) return showAuth("Missing token. Please re-enter.", true);
   if (!name) return showAuth("Missing name. Please re-enter.", true);
+  if (!CURRENT_STATE) return setStatus(txStatus, "No budget loaded yet.", "error");
+
+  const mode = String(txType.value || "expense");
+
+  // Transfer
+  if (mode === "transfer"){
+    const fromId = Number(txFromCategory?.value);
+    const toId = Number(txToCategory?.value);
+    if (!Number.isFinite(fromId) || fromId <= 0) return setStatus(txStatus, "Choose a 'Transfer from' category.", "error");
+    if (!Number.isFinite(toId) || toId <= 0) return setStatus(txStatus, "Choose a 'Transfer to' category.", "error");
+    if (fromId === toId) return setStatus(txStatus, "Transfer from/to must be different categories.", "error");
+
+    const cents = dollarsToCentsFromInput(txTransferAmount?.value);
+    if (cents === null) return setStatus(txStatus, "Enter a valid transfer amount greater than $0.00.", "error");
+
+    const note = String(txTransferNote?.value || "").trim().slice(0, 240) || "";
+
+    const body = {
+      created_by_label: name,
+      items: buildTransferItems({ fromId, toId, cents, note })
+    };
+
+    setStatus(txStatus, "Saving transfer…");
+    try {
+      const res = await postTransaction(token, body);
+      if (res.authFailed){
+        await idbDel(KEY_TOKEN);
+        return showAuth("Token invalid/expired. Please re-enter.", true);
+      }
+      CURRENT_STATE = res.result || {};
+      await renderDashboard(CURRENT_STATE);
+      setStatus(txStatus, "Transfer saved.", "ok");
+      if (txTransferAmount) txTransferAmount.value = "";
+      if (txTransferNote) txTransferNote.value = "";
+    } catch (e) {
+      setStatus(txStatus, e?.message || String(e), "error");
+    }
+    return;
+  }
+
+  // Expense / Refund (existing)
+  const categoryId = Number(txCategory.value);
+  if (!Number.isFinite(categoryId) || categoryId <= 0) return setStatus(txStatus, "Please choose a category.", "error");
 
   const cents = dollarsToCentsFromInput(txAmount.value);
   if (cents === null) return setStatus(txStatus, "Enter a valid amount greater than $0.00.", "error");
 
-  const noteRaw = String(txNote.value || "").trim().slice(0, 240);
-  const note = noteRaw || undefined;
-
-  let items = [];
-
-  if (txType.value === "transfer") {
-    const fromId = Number(txFromCategory.value);
-    const toId = Number(txToCategory.value);
-
-    if (!Number.isFinite(fromId) || fromId <= 0) return setStatus(txStatus, "Choose a 'from' category.", "error");
-    if (!Number.isFinite(toId) || toId <= 0) return setStatus(txStatus, "Choose a 'to' category.", "error");
-    if (fromId === toId) return setStatus(txStatus, "Transfer categories must be different.", "error");
-
-    // Clean follow-on: prevent transfer exceeding remaining (client-side hint)
-    // If we can find the "from" category remaining in CURRENT_STATE, enforce it.
-    const cats = normalizeCategories(CURRENT_STATE);
-    const from = cats.find(c => c.category_id === fromId);
-    if (from && Number.isFinite(from.remaining_cents) && cents > from.remaining_cents) {
-      return setStatus(txStatus, `Transfer exceeds remaining in '${from.name}'.`, "error");
-    }
-
-    items = [
-      {
-        category_id: fromId,
-        amount_cents: cents,
-        is_refund: false,
-        note: note ? `Transfer out — ${note}` : "Transfer out"
-      },
-      {
-        category_id: toId,
-        amount_cents: cents,
-        is_refund: true,
-        note: note ? `Transfer in — ${note}` : "Transfer in"
-      }
-    ];
-  } else {
-    const categoryId = Number(txCategory.value);
-    if (!Number.isFinite(categoryId) || categoryId <= 0) return setStatus(txStatus, "Please choose a category.", "error");
-
-    items = [{
-      category_id: categoryId,
-      amount_cents: cents,
-      is_refund: txType.value === "refund",
-      note
-    }];
-  }
+  const isRefund = mode === "refund";
+  const note = String(txNote.value || "").trim().slice(0, 240) || undefined;
 
   const body = {
     created_by_label: name,
-    items
+    items: [{ category_id: categoryId, amount_cents: cents, is_refund: isRefund, note }]
   };
 
   setStatus(txStatus, "Saving…");
@@ -1401,85 +1454,7 @@ txSubmitBtn.addEventListener("click", async () => {
   }
 });
 
-/* ================= BOOTSTRAP ================= */
-async function bootstrap(){
-  setStatus(globalStatus, "Starting…");
-
-  const token = await idbGet(KEY_TOKEN);
-  const name = await idbGet(KEY_NAME);
-
-  if (!token){
-    userNameInput.value = name || "";
-    setStatus(globalStatus, "");
-    return showAuth("No token saved. Enter your name and bearer token to continue.");
-  }
-
-  try {
-    setStatus(globalStatus, "Validating token…");
-    const ok = await validateToken(token);
-    if (!ok){
-      await idbDel(KEY_TOKEN);
-      setStatus(globalStatus, "");
-      return showAuth("Saved token is invalid or expired. Please enter a new token.", true);
-    }
-    await loadAppStateAndRender(token);
-    setStatus(globalStatus, "");
-  } catch (e) {
-    setStatus(globalStatus, "");
-    showAuth(`Startup error: ${e?.message || String(e)}`, true);
-  }
-}
-
-/* ================= EVENTS: AUTH ================= */
-saveTokenBtn.addEventListener("click", async () => {
-  const token = (tokenInput.value || "").trim();
-  const name = (userNameInput.value || "").trim();
-  if (!name) return setStatus(authStatus, "Please enter your name.", "error");
-  if (!token) return setStatus(authStatus, "Please enter a token.", "error");
-
-  setStatus(authStatus, "Validating token…");
-  try {
-    const ok = await validateToken(token);
-    if (!ok) return setStatus(authStatus, "Token is invalid or expired.", "error");
-
-    await idbSet(KEY_NAME, name);
-    await idbSet(KEY_TOKEN, token);
-
-    setStatus(authStatus, "Saved. Loading…", "ok");
-    await loadAppStateAndRender(token);
-  } catch (e) {
-    setStatus(authStatus, `Unable to validate token: ${e?.message || String(e)}`, "error");
-  }
-});
-
-toggleTokenBtn.addEventListener("click", () => {
-  const isPw = tokenInput.type === "password";
-  tokenInput.type = isPw ? "text" : "password";
-  toggleTokenBtn.textContent = isPw ? "Hide" : "Show";
-  tokenInput.focus();
-});
-
-/* ================= EVENTS: WIZARD ================= */
-wizNext1.addEventListener("click", () => {
-  const err = validateWizardStep1();
-  if (err) return setStatus(wizStatus1, err, "error");
-  setStatus(wizStatus1, "");
-  showWizardStep(1);
-});
-
-wizAddCat.addEventListener("click", () => addWizRow());
-
-wizNext2.addEventListener("click", () => {
-  const err = validateWizardStep2();
-  if (err) return setStatus(wizStatus2, err, "error");
-  setStatus(wizStatus2, "");
-  renderWizardReview();
-  showWizardStep(2);
-});
-
-wizSubmit.addEventListener("click", submitInit);
-
-/* ================= EVENTS: SETTINGS ================= */
+/* ================= EVENTS: SETTINGS (unchanged except history coexistence) ================= */
 openSettingsBtn.addEventListener("click", openSettings);
 settingsCloseBtn.addEventListener("click", closeSettings);
 
@@ -1502,13 +1477,20 @@ settingsSaveOrderBtn.addEventListener("click", async () => {
 });
 
 /* Add categories */
-settingsOpenAddCatsBtn.addEventListener("click", openAddCatsPanel);
+settingsOpenAddCatsBtn.addEventListener("click", () => {
+  openAddCatsPanel();
+});
+
 settingsAddCatsRowBtn.addEventListener("click", () => addSettingsCatRow("", ""));
+
 settingsCancelCatsBtn.addEventListener("click", () => {
   hide(settingsAddCatsPanel);
   setStatus(settingsAddCatsStatus, "");
 });
-settingsSaveCatsBtn.addEventListener("click", saveAddedCategories);
+
+settingsSaveCatsBtn.addEventListener("click", async () => {
+  await saveAddedCategories();
+});
 
 /* Account */
 settingsLogoutBtn.addEventListener("click", async () => {
@@ -1540,6 +1522,7 @@ settingsResetBtn.addEventListener("click", async () => {
     setStatus(settingsAccountStatus, "Reset complete.", "ok");
     closeSettings();
 
+    // Immediately go to wizard
     await loadAppStateAndRender(token);
   } catch (e) {
     setStatus(settingsAccountStatus, e?.message || String(e), "error");
