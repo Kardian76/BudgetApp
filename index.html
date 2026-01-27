@@ -1230,7 +1230,141 @@ txSubmitBtn.addEventListener("click", async () => {
 </script>
 
 <script>
-/* ================= SETTINGS MODAL ================= */
+/* ================= SETTINGS MODAL - REORDER FUNCTIONS ================= */
+function openReorderPanel(){
+  if (!CURRENT_STATE) return setStatus(settingsReorderStatus, "No budget loaded yet.", "error");
+  
+  const cats = normalizeCategories(CURRENT_STATE);
+  if (cats.length === 0) return setStatus(settingsReorderStatus, "No categories to reorder.", "error");
+
+  show(settingsReorderPanel);
+  setStatus(settingsReorderStatus, "");
+  renderReorderList(cats);
+}
+
+async function renderReorderList(cats){
+  const ordered = await applyUiOrder(cats);
+  settingsReorderList.innerHTML = "";
+
+  for (let i = 0; i < ordered.length; i++){
+    const c = ordered[i];
+    const wrap = document.createElement("div");
+    wrap.className = "row";
+    wrap.style.marginTop = "10px";
+    wrap.dataset.categoryId = String(c.category_id);
+    
+    const label = document.createElement("span");
+    label.textContent = c.name;
+    label.style.flex = "1";
+    label.style.alignSelf = "center";
+
+    const upBtn = document.createElement("button");
+    upBtn.className = "secondary";
+    upBtn.type = "button";
+    upBtn.textContent = "↑";
+    upBtn.disabled = i === 0;
+    upBtn.addEventListener("click", () => moveCategory(i, -1));
+
+    const downBtn = document.createElement("button");
+    downBtn.className = "secondary";
+    downBtn.type = "button";
+    downBtn.textContent = "↓";
+    downBtn.disabled = i === ordered.length - 1;
+    downBtn.addEventListener("click", () => moveCategory(i, 1));
+
+    wrap.appendChild(label);
+    wrap.appendChild(upBtn);
+    wrap.appendChild(downBtn);
+    settingsReorderList.appendChild(wrap);
+  }
+}
+
+function moveCategory(index, direction){
+  const rows = Array.from(settingsReorderList.querySelectorAll(".row"));
+  if (index < 0 || index >= rows.length) return;
+  
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= rows.length) return;
+
+  const row = rows[index];
+  const targetRow = rows[newIndex];
+  
+  if (direction < 0) {
+    settingsReorderList.insertBefore(row, targetRow);
+  } else {
+    settingsReorderList.insertBefore(row, targetRow.nextSibling);
+  }
+
+  // Re-render to update button states
+  const cats = normalizeCategories(CURRENT_STATE);
+  const currentOrder = Array.from(settingsReorderList.querySelectorAll(".row"))
+    .map(r => Number(r.dataset.categoryId));
+  
+  const ordered = currentOrder.map(id => cats.find(c => c.category_id === id)).filter(Boolean);
+  renderReorderList(ordered);
+}
+
+async function saveReorder(){
+  const rows = Array.from(settingsReorderList.querySelectorAll(".row"));
+  const order = rows.map(r => Number(r.dataset.categoryId)).filter(n => Number.isFinite(n) && n > 0);
+  
+  if (order.length === 0) return setStatus(settingsReorderStatus, "No categories to save.", "error");
+
+  try {
+    await idbSet(KEY_CAT_ORDER, order);
+    setStatus(settingsReorderStatus, "Order saved.", "ok");
+    
+    // Update the dashboard to reflect new order
+    await renderDashboard(CURRENT_STATE);
+    
+    // Hide panel after a brief delay
+    setTimeout(() => {
+      hide(settingsReorderPanel);
+      setStatus(settingsReorderStatus, "");
+    }, 1000);
+  } catch (e) {
+    setStatus(settingsReorderStatus, e?.message || String(e), "error");
+  }
+}
+
+/* ================= SETTINGS MODAL - ADD CATEGORIES FUNCTIONS ================= */
+function openAddCatsPanel(){
+  show(settingsAddCatsPanel);
+  setStatus(settingsAddCatsStatus, "");
+  settingsAddCatsList.innerHTML = "";
+  addSettingsCatRow("", "");
+}
+
+function addSettingsCatRow(name = "", budget = ""){
+  const wrap = document.createElement("div");
+  wrap.className = "row";
+  wrap.style.marginTop = "10px";
+  wrap.innerHTML = `
+    <input class="settingsCatName" placeholder="Category name" value="${String(name).replaceAll('"','&quot;')}" />
+    <input class="settingsCatBudget" placeholder="$0.00" value="${String(budget).replaceAll('"','&quot;')}" inputmode="decimal" />
+    <button type="button" class="secondary settingsRemoveCatBtn">Remove</button>
+  `;
+  
+  const budgetInput = wrap.querySelector(".settingsCatBudget");
+  budgetInput.addEventListener("blur", () => { 
+    budgetInput.value = normalizeMoneyDisplay(budgetInput.value); 
+  });
+  
+  wrap.querySelector(".settingsRemoveCatBtn").addEventListener("click", () => wrap.remove());
+  settingsAddCatsList.appendChild(wrap);
+}
+
+function readSettingsAddCats(){
+  const rows = Array.from(settingsAddCatsList.querySelectorAll(".row"));
+  return rows.map(r => {
+    const name = (r.querySelector(".settingsCatName")?.value || "").trim();
+    const money = (r.querySelector(".settingsCatBudget")?.value || "").trim();
+    const cents = dollarsToCentsFromInput(money);
+    return { name, cents };
+  });
+}
+
+/* ================= SETTINGS MODAL - EVENT LISTENERS ================= */
 function openSettings(){
   show(settingsOverlay);
   settingsOverlay.setAttribute("aria-hidden","false");
