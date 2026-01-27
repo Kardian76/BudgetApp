@@ -1423,13 +1423,44 @@ async function saveEditBudgets(){
     }
   }
 
+  // The API doesn't have a direct "update budget" endpoint, so we need to use transactions
+  // to adjust budgets. We'll calculate the difference and post refunds/expenses to adjust.
+  const cats = normalizeCategories(CURRENT_STATE);
+  const adjustments = [];
+  
+  for (const edit of edits){
+    const cat = cats.find(c => c.category_id === edit.categoryId);
+    if (!cat) continue;
+    
+    const currentBudget = cat.spent_cents + cat.remaining_cents;
+    const diff = edit.cents - currentBudget;
+    
+    if (diff !== 0) {
+      // Positive diff = increase budget (refund), negative = decrease (expense)
+      adjustments.push({
+        category_id: edit.categoryId,
+        amount_cents: Math.abs(diff),
+        is_refund: diff > 0,
+        note: `Budget adjustment: ${diff > 0 ? 'increased' : 'decreased'} by ${fmtCents(Math.abs(diff))}`
+      });
+    }
+  }
+
+  if (adjustments.length === 0) {
+    return setStatus(settingsEditBudgetsStatus, "No changes to save.", "ok");
+  }
+
+  const name = await idbGet(KEY_NAME);
+  if (!name) return showAuth("Missing name. Please re-enter.", true);
+
   const payload = {
-    update: edits.map(e => ({ category_id: e.categoryId, budget_cents: e.cents }))
+    created_by_label: name,
+    items: adjustments
   };
 
   setStatus(settingsEditBudgetsStatus, "Saving…");
   try {
-    const res = await postCategories(token, payload);
+    const res = await postTransaction(token, payload);
     if (res.authFailed){
       await idbDel(KEY_TOKEN);
       closeSettings();
