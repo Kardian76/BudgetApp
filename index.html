@@ -437,15 +437,27 @@ const settingsLogoutBtn = $("settingsLogoutBtn");
 const settingsResetBtn = $("settingsResetBtn");
 const settingsAccountStatus = $("settingsAccountStatus");
 
-/* History modal DOM */
-const openHistoryBtn = $("openHistoryBtn");
-const historyOverlay = $("historyOverlay");
-const historyCloseBtn = $("historyCloseBtn");
-const historyCurrentBtn = $("historyCurrentBtn");
-const historyPriorBtn = $("historyPriorBtn");
-const historyWhichLabel = $("historyWhichLabel");
-const historyStatus = $("historyStatus");
-const historyBody = $("historyBody");
+/* ================= HISTORY MODAL DOM WIRING (SAFE) ================= */
+(function initHistoryUi(){
+  const openHistoryBtn = $("openHistoryBtn");
+  const historyOverlay = $("historyOverlay");
+  const historyCloseBtn = $("historyCloseBtn");
+  const historyCurBtn = $("historyCurBtn");
+  const historyPriorBtn = $("historyPriorBtn");
+
+  if (openHistoryBtn) openHistoryBtn.addEventListener("click", () => openHistory("current"));
+  if (historyCloseBtn) historyCloseBtn.addEventListener("click", closeHistory);
+
+  if (historyOverlay) {
+    historyOverlay.addEventListener("click", (e) => {
+      if (e.target === historyOverlay) closeHistory();
+    });
+  }
+
+  if (historyCurBtn) historyCurBtn.addEventListener("click", () => openHistory("current"));
+  if (historyPriorBtn) historyPriorBtn.addEventListener("click", () => openHistory("prior"));
+})();
+
 
 /* ================= UI HELPERS ================= */
 function show(el){ if (el) el.classList.remove("hidden"); }
