@@ -67,8 +67,20 @@ td.center, th.center{text-align:center}
   position:fixed;right:18px;bottom:18px;z-index:50;
   display:flex;gap:10px;flex-direction:column;align-items:flex-end;
 }
-.fabWrap .historyBtn{
-  position:fixed;left:18px;bottom:18px;right:auto;
+.historyBtn{
+  position:fixed;left:18px;bottom:18px;
+  background:linear-gradient(180deg,#2d6cdf,#1f57c8);
+}
+.settingsBtn{
+  position:fixed;right:18px;bottom:18px;
+}
+
+/* Add spacing above buttons so they don't overlap content */
+@media(min-width:900px){
+  .wrap{padding-bottom:80px}
+}
+@media(max-width:900px){
+  .wrap{padding-bottom:100px}
 }
 
 .modalOverlay{
@@ -223,10 +235,8 @@ td.center, th.center{text-align:center}
   </div>
 
   <!-- Floating buttons -->
-  <div class="fabWrap">
-    <button id="openSettingsBtn" type="button">Settings</button>
-  </div>
-  <button id="openHistoryBtn" type="button" class="secondary historyBtn">History</button>
+  <button id="openHistoryBtn" type="button" class="historyBtn">History</button>
+  <button id="openSettingsBtn" type="button" class="settingsBtn">Settings</button>
 
   <div id="globalStatus" class="status"></div>
 </div>
@@ -665,7 +675,13 @@ function normalizeMoneyDisplay(s){
   if (!raw) return "";
   const n = Number(raw);
   if (!Number.isFinite(n)) return "";
-  return "$" + n.toFixed(2);
+  
+  // Format with commas: split into integer and decimal parts
+  const formatted = n.toFixed(2);
+  const parts = formatted.split('.');
+  const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  
+  return "$" + integerPart + "." + parts[1];
 }
 
 function validateAndFixCommas(value){
@@ -680,22 +696,10 @@ function validateAndFixCommas(value){
   // Remove all commas to get pure digits
   const digitsOnly = integerPart.replace(/,/g, "");
   
-  // Check if commas were used
-  if (integerPart.includes(',')) {
-    // Build what the correctly formatted version should look like
-    const correctFormat = digitsOnly.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    
-    // If current format doesn't match correct format, strip all commas
-    if (integerPart !== correctFormat) {
-      clean = digitsOnly + (decimalPart ? '.' + decimalPart : '');
-    } else {
-      clean = integerPart + (decimalPart ? '.' + decimalPart : '');
-    }
-  } else {
-    clean = digitsOnly + (decimalPart ? '.' + decimalPart : '');
-  }
+  // Always return with proper comma formatting
+  const formatted = digitsOnly.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   
-  return clean;
+  return formatted + (decimalPart ? '.' + decimalPart : '');
 }
 
 function dollarsToCentsFromInput(s){
