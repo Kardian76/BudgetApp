@@ -1231,7 +1231,7 @@ txSubmitBtn.addEventListener("click", async () => {
 
 <script>
 /* ================= SETTINGS MODAL - REORDER FUNCTIONS ================= */
-function openReorderPanel(){
+async function openReorderPanel(){
   if (!CURRENT_STATE) return setStatus(settingsReorderStatus, "No budget loaded yet.", "error");
   
   const cats = normalizeCategories(CURRENT_STATE);
@@ -1239,7 +1239,10 @@ function openReorderPanel(){
 
   show(settingsReorderPanel);
   setStatus(settingsReorderStatus, "");
-  renderReorderList(cats);
+  
+  // Apply current saved order
+  const ordered = await applyUiOrder(cats);
+  renderReorderList(ordered);
 }
 
 async function renderReorderList(cats){
@@ -1276,6 +1279,30 @@ async function renderReorderList(cats){
     wrap.appendChild(downBtn);
     settingsReorderList.appendChild(wrap);
   }
+}
+
+function moveCategory(index, direction){
+  const rows = Array.from(settingsReorderList.querySelectorAll(".row"));
+  if (index < 0 || index >= rows.length) return;
+  
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= rows.length) return;
+
+  // Get current order from DOM
+  const currentOrder = rows.map(r => Number(r.dataset.categoryId));
+  
+  // Swap in the array
+  [currentOrder[index], currentOrder[newIndex]] = [currentOrder[newIndex], currentOrder[index]];
+  
+  // Get categories data
+  const cats = normalizeCategories(CURRENT_STATE);
+  const catsById = new Map(cats.map(c => [c.category_id, c]));
+  
+  // Build ordered list based on new order
+  const ordered = currentOrder.map(id => catsById.get(id)).filter(Boolean);
+  
+  // Re-render with new order
+  renderReorderList(ordered);
 }
 
 async function saveReorder(){
