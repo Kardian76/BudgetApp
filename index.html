@@ -57,34 +57,38 @@ table{width:100%;border-collapse:collapse;margin-top:10px}
 th,td{padding:6px;border-bottom:1px solid var(--border)}
 th{text-align:left;font-size:13px;color:var(--muted)}
 td.right{text-align:right}
+th.center, td.center { text-align:center; } /* NEW */
 .tableScroll{max-height:360px;overflow:auto}
 
-.fab{position:fixed;right:18px;bottom:18px;z-index:50}
+.fabWrap{
+  position:fixed;right:18px;bottom:18px;z-index:50;
+  display:flex;flex-direction:column;gap:10px;align-items:flex-end;
+}
+.fab{}
 
+/* Shared modal overlay */
 .modalOverlay{
   position:fixed;inset:0;background:rgba(0,0,0,.6);
   display:flex;align-items:flex-start;justify-content:center;
   padding:18px;z-index:100
 }
 .modal{
-  max-width:780px;width:100%;
+  max-width:880px;width:100%;
   max-height:calc(100vh - 36px);
   overflow:auto;
 
-  /* CHANGED: make modal itself opaque */
-  background: var(--bg1);              /* opaque */
-  /* or: background: #0b1320; */       /* same as --bg1 */
-
+  /* opaque modal */
+  background: var(--bg1);
   border:1px solid var(--border);
   border-radius:16px;
   padding:16px;
-
-  /* Optional hardening */
   opacity: 1;
 }
 .modalHeader{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .divider{height:1px;background:rgba(255,255,255,.10);margin:12px 0}
 .small{font-size:12px;color:var(--muted)}
+
+/* Reorder styles (existing) */
 .reorderItem{
   display:flex;align-items:center;justify-content:space-between;
   gap:10px;padding:8px;border:1px solid rgba(255,255,255,.10);
@@ -92,8 +96,31 @@ td.right{text-align:right}
 }
 .reorderBtns{display:flex;gap:8px;flex:0 0 auto}
 .reorderBtns button{padding:8px 10px}
+
+/* History list styles (NEW) */
+.historyToolbar{
+  display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+}
+.historyToolbar .grow{flex:1 1 240px}
+.pill{
+  display:inline-flex;gap:8px;align-items:center;
+  padding:8px 10px;border-radius:999px;
+  border:1px solid var(--border);
+  background:rgba(0,0,0,.22);
+  font-size:12px;color:var(--muted);
+}
+.badge{
+  display:inline-block;padding:2px 8px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  font-size:12px;color:var(--muted);
+}
+.badge.expense{color:#ffd7d7;background:rgba(255,180,180,.10)}
+.badge.refund{color:#b6ffcf;background:rgba(182,255,207,.08)}
+.badge.transfer{color:#cfe0ff;background:rgba(45,108,223,.14)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
 </style>
 </head>
+
 <body>
 <div class="wrap">
   <h1>Purrfect Budget</h1>
@@ -172,8 +199,8 @@ td.right{text-align:right}
             <thead>
               <tr>
                 <th>Category</th>
-                <th class="right">Spent</th>
-                <th class="right">Remaining</th>
+                <th class="center">Remaining</th> <!-- CHANGED -->
+                <th class="center">Spent</th>     <!-- CHANGED -->
               </tr>
             </thead>
             <tbody id="catTableBody"></tbody>
@@ -189,10 +216,23 @@ td.right{text-align:right}
           <select id="txType">
             <option value="expense">Expense</option>
             <option value="refund">Refund</option>
+            <option value="transfer">Transfer</option> <!-- NEW -->
           </select>
 
-          <label>Category</label>
-          <select id="txCategory"></select>
+          <!-- Single-category mode -->
+          <div id="txSingleCatWrap">
+            <label>Category</label>
+            <select id="txCategory"></select>
+          </div>
+
+          <!-- Transfer mode -->
+          <div id="txTransferWrap" class="hidden">
+            <label>Transfer from</label>
+            <select id="txFromCategory"></select>
+
+            <label>Transfer to</label>
+            <select id="txToCategory"></select>
+          </div>
 
           <label>Amount</label>
           <input id="txAmount" placeholder="$0.00" inputmode="decimal" />
@@ -209,7 +249,12 @@ td.right{text-align:right}
     </div>
   </div>
 
-  <button id="openSettingsBtn" class="fab" type="button">Settings</button>
+  <!-- Floating buttons -->
+  <div class="fabWrap">
+    <button id="openHistoryBtn" class="fab secondary" type="button">History</button> <!-- NEW -->
+    <button id="openSettingsBtn" class="fab" type="button">Settings</button>
+  </div>
+
   <div id="globalStatus" class="status"></div>
 </div>
 
@@ -241,7 +286,7 @@ td.right{text-align:right}
         <div id="settingsReorderStatus" class="status"></div>
       </div>
 
-      <!-- NEW: Add Budget Categories -->
+      <!-- Add Budget Categories -->
       <div class="subcard" style="margin-top:14px;">
         <div class="row">
           <button id="settingsOpenAddCatsBtn" class="secondary" type="button">Add Budget Categories</button>
@@ -281,6 +326,51 @@ td.right{text-align:right}
     </div>
   </div>
 </div>
+<!-- HISTORY MODAL (NEW) -->
+<div id="historyOverlay" class="modalOverlay hidden" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modalHeader">
+      <h1 style="margin:0;">History</h1>
+      <button id="historyCloseBtn" class="secondary" type="button">Close</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="historyToolbar">
+      <div class="pill">
+        Viewing:
+        <strong id="historyWhichPeriodLabel">—</strong>
+      </div>
+
+      <div class="grow"></div>
+
+      <button id="historyViewCurrentBtn" class="secondary" type="button">Current Period</button>
+      <button id="historyViewPriorBtn" class="secondary" type="button">Prior Period</button>
+    </div>
+
+    <div id="historyStatus" class="status"></div>
+
+    <div class="tableScroll" style="margin-top:10px;">
+      <table>
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Type</th>
+            <th>Category</th>
+            <th>By</th>
+            <th class="right">Amount</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody id="historyTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="small" style="margin-top:10px;">
+      Tip: Transfers are shown as paired rows (Transfer Out / Transfer In).
+    </div>
+  </div>
+</div>
 
 <script>
 /* ================= CONFIG ================= */
@@ -290,7 +380,7 @@ const API = {
   state: "/api/budget/state",
   init: "/api/budget/init",
   tx: "/api/budget/transactions",
-  categories: "/api/budget/categories",   // NEW
+  categories: "/api/budget/categories",
   reset: "/api/budget/reset",
   timeoutMs: 12000
 };
@@ -327,7 +417,11 @@ const periodLabel = $("periodLabel");
 const catTableBody = $("catTableBody");
 
 const txType = $("txType");
+const txSingleCatWrap = $("txSingleCatWrap");     // NEW
+const txTransferWrap = $("txTransferWrap");       // NEW
 const txCategory = $("txCategory");
+const txFromCategory = $("txFromCategory");       // NEW
+const txToCategory = $("txToCategory");           // NEW
 const txAmount = $("txAmount");
 const txNote = $("txNote");
 const txSubmitBtn = $("txSubmitBtn");
@@ -346,17 +440,27 @@ const settingsSaveOrderBtn = $("settingsSaveOrderBtn");
 const settingsCancelOrderBtn = $("settingsCancelOrderBtn");
 const settingsReorderStatus = $("settingsReorderStatus");
 
-const settingsOpenAddCatsBtn = $("settingsOpenAddCatsBtn");       // NEW
-const settingsAddCatsPanel = $("settingsAddCatsPanel");           // NEW
-const settingsAddCatsList = $("settingsAddCatsList");             // NEW
-const settingsAddCatsRowBtn = $("settingsAddCatsRowBtn");         // NEW
-const settingsSaveCatsBtn = $("settingsSaveCatsBtn");             // NEW
-const settingsCancelCatsBtn = $("settingsCancelCatsBtn");         // NEW
-const settingsAddCatsStatus = $("settingsAddCatsStatus");         // NEW
+const settingsOpenAddCatsBtn = $("settingsOpenAddCatsBtn");
+const settingsAddCatsPanel = $("settingsAddCatsPanel");
+const settingsAddCatsList = $("settingsAddCatsList");
+const settingsAddCatsRowBtn = $("settingsAddCatsRowBtn");
+const settingsSaveCatsBtn = $("settingsSaveCatsBtn");
+const settingsCancelCatsBtn = $("settingsCancelCatsBtn");
+const settingsAddCatsStatus = $("settingsAddCatsStatus");
 
 const settingsLogoutBtn = $("settingsLogoutBtn");
 const settingsResetBtn = $("settingsResetBtn");
 const settingsAccountStatus = $("settingsAccountStatus");
+
+/* NEW: History modal DOM */
+const openHistoryBtn = $("openHistoryBtn");
+const historyOverlay = $("historyOverlay");
+const historyCloseBtn = $("historyCloseBtn");
+const historyViewCurrentBtn = $("historyViewCurrentBtn");
+const historyViewPriorBtn = $("historyViewPriorBtn");
+const historyWhichPeriodLabel = $("historyWhichPeriodLabel");
+const historyStatus = $("historyStatus");
+const historyTableBody = $("historyTableBody");
 
 /* ================= UI HELPERS ================= */
 function show(el){ if (el) el.classList.remove("hidden"); }
@@ -472,6 +576,7 @@ async function idbDel(key){
   } finally { db.close(); }
 }
 </script>
+
 <script>
 /* ================= API ================= */
 async function validateToken(token){
@@ -516,6 +621,26 @@ async function postTransaction(token, payload){
   return { authFailed:false, result: await resp.json().catch(()=> ({})) };
 }
 
+/* NEW: fetch transactions for history
+   NOTE: Your current Worker GET /api/budget/transactions returns *current* period.
+   The prior-period button will attempt ?period_key=... as a "clean follow-on" contract.
+   If you later add this param to the Worker, this UI will start showing prior transactions automatically. */
+async function fetchTransactions(token, opts = {}){
+  const params = new URLSearchParams();
+  if (opts?.sinceMs) params.set("since", String(opts.sinceMs));
+  if (opts?.limit) params.set("limit", String(opts.limit));
+  if (opts?.period_key) params.set("period_key", String(opts.period_key)); // follow-on support
+
+  const url = join(API.tx) + (params.toString() ? `?${params}` : "");
+  const resp = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(token) });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`History failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
 async function postReset(token){
   const url = join(API.reset);
   const resp = await fetchWithTimeout(url, {
@@ -531,7 +656,6 @@ async function postReset(token){
   return { authFailed:false, result: await resp.json().catch(()=> ({})) };
 }
 
-/* NEW: add categories via API */
 async function postCategories(token, payload){
   const url = join(API.categories);
   const resp = await fetchWithTimeout(url, {
@@ -593,7 +717,296 @@ function fmtCents(c){
   if (!Number.isFinite(n)) return "—";
   return "$" + (n/100).toFixed(2);
 }
+</script>
+<script>
+/* ================= CATEGORY ORDERING (UI ONLY) ================= */
+function normalizeCategories(state){
+  const cats = Array.isArray(state?.categories) ? state.categories : [];
+  return cats.map(c => ({
+    category_id: Number(c.category_id),
+    name: String(c.name || ""),
+    spent_cents: Number(c.spent_cents) || 0,
+    remaining_cents: Number(c.remaining_cents) || 0
+  })).filter(c => Number.isFinite(c.category_id) && c.category_id > 0 && c.name);
+}
 
+async function applyUiOrder(cats){
+  const saved = await idbGet(KEY_CAT_ORDER);
+  if (!Array.isArray(saved) || saved.length === 0) return cats;
+
+  const order = saved.map(Number).filter(n => Number.isFinite(n) && n > 0);
+  const byId = new Map(cats.map(c => [c.category_id, c]));
+
+  const out = [];
+  const seen = new Set();
+
+  for (const id of order){
+    const c = byId.get(id);
+    if (c) { out.push(c); seen.add(id); }
+  }
+  for (const c of cats){
+    if (!seen.has(c.category_id)) out.push(c);
+  }
+  return out;
+}
+
+async function ensureOrderDefaults(cats){
+  const saved = await idbGet(KEY_CAT_ORDER);
+
+  if (!Array.isArray(saved) || saved.length === 0) {
+    await idbSet(KEY_CAT_ORDER, cats.map(c => c.category_id));
+    return;
+  }
+
+  const order = saved.map(Number).filter(n => Number.isFinite(n) && n > 0);
+  const set = new Set(order);
+  let changed = false;
+  for (const c of cats){
+    if (!set.has(c.category_id)) { order.push(c.category_id); set.add(c.category_id); changed = true; }
+  }
+  if (changed) await idbSet(KEY_CAT_ORDER, order);
+}
+
+/* ================= DASHBOARD ================= */
+async function renderDashboard(state){
+  const p = state?.period;
+  if (p?.start_ts && p?.end_ts) {
+    periodLabel.textContent = `${String(p.start_ts).slice(0,10)} → ${String(p.end_ts).slice(0,10)}`;
+  } else {
+    periodLabel.textContent = "—";
+  }
+
+  let cats = normalizeCategories(state);
+  await ensureOrderDefaults(cats);
+  cats = await applyUiOrder(cats);
+
+  catTableBody.innerHTML = "";
+  for (const c of cats){
+    const tr = document.createElement("tr");
+
+    const tdName = document.createElement("td");
+    tdName.textContent = c.name;
+
+    const tdRem = document.createElement("td");
+    tdRem.className = "center";
+    tdRem.textContent = fmtCents(c.remaining_cents);
+
+    const tdSpent = document.createElement("td");
+    tdSpent.className = "center";
+    tdSpent.textContent = fmtCents(c.spent_cents);
+
+    tr.appendChild(tdName);
+    tr.appendChild(tdRem);
+    tr.appendChild(tdSpent);
+    catTableBody.appendChild(tr);
+  }
+
+  // Populate transaction selects
+  txCategory.innerHTML = "";
+  txFromCategory.innerHTML = "";
+  txToCategory.innerHTML = "";
+
+  for (const c of cats){
+    const opt = document.createElement("option");
+    opt.value = String(c.category_id);
+    opt.textContent = c.name;
+    txCategory.appendChild(opt);
+
+    const o1 = opt.cloneNode(true);
+    const o2 = opt.cloneNode(true);
+    txFromCategory.appendChild(o1);
+    txToCategory.appendChild(o2);
+  }
+}
+
+/* ================= SETTINGS + HISTORY MODALS ================= */
+function openSettings(){
+  settingsOverlay.classList.remove("hidden");
+  settingsOverlay.setAttribute("aria-hidden", "false");
+  setStatus(settingsAccountStatus, "");
+  setStatus(settingsReorderStatus, "");
+  setStatus(settingsAddCatsStatus, "");
+  hide(settingsReorderPanel);
+  hide(settingsAddCatsPanel);
+}
+
+function closeSettings(){
+  settingsOverlay.classList.add("hidden");
+  settingsOverlay.setAttribute("aria-hidden", "true");
+}
+
+function openHistory(){
+  historyOverlay.classList.remove("hidden");
+  historyOverlay.setAttribute("aria-hidden", "false");
+  historyTableBody.innerHTML = "";
+  setStatus(historyStatus, "Loading…");
+}
+
+function closeHistory(){
+  historyOverlay.classList.add("hidden");
+  historyOverlay.setAttribute("aria-hidden", "true");
+}
+
+/* ================= HISTORY RENDERING ================= */
+function renderHistoryRows(items){
+  historyTableBody.innerHTML = "";
+  if (!Array.isArray(items) || items.length === 0){
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 6;
+    td.className = "center";
+    td.textContent = "No transactions.";
+    tr.appendChild(td);
+    historyTableBody.appendChild(tr);
+    return;
+  }
+
+  for (const it of items){
+    const tr = document.createElement("tr");
+
+    const when = document.createElement("td");
+    when.className = "mono";
+    when.textContent = String(it.created_at || "").replace("T"," ").slice(0,19);
+
+    const type = document.createElement("td");
+    const badge = document.createElement("span");
+    if (it.is_refund){
+      badge.className = "badge refund";
+      badge.textContent = "Refund";
+    } else {
+      badge.className = "badge expense";
+      badge.textContent = "Expense";
+    }
+    if (String(it.note||"").toLowerCase().includes("transfer")){
+      badge.className = "badge transfer";
+      badge.textContent = "Transfer";
+    }
+    type.appendChild(badge);
+
+    const cat = document.createElement("td");
+    cat.textContent = String(it.category_name || it.category_id || "—");
+
+    const by = document.createElement("td");
+    by.textContent = String(it.created_by_label || "—");
+
+    const amt = document.createElement("td");
+    amt.className = "right";
+    const sign = it.is_refund ? "+" : "−";
+    amt.textContent = sign + fmtCents(it.amount_cents).replace("$","$");
+
+    const note = document.createElement("td");
+    note.textContent = String(it.note || "");
+
+    tr.appendChild(when);
+    tr.appendChild(type);
+    tr.appendChild(cat);
+    tr.appendChild(by);
+    tr.appendChild(amt);
+    tr.appendChild(note);
+
+    historyTableBody.appendChild(tr);
+  }
+}
+
+async function loadHistoryCurrent(){
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return;
+
+  historyWhichPeriodLabel.textContent = "Current period";
+  setStatus(historyStatus, "Loading current period…");
+
+  try {
+    const res = await fetchTransactions(token, { limit: 300 });
+    if (res.authFailed){
+      await idbDel(KEY_TOKEN);
+      closeHistory();
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+    renderHistoryRows(res.result?.items || []);
+    setStatus(historyStatus, "", "");
+  } catch (e) {
+    setStatus(historyStatus, e?.message || String(e), "error");
+  }
+}
+
+async function loadHistoryPrior(){
+  const token = await idbGet(KEY_TOKEN);
+  if (!token || !CURRENT_STATE?.prior_period?.period_key){
+    return setStatus(historyStatus, "No prior period available.", "error");
+  }
+
+  historyWhichPeriodLabel.textContent = "Prior period";
+  setStatus(historyStatus, "Loading prior period…");
+
+  try {
+    const res = await fetchTransactions(token, {
+      period_key: CURRENT_STATE.prior_period.period_key,
+      limit: 300
+    });
+    if (res.authFailed){
+      await idbDel(KEY_TOKEN);
+      closeHistory();
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+    renderHistoryRows(res.result?.items || []);
+    setStatus(historyStatus, "", "");
+  } catch (e) {
+    setStatus(historyStatus, e?.message || String(e), "error");
+  }
+}
+
+/* ================= TRANSFER TOGGLE ================= */
+txType.addEventListener("change", () => {
+  const isTransfer = txType.value === "transfer";
+  txSingleCatWrap.classList.toggle("hidden", isTransfer);
+  txTransferWrap.classList.toggle("hidden", !isTransfer);
+});
+</script>
+
+<script>
+/* ================= BOOTSTRAP + EVENTS ================= */
+let CURRENT_STATE = null;
+
+async function loadAppStateAndRender(token){
+  show(appView);
+  hide(dashboardView);
+  hide(noCategoriesView);
+
+  const result = await fetchState(token);
+  if (result.authFailed){
+    await idbDel(KEY_TOKEN);
+    return showAuth("Stored token is invalid/expired. Please re-enter.", true);
+  }
+
+  const state = result.state || {};
+  if (state.initialized === false){
+    show(noCategoriesView);
+    initWizard();
+    CURRENT_STATE = null;
+    return;
+  }
+
+  CURRENT_STATE = state;
+
+  show(dashboardView);
+  await renderDashboard(state);
+}
+
+/* ================= EVENTS: HISTORY ================= */
+openHistoryBtn.addEventListener("click", async () => {
+  openHistory();
+  await loadHistoryCurrent();
+});
+
+historyCloseBtn.addEventListener("click", closeHistory);
+historyViewCurrentBtn.addEventListener("click", loadHistoryCurrent);
+historyViewPriorBtn.addEventListener("click", loadHistoryPrior);
+
+historyOverlay.addEventListener("click", (e) => {
+  if (e.target === historyOverlay) closeHistory();
+});
+</script>
+<script>
 /* ================= WIZARD ================= */
 function showWizardStep(n){
   [wizStep1, wizStep2, wizStep3].forEach((el, idx) => el.classList.toggle("hidden", idx !== n));
@@ -723,120 +1136,110 @@ function showApp(){
   hide(authView);
   show(appView);
 }
-</script>
-<script>
-/* ================= CATEGORY ORDERING (UI ONLY) ================= */
-function normalizeCategories(state){
-  const cats = Array.isArray(state?.categories) ? state.categories : [];
-  return cats.map(c => ({
-    category_id: Number(c.category_id),
-    name: String(c.name || ""),
-    spent_cents: Number(c.spent_cents) || 0,
-    remaining_cents: Number(c.remaining_cents) || 0
-  })).filter(c => Number.isFinite(c.category_id) && c.category_id > 0 && c.name);
+
+/* ================= ADD CATEGORIES PANEL ================= */
+function addSettingsCatRow(name = "", budget = ""){
+  const wrap = document.createElement("div");
+  wrap.className = "row";
+  wrap.style.marginTop = "10px";
+  wrap.innerHTML = `
+    <input class="setCatName" placeholder="Category" value="${String(name).replaceAll('"','&quot;')}" />
+    <input class="setCatBudget" placeholder="$0.00" value="${String(budget).replaceAll('"','&quot;')}" inputmode="decimal" />
+    <button type="button" class="secondary setRemoveBtn">Remove</button>
+  `;
+  const b = wrap.querySelector(".setCatBudget");
+  b.addEventListener("blur", () => { b.value = normalizeMoneyDisplay(b.value); });
+  wrap.querySelector(".setRemoveBtn").addEventListener("click", () => wrap.remove());
+  settingsAddCatsList.appendChild(wrap);
 }
 
-async function applyUiOrder(cats){
-  const saved = await idbGet(KEY_CAT_ORDER);
-  if (!Array.isArray(saved) || saved.length === 0) return cats;
+function openAddCatsPanel(){
+  settingsAddCatsList.innerHTML = "";
+  addSettingsCatRow("", "");
+  setStatus(settingsAddCatsStatus, "");
+  show(settingsAddCatsPanel);
+  hide(settingsReorderPanel);
 
-  const order = saved.map(Number).filter(n => Number.isFinite(n) && n > 0);
-  const byId = new Map(cats.map(c => [c.category_id, c]));
+  setTimeout(() => {
+    try { settingsAddCatsPanel.scrollIntoView({ block:"start", behavior:"smooth" }); } catch {}
+  }, 0);
+}
 
+function readSettingsAddCats(){
+  const rows = Array.from(settingsAddCatsList.querySelectorAll(".row"));
   const out = [];
-  const seen = new Set();
+  for (const r of rows){
+    const name = (r.querySelector(".setCatName")?.value || "").trim();
+    const budgetStr = (r.querySelector(".setCatBudget")?.value || "").trim();
+    if (!name && !budgetStr) continue;
 
-  for (const id of order){
-    const c = byId.get(id);
-    if (c) { out.push(c); seen.add(id); }
-  }
-  for (const c of cats){
-    if (!seen.has(c.category_id)) out.push(c);
+    const cents = dollarsToCentsFromInput(budgetStr);
+    out.push({ name, cents });
   }
   return out;
 }
 
-async function ensureOrderDefaults(cats){
-  const saved = await idbGet(KEY_CAT_ORDER);
+async function saveAddedCategories(){
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return showAuth("Missing token. Please re-enter.", true);
+  if (!CURRENT_STATE) return setStatus(settingsAddCatsStatus, "No budget loaded yet.", "error");
 
-  // If no saved order, create it.
-  if (!Array.isArray(saved) || saved.length === 0) {
-    await idbSet(KEY_CAT_ORDER, cats.map(c => c.category_id));
-    return;
+  const rows = readSettingsAddCats();
+  if (rows.length < 1) return setStatus(settingsAddCatsStatus, "Add at least one category.", "error");
+
+  const existing = normalizeCategories(CURRENT_STATE);
+  const existingNames = new Set(existing.map(c => c.name.toLowerCase()));
+
+  const seen = new Set();
+  const add = [];
+
+  for (let i = 0; i < rows.length; i++){
+    const r = rows[i];
+    const name = String(r.name || "").trim();
+    if (!name) return setStatus(settingsAddCatsStatus, `Row ${i+1}: Category name is required.`, "error");
+    if (name.length > 64) return setStatus(settingsAddCatsStatus, `Row ${i+1}: Category name too long.`, "error");
+
+    const key = name.toLowerCase();
+    if (existingNames.has(key)) return setStatus(settingsAddCatsStatus, `Category already exists: ${name}`, "error");
+    if (seen.has(key)) return setStatus(settingsAddCatsStatus, `Duplicate in this list: ${name}`, "error");
+    seen.add(key);
+
+    if (!Number.isInteger(r.cents) || r.cents <= 0) {
+      return setStatus(settingsAddCatsStatus, `Row ${i+1}: Enter a budget amount greater than $0.00.`, "error");
+    }
+
+    add.push({ name, budget_cents: r.cents });
   }
 
-  // If there IS an order, make sure it includes any new category IDs.
-  const order = saved.map(Number).filter(n => Number.isFinite(n) && n > 0);
-  const set = new Set(order);
-  let changed = false;
-  for (const c of cats){
-    if (!set.has(c.category_id)) { order.push(c.category_id); set.add(c.category_id); changed = true; }
-  }
-  if (changed) await idbSet(KEY_CAT_ORDER, order);
-}
-
-/* ================= DASHBOARD ================= */
-async function renderDashboard(state){
-  const p = state?.period;
-  if (p?.start_ts && p?.end_ts) {
-    periodLabel.textContent = `${String(p.start_ts).slice(0,10)} → ${String(p.end_ts).slice(0,10)}`;
-  } else {
-    periodLabel.textContent = "—";
+  const afterCount = existing.length + add.length;
+  if (afterCount > 10) {
+    return setStatus(settingsAddCatsStatus, `You can have up to 10 active categories. You would have ${afterCount}.`, "error");
   }
 
-  let cats = normalizeCategories(state);
-  await ensureOrderDefaults(cats);
-  cats = await applyUiOrder(cats);
+  setStatus(settingsAddCatsStatus, "Saving…");
 
-  catTableBody.innerHTML = "";
-  for (const c of cats){
-    const tr = document.createElement("tr");
+  try {
+    const res = await postCategories(token, { add, remove: [] });
+    if (res.authFailed){
+      await idbDel(KEY_TOKEN);
+      closeSettings();
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
 
-    const tdName = document.createElement("td");
-    tdName.textContent = c.name;
+    CURRENT_STATE = res.result || {};
+    await renderDashboard(CURRENT_STATE);
 
-    const tdSpent = document.createElement("td");
-    tdSpent.className = "right";
-    tdSpent.textContent = fmtCents(c.spent_cents);
+    setStatus(settingsAddCatsStatus, "Saved.", "ok");
 
-    const tdRem = document.createElement("td");
-    tdRem.className = "right";
-    tdRem.textContent = fmtCents(c.remaining_cents);
+    settingsAddCatsList.innerHTML = "";
+    addSettingsCatRow("", "");
 
-    tr.appendChild(tdName);
-    tr.appendChild(tdSpent);
-    tr.appendChild(tdRem);
-    catTableBody.appendChild(tr);
-  }
-
-  txCategory.innerHTML = "";
-  for (const c of cats){
-    const opt = document.createElement("option");
-    opt.value = String(c.category_id);
-    opt.textContent = c.name;
-    txCategory.appendChild(opt);
+  } catch (e) {
+    setStatus(settingsAddCatsStatus, e?.message || String(e), "error");
   }
 }
 
-/* ================= SETTINGS MODAL ================= */
-function openSettings(){
-  settingsOverlay.classList.remove("hidden");
-  settingsOverlay.setAttribute("aria-hidden", "false");
-  setStatus(settingsAccountStatus, "");
-  setStatus(settingsReorderStatus, "");
-  setStatus(settingsAddCatsStatus, "");
-  hide(settingsReorderPanel);
-  hide(settingsAddCatsPanel);
-}
-
-function closeSettings(){
-  settingsOverlay.classList.add("hidden");
-  settingsOverlay.setAttribute("aria-hidden", "true");
-}
-
-/* ----------------- Reorder panel ----------------- */
-let CURRENT_STATE = null;
-
+/* ================= REORDER PANEL ================= */
 async function openReorderPanel(){
   if (!CURRENT_STATE) return setStatus(settingsReorderStatus, "No budget loaded yet.", "error");
 
@@ -916,143 +1319,89 @@ async function saveReorder(){
   await renderDashboard(CURRENT_STATE);
 }
 
-/* ----------------- NEW: Add categories panel ----------------- */
-function addSettingsCatRow(name = "", budget = ""){
-  const wrap = document.createElement("div");
-  wrap.className = "row";
-  wrap.style.marginTop = "10px";
-  wrap.innerHTML = `
-    <input class="setCatName" placeholder="Category" value="${String(name).replaceAll('"','&quot;')}" />
-    <input class="setCatBudget" placeholder="$0.00" value="${String(budget).replaceAll('"','&quot;')}" inputmode="decimal" />
-    <button type="button" class="secondary setRemoveBtn">Remove</button>
-  `;
-  const b = wrap.querySelector(".setCatBudget");
-  b.addEventListener("blur", () => { b.value = normalizeMoneyDisplay(b.value); });
-  wrap.querySelector(".setRemoveBtn").addEventListener("click", () => wrap.remove());
-  settingsAddCatsList.appendChild(wrap);
-}
+/* ================= TRANSACTIONS (Expense/Refund/Transfer) ================= */
+txAmount.addEventListener("blur", () => { txAmount.value = normalizeMoneyDisplay(txAmount.value); });
 
-function openAddCatsPanel(){
-  settingsAddCatsList.innerHTML = "";
-  addSettingsCatRow("", "");
-  setStatus(settingsAddCatsStatus, "");
-  show(settingsAddCatsPanel);
-  hide(settingsReorderPanel);
-
-  // scroll panel into view inside modal
-  setTimeout(() => {
-    try { settingsAddCatsPanel.scrollIntoView({ block:"start", behavior:"smooth" }); } catch {}
-  }, 0);
-}
-
-function readSettingsAddCats(){
-  const rows = Array.from(settingsAddCatsList.querySelectorAll(".row"));
-  const out = [];
-  for (const r of rows){
-    const name = (r.querySelector(".setCatName")?.value || "").trim();
-    const budgetStr = (r.querySelector(".setCatBudget")?.value || "").trim();
-    if (!name && !budgetStr) continue;
-
-    const cents = dollarsToCentsFromInput(budgetStr);
-    out.push({ name, cents });
-  }
-  return out;
-}
-</script>
-<script>
-async function saveAddedCategories(){
+txSubmitBtn.addEventListener("click", async () => {
   const token = await idbGet(KEY_TOKEN);
+  const name = await idbGet(KEY_NAME);
+
   if (!token) return showAuth("Missing token. Please re-enter.", true);
-  if (!CURRENT_STATE) return setStatus(settingsAddCatsStatus, "No budget loaded yet.", "error");
+  if (!name) return showAuth("Missing name. Please re-enter.", true);
 
-  const rows = readSettingsAddCats();
-  if (rows.length < 1) return setStatus(settingsAddCatsStatus, "Add at least one category.", "error");
+  const cents = dollarsToCentsFromInput(txAmount.value);
+  if (cents === null) return setStatus(txStatus, "Enter a valid amount greater than $0.00.", "error");
 
-  // Validate client-side (server still enforces).
-  const existing = normalizeCategories(CURRENT_STATE);
-  const existingNames = new Set(existing.map(c => c.name.toLowerCase()));
+  const noteRaw = String(txNote.value || "").trim().slice(0, 240);
+  const note = noteRaw || undefined;
 
-  const seen = new Set();
-  const add = [];
+  let items = [];
 
-  for (let i = 0; i < rows.length; i++){
-    const r = rows[i];
-    const name = String(r.name || "").trim();
-    if (!name) return setStatus(settingsAddCatsStatus, `Row ${i+1}: Category name is required.`, "error");
-    if (name.length > 64) return setStatus(settingsAddCatsStatus, `Row ${i+1}: Category name too long.`, "error");
+  if (txType.value === "transfer") {
+    const fromId = Number(txFromCategory.value);
+    const toId = Number(txToCategory.value);
 
-    const key = name.toLowerCase();
-    if (existingNames.has(key)) return setStatus(settingsAddCatsStatus, `Category already exists: ${name}`, "error");
-    if (seen.has(key)) return setStatus(settingsAddCatsStatus, `Duplicate in this list: ${name}`, "error");
-    seen.add(key);
+    if (!Number.isFinite(fromId) || fromId <= 0) return setStatus(txStatus, "Choose a 'from' category.", "error");
+    if (!Number.isFinite(toId) || toId <= 0) return setStatus(txStatus, "Choose a 'to' category.", "error");
+    if (fromId === toId) return setStatus(txStatus, "Transfer categories must be different.", "error");
 
-    if (!Number.isInteger(r.cents) || r.cents <= 0) {
-      return setStatus(settingsAddCatsStatus, `Row ${i+1}: Enter a budget amount greater than $0.00.`, "error");
+    // Clean follow-on: prevent transfer exceeding remaining (client-side hint)
+    // If we can find the "from" category remaining in CURRENT_STATE, enforce it.
+    const cats = normalizeCategories(CURRENT_STATE);
+    const from = cats.find(c => c.category_id === fromId);
+    if (from && Number.isFinite(from.remaining_cents) && cents > from.remaining_cents) {
+      return setStatus(txStatus, `Transfer exceeds remaining in '${from.name}'.`, "error");
     }
 
-    // IMPORTANT: Do NOT send sort_order; worker computes safely.
-    add.push({
-      name,
-      budget_cents: r.cents
-    });
+    items = [
+      {
+        category_id: fromId,
+        amount_cents: cents,
+        is_refund: false,
+        note: note ? `Transfer out — ${note}` : "Transfer out"
+      },
+      {
+        category_id: toId,
+        amount_cents: cents,
+        is_refund: true,
+        note: note ? `Transfer in — ${note}` : "Transfer in"
+      }
+    ];
+  } else {
+    const categoryId = Number(txCategory.value);
+    if (!Number.isFinite(categoryId) || categoryId <= 0) return setStatus(txStatus, "Please choose a category.", "error");
+
+    items = [{
+      category_id: categoryId,
+      amount_cents: cents,
+      is_refund: txType.value === "refund",
+      note
+    }];
   }
 
-  const afterCount = existing.length + add.length;
-  if (afterCount > 10) {
-    return setStatus(settingsAddCatsStatus, `You can have up to 10 active categories. You would have ${afterCount}.`, "error");
-  }
+  const body = {
+    created_by_label: name,
+    items
+  };
 
-  setStatus(settingsAddCatsStatus, "Saving…");
-
+  setStatus(txStatus, "Saving…");
   try {
-    const res = await postCategories(token, { add, remove: [] });
+    const res = await postTransaction(token, body);
     if (res.authFailed){
       await idbDel(KEY_TOKEN);
-      closeSettings();
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
-
-    // Refresh current state and UI
     CURRENT_STATE = res.result || {};
     await renderDashboard(CURRENT_STATE);
-
-    setStatus(settingsAddCatsStatus, "Saved.", "ok");
-
-    // Clear panel (optional UX)
-    settingsAddCatsList.innerHTML = "";
-    addSettingsCatRow("", "");
-
+    setStatus(txStatus, "Saved.", "ok");
+    txAmount.value = "";
+    txNote.value = "";
   } catch (e) {
-    setStatus(settingsAddCatsStatus, e?.message || String(e), "error");
+    setStatus(txStatus, e?.message || String(e), "error");
   }
-}
+});
 
 /* ================= BOOTSTRAP ================= */
-async function loadAppStateAndRender(token){
-  showApp();
-  hide(dashboardView);
-  hide(noCategoriesView);
-
-  const result = await fetchState(token);
-  if (result.authFailed){
-    await idbDel(KEY_TOKEN);
-    return showAuth("Stored token is invalid/expired. Please re-enter.", true);
-  }
-
-  const state = result.state || {};
-  if (state.initialized === false){
-    show(noCategoriesView);
-    initWizard();
-    CURRENT_STATE = null;
-    return;
-  }
-
-  CURRENT_STATE = state;
-
-  show(dashboardView);
-  await renderDashboard(state);
-}
-
 async function bootstrap(){
   setStatus(globalStatus, "Starting…");
 
@@ -1130,48 +1479,6 @@ wizNext2.addEventListener("click", () => {
 
 wizSubmit.addEventListener("click", submitInit);
 
-/* ================= EVENTS: TRANSACTIONS ================= */
-txAmount.addEventListener("blur", () => { txAmount.value = normalizeMoneyDisplay(txAmount.value); });
-
-txSubmitBtn.addEventListener("click", async () => {
-  const token = await idbGet(KEY_TOKEN);
-  const name = await idbGet(KEY_NAME);
-
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-  if (!name) return showAuth("Missing name. Please re-enter.", true);
-
-  const categoryId = Number(txCategory.value);
-  if (!Number.isFinite(categoryId) || categoryId <= 0) return setStatus(txStatus, "Please choose a category.", "error");
-
-  const cents = dollarsToCentsFromInput(txAmount.value);
-  if (cents === null) return setStatus(txStatus, "Enter a valid amount greater than $0.00.", "error");
-
-  const isRefund = String(txType.value || "expense") === "refund";
-  const note = String(txNote.value || "").trim().slice(0, 240) || undefined;
-
-  const body = {
-    created_by_label: name,
-    items: [{ category_id: categoryId, amount_cents: cents, is_refund: isRefund, note }]
-  };
-
-  setStatus(txStatus, "Saving…");
-  try {
-    const res = await postTransaction(token, body);
-    if (res.authFailed){
-      await idbDel(KEY_TOKEN);
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-    CURRENT_STATE = res.result || {};
-    await renderDashboard(CURRENT_STATE);
-    setStatus(txStatus, "Saved.", "ok");
-    txAmount.value = "";
-    txNote.value = "";
-  } catch (e) {
-    setStatus(txStatus, e?.message || String(e), "error");
-  }
-});
-</script>
-<script>
 /* ================= EVENTS: SETTINGS ================= */
 openSettingsBtn.addEventListener("click", openSettings);
 settingsCloseBtn.addEventListener("click", closeSettings);
@@ -1194,21 +1501,14 @@ settingsSaveOrderBtn.addEventListener("click", async () => {
   await saveReorder();
 });
 
-/* NEW: Add categories */
-settingsOpenAddCatsBtn.addEventListener("click", () => {
-  openAddCatsPanel();
-});
-
+/* Add categories */
+settingsOpenAddCatsBtn.addEventListener("click", openAddCatsPanel);
 settingsAddCatsRowBtn.addEventListener("click", () => addSettingsCatRow("", ""));
-
 settingsCancelCatsBtn.addEventListener("click", () => {
   hide(settingsAddCatsPanel);
   setStatus(settingsAddCatsStatus, "");
 });
-
-settingsSaveCatsBtn.addEventListener("click", async () => {
-  await saveAddedCategories();
-});
+settingsSaveCatsBtn.addEventListener("click", saveAddedCategories);
 
 /* Account */
 settingsLogoutBtn.addEventListener("click", async () => {
@@ -1240,7 +1540,6 @@ settingsResetBtn.addEventListener("click", async () => {
     setStatus(settingsAccountStatus, "Reset complete.", "ok");
     closeSettings();
 
-    // Immediately go to wizard
     await loadAppStateAndRender(token);
   } catch (e) {
     setStatus(settingsAccountStatus, e?.message || String(e), "error");
