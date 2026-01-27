@@ -67,6 +67,9 @@ td.center, th.center{text-align:center}
   position:fixed;right:18px;bottom:18px;z-index:50;
   display:flex;gap:10px;flex-direction:column;align-items:flex-end;
 }
+.fabWrap .historyBtn{
+  position:fixed;left:18px;bottom:18px;right:auto;
+}
 
 .modalOverlay{
   position:fixed;inset:0;background:rgba(0,0,0,.6);
@@ -221,9 +224,9 @@ td.center, th.center{text-align:center}
 
   <!-- Floating buttons -->
   <div class="fabWrap">
-    <button id="openHistoryBtn" type="button" class="secondary">History</button>
     <button id="openSettingsBtn" type="button">Settings</button>
   </div>
+  <button id="openHistoryBtn" type="button" class="secondary historyBtn">History</button>
 
   <div id="globalStatus" class="status"></div>
 </div>
@@ -658,15 +661,41 @@ function mdyToYmd(mdy){
 }
 
 function normalizeMoneyDisplay(s){
-  const raw = String(s||"").trim().replace(/[^0-9.]/g,"");
+  const raw = String(s||"").trim().replace(/[^0-9.]/g,""); // strips commas and other non-numeric chars
   if (!raw) return "";
   const n = Number(raw);
   if (!Number.isFinite(n)) return "";
   return "$" + n.toFixed(2);
 }
 
+function sanitizeMoneyInput(value){
+  // Remove all non-numeric except dots and commas
+  let clean = String(value || "").replace(/[^0-9.,]/g, "");
+  
+  // Check if commas are used properly (every 3 digits from right, before decimal)
+  const parts = clean.split('.');
+  const integerPart = parts[0] || "";
+  const decimalPart = parts[1] || "";
+  
+  // Remove commas from integer part to check validity
+  const digitsOnly = integerPart.replace(/,/g, "");
+  
+  // If there are commas, validate they're in correct positions
+  if (integerPart.includes(',')) {
+    // Build what the correctly formatted version should look like
+    const correctFormat = digitsOnly.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    
+    // If current format doesn't match correct format, strip all commas
+    if (integerPart !== correctFormat) {
+      clean = digitsOnly + (parts.length > 1 ? '.' + decimalPart : '');
+    }
+  }
+  
+  return clean;
+}
+
 function dollarsToCentsFromInput(s){
-  const raw = String(s||"").trim().replace(/[^0-9.]/g,"");
+  const raw = String(s||"").trim().replace(/[^0-9.]/g,""); // strips commas and other non-numeric chars
   if (!raw) return null;
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return null;
@@ -707,6 +736,9 @@ function addWizRow(name = "", budget = ""){
   `;
   const b = wrap.querySelector(".wizCatBudget");
   b.addEventListener("blur", () => { b.value = normalizeMoneyDisplay(b.value); });
+  b.addEventListener("input", () => { 
+    b.value = sanitizeMoneyInput(b.value);
+  });
   wrap.querySelector(".wizRemoveBtn").addEventListener("click", () => wrap.remove());
   wizCatList.appendChild(wrap);
 }
@@ -1142,7 +1174,14 @@ txType.addEventListener("change", syncTxTypeUi);
 syncTxTypeUi();
 
 txAmount.addEventListener("blur", () => { txAmount.value = normalizeMoneyDisplay(txAmount.value); });
+txAmount.addEventListener("input", () => { 
+  txAmount.value = sanitizeMoneyInput(txAmount.value);
+});
+
 txTransferAmount.addEventListener("blur", () => { txTransferAmount.value = normalizeMoneyDisplay(txTransferAmount.value); });
+txTransferAmount.addEventListener("input", () => { 
+  txTransferAmount.value = sanitizeMoneyInput(txTransferAmount.value);
+});
 
 function buildTransferItems({ fromId, toId, cents, note }){
   const n = String(note || "").trim().slice(0, 200);
@@ -1349,6 +1388,9 @@ function addSettingsCatRow(name = "", budget = ""){
   const budgetInput = wrap.querySelector(".settingsCatBudget");
   budgetInput.addEventListener("blur", () => { 
     budgetInput.value = normalizeMoneyDisplay(budgetInput.value); 
+  });
+  budgetInput.addEventListener("input", () => { 
+    budgetInput.value = sanitizeMoneyInput(budgetInput.value);
   });
   
   wrap.querySelector(".settingsRemoveCatBtn").addEventListener("click", () => wrap.remove());
