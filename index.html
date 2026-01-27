@@ -141,18 +141,9 @@ td.center, th.center{text-align:center}
       <div id="wizCatList"></div>
       <div class="row">
         <button id="wizAddCat" class="secondary" type="button">Add Category</button>
-        <button id="wizNext2" type="button">Next</button>
-      </div>
-      <div id="wizStatus2" class="status"></div>
-    </div>
-
-    <div id="wizStep3" class="card hidden">
-      <h1>Step 3 — Confirm</h1>
-      <div id="wizReview" class="status"></div>
-      <div class="row">
         <button id="wizSubmit" type="button">Initialize Budget</button>
       </div>
-      <div id="wizStatus3" class="status"></div>
+      <div id="wizStatus2" class="status"></div>
     </div>
   </div>
   <!-- APP -->
@@ -246,9 +237,23 @@ td.center, th.center{text-align:center}
     <div class="divider"></div>
 
     <div class="card">
-      <h1>Budget Categories</h1>
+      <h1>Budget Settings</h1>
+      
       <div class="row">
-        <button id="settingsOpenReorderBtn" class="secondary" type="button">Reorder Budget Categories</button>
+        <button id="settingsOpenEditBudgetsBtn" class="secondary" type="button">Edit Budget Amounts</button>
+        <button id="settingsOpenReorderBtn" class="secondary" type="button">Reorder Categories</button>
+      </div>
+
+      <div id="settingsEditBudgetsPanel" class="subcard hidden">
+        <div class="status" style="margin-top:0;">
+          Adjust the budget amounts for your categories. This affects the current period.
+        </div>
+        <div id="settingsEditBudgetsList"></div>
+        <div class="row">
+          <button id="settingsSaveEditBudgetsBtn" type="button">Save Changes</button>
+          <button id="settingsCancelEditBudgetsBtn" class="secondary" type="button">Cancel</button>
+        </div>
+        <div id="settingsEditBudgetsStatus" class="status"></div>
       </div>
 
       <div id="settingsReorderPanel" class="subcard hidden">
@@ -365,18 +370,14 @@ const authStatus = $("authStatus");
 const noCategoriesView = $("noCategoriesView");
 const wizStep1 = $("wizStep1");
 const wizStep2 = $("wizStep2");
-const wizStep3 = $("wizStep3");
 const wizPeriodType = $("wizPeriodType");
 const wizStartDate = $("wizStartDate");
 const wizCatList = $("wizCatList");
-const wizReview = $("wizReview");
 const wizNext1 = $("wizNext1");
 const wizAddCat = $("wizAddCat");
-const wizNext2 = $("wizNext2");
 const wizSubmit = $("wizSubmit");
 const wizStatus1 = $("wizStatus1");
 const wizStatus2 = $("wizStatus2");
-const wizStatus3 = $("wizStatus3");
 
 const appView = $("appView");
 const dashboardView = $("dashboardView");
@@ -411,6 +412,13 @@ const settingsReorderList = $("settingsReorderList");
 const settingsSaveOrderBtn = $("settingsSaveOrderBtn");
 const settingsCancelOrderBtn = $("settingsCancelOrderBtn");
 const settingsReorderStatus = $("settingsReorderStatus");
+
+const settingsOpenEditBudgetsBtn = $("settingsOpenEditBudgetsBtn");
+const settingsEditBudgetsPanel = $("settingsEditBudgetsPanel");
+const settingsEditBudgetsList = $("settingsEditBudgetsList");
+const settingsSaveEditBudgetsBtn = $("settingsSaveEditBudgetsBtn");
+const settingsCancelEditBudgetsBtn = $("settingsCancelEditBudgetsBtn");
+const settingsEditBudgetsStatus = $("settingsEditBudgetsStatus");
 
 const settingsOpenAddCatsBtn = $("settingsOpenAddCatsBtn");
 const settingsAddCatsPanel = $("settingsAddCatsPanel");
@@ -724,7 +732,7 @@ function fmtLocalDateTime(iso){
 <script>
 /* ================= WIZARD ================= */
 function showWizardStep(n){
-  [wizStep1, wizStep2, wizStep3].forEach((el, idx) => el.classList.toggle("hidden", idx !== n));
+  [wizStep1, wizStep2].forEach((el, idx) => el.classList.toggle("hidden", idx !== n));
 }
 
 function addWizRow(name = "", budget = ""){
@@ -752,8 +760,6 @@ function initWizard(){
   addWizRow("Gas", "120.00");
   setStatus(wizStatus1, "");
   setStatus(wizStatus2, "");
-  setStatus(wizStatus3, "");
-  wizReview.textContent = "";
   showWizardStep(0);
 }
 
@@ -793,29 +799,11 @@ function validateWizardStep2(){
   return null;
 }
 
-function renderWizardReview(){
-  const pt = String(wizPeriodType.value || "").trim();
-  const cats = readWizardCategories();
-  let total = 0;
-
-  const lines = [];
-  lines.push(`Period type: ${pt}`);
-  lines.push(`Start date: ${wizStartDate.value}`);
-  lines.push(`Categories (${cats.length}):`);
-  for (const c of cats){
-    const n = Number(c.budget_dollars);
-    if (Number.isFinite(n)) total += n;
-    lines.push(`• ${c.name}: $${Number(c.budget_dollars || 0).toFixed(2)}`);
-  }
-  lines.push(`Total starting budget: $${total.toFixed(2)}`);
-  wizReview.textContent = lines.join("\n");
-}
-
 async function submitInit(){
   const err1 = validateWizardStep1();
   if (err1){ showWizardStep(0); return setStatus(wizStatus1, err1, "error"); }
   const err2 = validateWizardStep2();
-  if (err2){ showWizardStep(1); return setStatus(wizStatus2, err2, "error"); }
+  if (err2){ return setStatus(wizStatus2, err2, "error"); }
 
   const token = await idbGet(KEY_TOKEN);
   if (!token) return showAuth("Missing token. Please re-enter.", true);
@@ -826,17 +814,17 @@ async function submitInit(){
     categories: readWizardCategories()
   };
 
-  setStatus(wizStatus3, "Initializing…");
+  setStatus(wizStatus2, "Initializing…");
   try {
     const res = await postInit(token, payload);
     if (res.authFailed){
       await idbDel(KEY_TOKEN);
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
-    setStatus(wizStatus3, "Initialized. Loading…", "ok");
+    setStatus(wizStatus2, "Initialized. Loading…", "ok");
     await bootstrap();
   } catch (e) {
-    setStatus(wizStatus3, e?.message || String(e), "error");
+    setStatus(wizStatus2, e?.message || String(e), "error");
   }
 }
 
@@ -848,13 +836,6 @@ wizNext1.addEventListener("click", () => {
   showWizardStep(1);
 });
 wizAddCat.addEventListener("click", () => addWizRow("", ""));
-wizNext2.addEventListener("click", () => {
-  const err = validateWizardStep2();
-  if (err) return setStatus(wizStatus2, err, "error");
-  setStatus(wizStatus2, "");
-  renderWizardReview();
-  showWizardStep(2);
-});
 wizSubmit.addEventListener("click", submitInit);
 </script>
 
@@ -1369,6 +1350,105 @@ async function saveReorder(){
   }
 }
 
+/* ================= SETTINGS MODAL - EDIT BUDGETS FUNCTIONS ================= */
+async function openEditBudgetsPanel(){
+  if (!CURRENT_STATE) return setStatus(settingsEditBudgetsStatus, "No budget loaded yet.", "error");
+  
+  const cats = normalizeCategories(CURRENT_STATE);
+  if (cats.length === 0) return setStatus(settingsEditBudgetsStatus, "No categories to edit.", "error");
+
+  show(settingsEditBudgetsPanel);
+  setStatus(settingsEditBudgetsStatus, "");
+  
+  const ordered = await applyUiOrder(cats);
+  renderEditBudgetsList(ordered);
+}
+
+function renderEditBudgetsList(cats){
+  settingsEditBudgetsList.innerHTML = "";
+
+  for (const c of cats){
+    const currentBudget = (c.spent_cents + c.remaining_cents) / 100;
+    
+    const wrap = document.createElement("div");
+    wrap.className = "row";
+    wrap.style.marginTop = "10px";
+    wrap.dataset.categoryId = String(c.category_id);
+    
+    const label = document.createElement("label");
+    label.textContent = c.name;
+    label.style.flex = "1";
+    label.style.alignSelf = "center";
+    label.style.marginTop = "0";
+
+    const input = document.createElement("input");
+    input.className = "editBudgetInput";
+    input.placeholder = "$0.00";
+    input.value = currentBudget.toFixed(2);
+    input.inputMode = "decimal";
+    input.style.flex = "1";
+    
+    input.addEventListener("blur", () => { 
+      input.value = validateAndFixCommas(input.value);
+      input.value = normalizeMoneyDisplay(input.value); 
+    });
+
+    wrap.appendChild(label);
+    wrap.appendChild(input);
+    settingsEditBudgetsList.appendChild(wrap);
+  }
+}
+
+function readEditBudgets(){
+  const rows = Array.from(settingsEditBudgetsList.querySelectorAll(".row"));
+  return rows.map(r => {
+    const categoryId = Number(r.dataset.categoryId);
+    const input = r.querySelector(".editBudgetInput");
+    const value = input?.value || "";
+    const cents = dollarsToCentsFromInput(value);
+    return { categoryId, cents };
+  }).filter(x => Number.isFinite(x.categoryId) && x.categoryId > 0);
+}
+
+async function saveEditBudgets(){
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return showAuth("Missing token. Please re-enter.", true);
+
+  const edits = readEditBudgets();
+  if (!edits.length) return setStatus(settingsEditBudgetsStatus, "No budgets to save.", "error");
+
+  for (const edit of edits){
+    if (edit.cents === null || edit.cents <= 0) {
+      return setStatus(settingsEditBudgetsStatus, "All budget amounts must be greater than $0.00", "error");
+    }
+  }
+
+  const payload = {
+    update: edits.map(e => ({ category_id: e.categoryId, budget_cents: e.cents }))
+  };
+
+  setStatus(settingsEditBudgetsStatus, "Saving…");
+  try {
+    const res = await postCategories(token, payload);
+    if (res.authFailed){
+      await idbDel(KEY_TOKEN);
+      closeSettings();
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+
+    CURRENT_STATE = res.result || {};
+    await renderDashboard(CURRENT_STATE);
+    setStatus(settingsEditBudgetsStatus, "Saved.", "ok");
+    
+    setTimeout(() => {
+      hide(settingsEditBudgetsPanel);
+      setStatus(settingsEditBudgetsStatus, "");
+    }, 1000);
+  } catch (e) {
+    setStatus(settingsEditBudgetsStatus, e?.message || String(e), "error");
+  }
+}
+
 /* ================= SETTINGS MODAL - ADD CATEGORIES FUNCTIONS ================= */
 function openAddCatsPanel(){
   show(settingsAddCatsPanel);
@@ -1413,8 +1493,10 @@ function openSettings(){
   settingsOverlay.setAttribute("aria-hidden","false");
   setStatus(settingsAccountStatus, "");
   setStatus(settingsReorderStatus, "");
+  setStatus(settingsEditBudgetsStatus, "");
   setStatus(settingsAddCatsStatus, "");
   hide(settingsReorderPanel);
+  hide(settingsEditBudgetsPanel);
   hide(settingsAddCatsPanel);
 }
 
@@ -1436,6 +1518,16 @@ settingsCancelOrderBtn.addEventListener("click", () => {
 });
 
 settingsSaveOrderBtn.addEventListener("click", saveReorder);
+
+/* Edit budgets */
+settingsOpenEditBudgetsBtn.addEventListener("click", openEditBudgetsPanel);
+
+settingsCancelEditBudgetsBtn.addEventListener("click", () => {
+  hide(settingsEditBudgetsPanel);
+  setStatus(settingsEditBudgetsStatus, "");
+});
+
+settingsSaveEditBudgetsBtn.addEventListener("click", saveEditBudgets);
 
 /* Add categories panel */
 settingsOpenAddCatsBtn.addEventListener("click", openAddCatsPanel);
