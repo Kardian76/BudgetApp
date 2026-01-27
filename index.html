@@ -668,27 +668,31 @@ function normalizeMoneyDisplay(s){
   return "$" + n.toFixed(2);
 }
 
-function sanitizeMoneyInput(value){
-  // Remove all non-numeric except dots and commas
+function validateAndFixCommas(value){
+  // Allow user to type freely, but validate/fix when they're done
   let clean = String(value || "").replace(/[^0-9.,]/g, "");
   
-  // Check if commas are used properly (every 3 digits from right, before decimal)
+  // Split on decimal point
   const parts = clean.split('.');
   const integerPart = parts[0] || "";
-  const decimalPart = parts[1] || "";
+  const decimalPart = parts.length > 1 ? parts[1] : "";
   
-  // Remove commas from integer part to check validity
+  // Remove all commas to get pure digits
   const digitsOnly = integerPart.replace(/,/g, "");
   
-  // If there are commas, validate they're in correct positions
+  // Check if commas were used
   if (integerPart.includes(',')) {
     // Build what the correctly formatted version should look like
     const correctFormat = digitsOnly.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     
     // If current format doesn't match correct format, strip all commas
     if (integerPart !== correctFormat) {
-      clean = digitsOnly + (parts.length > 1 ? '.' + decimalPart : '');
+      clean = digitsOnly + (decimalPart ? '.' + decimalPart : '');
+    } else {
+      clean = integerPart + (decimalPart ? '.' + decimalPart : '');
     }
+  } else {
+    clean = digitsOnly + (decimalPart ? '.' + decimalPart : '');
   }
   
   return clean;
@@ -735,9 +739,9 @@ function addWizRow(name = "", budget = ""){
     <button type="button" class="secondary wizRemoveBtn">Remove</button>
   `;
   const b = wrap.querySelector(".wizCatBudget");
-  b.addEventListener("blur", () => { b.value = normalizeMoneyDisplay(b.value); });
-  b.addEventListener("input", () => { 
-    b.value = sanitizeMoneyInput(b.value);
+  b.addEventListener("blur", () => { 
+    b.value = validateAndFixCommas(b.value);
+    b.value = normalizeMoneyDisplay(b.value); 
   });
   wrap.querySelector(".wizRemoveBtn").addEventListener("click", () => wrap.remove());
   wizCatList.appendChild(wrap);
@@ -1173,14 +1177,14 @@ function syncTxTypeUi(){
 txType.addEventListener("change", syncTxTypeUi);
 syncTxTypeUi();
 
-txAmount.addEventListener("blur", () => { txAmount.value = normalizeMoneyDisplay(txAmount.value); });
-txAmount.addEventListener("input", () => { 
-  txAmount.value = sanitizeMoneyInput(txAmount.value);
+txAmount.addEventListener("blur", () => { 
+  txAmount.value = validateAndFixCommas(txAmount.value);
+  txAmount.value = normalizeMoneyDisplay(txAmount.value); 
 });
 
-txTransferAmount.addEventListener("blur", () => { txTransferAmount.value = normalizeMoneyDisplay(txTransferAmount.value); });
-txTransferAmount.addEventListener("input", () => { 
-  txTransferAmount.value = sanitizeMoneyInput(txTransferAmount.value);
+txTransferAmount.addEventListener("blur", () => { 
+  txTransferAmount.value = validateAndFixCommas(txTransferAmount.value);
+  txTransferAmount.value = normalizeMoneyDisplay(txTransferAmount.value); 
 });
 
 function buildTransferItems({ fromId, toId, cents, note }){
@@ -1387,10 +1391,8 @@ function addSettingsCatRow(name = "", budget = ""){
   
   const budgetInput = wrap.querySelector(".settingsCatBudget");
   budgetInput.addEventListener("blur", () => { 
+    budgetInput.value = validateAndFixCommas(budgetInput.value);
     budgetInput.value = normalizeMoneyDisplay(budgetInput.value); 
-  });
-  budgetInput.addEventListener("input", () => { 
-    budgetInput.value = sanitizeMoneyInput(budgetInput.value);
   });
   
   wrap.querySelector(".settingsRemoveCatBtn").addEventListener("click", () => wrap.remove());
