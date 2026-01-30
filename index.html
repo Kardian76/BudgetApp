@@ -69,11 +69,12 @@ td.center, th.center{text-align:center}
   gap:10px;
   margin-top:14px;
 }
-.historyBtn{
-  background:linear-gradient(180deg,#2d6cdf,#1f57c8);
+.historyBtn, .settingsBtn{
+  background:rgba(255,255,255,.12);
+  color:var(--text);
 }
-.settingsBtn{
-  background:linear-gradient(180deg,#2d6cdf,#1f57c8);
+.historyBtn:hover, .settingsBtn:hover{
+  background:rgba(255,255,255,.18);
 }
 
 .modalOverlay{
@@ -1083,10 +1084,33 @@ async function loadAndRenderHistory(){
 
   if (HISTORY_MODE === "prior"){
     if (!prior?.period_key) return setStatus(historyStatus, "No prior period available yet.", "error");
+    
     historyTitle.textContent = `History — ${String(prior.start_ts).slice(0,10)} → ${String(prior.end_ts).slice(0,10)}`;
-    // NOTE: with your current Worker, GET /transactions returns current period only.
-    // So we show a clear message instead of broken/empty UI.
-    return setStatus(historyStatus, "Prior-period history requires a small server change (period_key query). Current API returns only current-period ledger.", "error");
+    
+    // For prior period, we'll need to filter transactions by date range
+    setStatus(historyStatus, "Loading…");
+    const res = await fetchTransactions(token, { limit: 1000 });
+    if (res.authFailed){
+      await idbDel(KEY_TOKEN);
+      closeHistory();
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+
+    const payload = res.result || {};
+    const allItems = normalizeLedgerItems(payload.items || []);
+    
+    // Filter to only show items from the prior period
+    const priorStart = new Date(prior.start_ts).getTime();
+    const priorEnd = new Date(prior.end_ts).getTime();
+    
+    const items = allItems.filter(item => {
+      const itemTime = new Date(item.created_at).getTime();
+      return itemTime >= priorStart && itemTime <= priorEnd;
+    });
+    
+    setStatus(historyStatus, items.length ? "" : "No transactions found for prior period.");
+    renderHistoryTable(items);
+    return;
   }
 
   historyTitle.textContent = cur?.start_ts && cur?.end_ts
@@ -1104,7 +1128,10 @@ async function loadAndRenderHistory(){
   const payload = res.result || {};
   const items = normalizeLedgerItems(payload.items || []);
   setStatus(historyStatus, items.length ? "" : "No transactions found for this period.");
+  renderHistoryTable(items);
+}
 
+function renderHistoryTable(items){
   historyBody.innerHTML = "";
   for (const it of items){
     const tr = document.createElement("tr");
@@ -1119,7 +1146,7 @@ async function loadAndRenderHistory(){
     tdType.textContent = labelForType(it);
 
     const tdCat = document.createElement("td");
-    tdCat.textContent = labelForCategoryId(it.category_id); // Option A: no numbers
+    tdCat.textContent = labelForCategoryId(it.category_id);
 
     const tdAmt = document.createElement("td");
     tdAmt.className = "right";
