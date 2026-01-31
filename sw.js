@@ -10,21 +10,40 @@ const CACHE_NAME = `purrfect-budget-shell-${SW_VERSION}`;
 
 // Adjust if your file names differ
 const APP_SHELL = [
-  "./",
-  "./index.html",
-  "./manifest.webmanifest",
-  "./Icon_192.png",
-  "./Icon_512.png",
+  "/",
+  "/index.html",
+  "/manifest.webmanifest",
+  "/Icon_192.png",
+  "/Icon_512.png",
 ];
 
 // Install: pre-cache the app shell and activate immediately
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
-    await cache.addAll(APP_SHELL.map(u => new Request(u, { cache: "reload" })));
+
+    const results = await Promise.allSettled(
+      APP_SHELL.map((u) => fetch(u, { cache: "reload" })
+        .then((r) => {
+          if (!r.ok) throw new Error(`${u} -> ${r.status}`);
+          return cache.put(u, r);
+        })
+      )
+    );
+
+    const failed = results
+      .map((r, i) => ({ r, u: APP_SHELL[i] }))
+      .filter(x => x.r.status === "rejected");
+
+    if (failed.length) {
+      // Visible in DevTools > Application > Service Workers > "Inspect"
+      console.warn("SW precache failures:", failed.map(f => String(f.u)));
+    }
+
     await self.skipWaiting();
   })());
 });
+
 
 // Activate: remove old caches and take control of pages immediately
 self.addEventListener("activate", (event) => {
