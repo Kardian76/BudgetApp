@@ -4,6 +4,14 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <meta name="theme-color" content="#0b1320" />
+<meta name="description" content="Purrfect Budget - Track your spending and manage budgets across periods" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Purrfect Budget" />
 <title>Purrfect Budget</title>
 
 <style>
@@ -1905,6 +1913,17 @@ bootstrap();
     </div>
   </div>
 </div>
+
+<script>
+/* ================= SERVICE WORKER REGISTRATION ================= */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('Service Worker registered:', reg.scope))
+      .catch(err => console.log('Service Worker registration failed:', err));
+  });
+}
+</script>
 
 </body>
 </html>
