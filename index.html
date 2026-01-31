@@ -1084,7 +1084,6 @@ async function loadAndRenderHistory(){
     
     historyPeriod.textContent = `${String(prior.start_ts).slice(0,10)} → ${String(prior.end_ts).slice(0,10)}`;
     
-    // For prior period, we'll need to filter transactions by date range
     setStatus(historyStatus, "Loading…");
     const res = await fetchTransactions(token, { limit: 1000 });
     if (res.authFailed){
@@ -1096,16 +1095,24 @@ async function loadAndRenderHistory(){
     const payload = res.result || {};
     const allItems = normalizeLedgerItems(payload.items || []);
     
-    // Filter to only show items from the prior period
-    const priorStart = new Date(prior.start_ts).getTime();
-    const priorEnd = new Date(prior.end_ts).getTime();
+    // Filter by matching period_key — each transaction carries the period it belongs to
+    const items = allItems.filter(item => item.period_key === prior.period_key);
     
-    const items = allItems.filter(item => {
-      const itemTime = new Date(item.created_at).getTime();
-      return itemTime >= priorStart && itemTime <= priorEnd;
-    });
+    // If nothing matched by period_key, fall back to date-range filtering
+    // (handles cases where period_key format might differ slightly)
+    if (items.length === 0) {
+      const priorStart = new Date(prior.start_ts).getTime();
+      const priorEnd = new Date(prior.end_ts).getTime();
+      const fallback = allItems.filter(item => {
+        const itemTime = new Date(item.created_at).getTime();
+        return itemTime >= priorStart && itemTime <= priorEnd;
+      });
+      setStatus(historyStatus, fallback.length ? "" : "No transactions found for prior period.");
+      renderHistoryTable(fallback);
+      return;
+    }
     
-    setStatus(historyStatus, items.length ? "" : "No transactions found for prior period.");
+    setStatus(historyStatus, "");
     renderHistoryTable(items);
     return;
   }
