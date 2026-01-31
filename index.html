@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="en">
 <head>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/Icon_192.png">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <meta name="theme-color" content="#0b1320" />
@@ -1873,6 +1875,17 @@ bootstrap();
     </div>
   </div>
 </div>
-
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", async () => {
+    try {
+      await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      // console.log("SW registered");
+    } catch (e) {
+      console.warn("SW registration failed:", e);
+    }
+  });
+}
+</script>
 </body>
 </html>
