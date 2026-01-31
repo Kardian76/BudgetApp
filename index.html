@@ -240,9 +240,10 @@ td.center, th.center{text-align:center}
     <div class="card">
       <h1 style="text-align:center;">Budget Settings</h1>
       
-      <div class="row">
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
         <button id="settingsOpenEditBudgetsBtn" class="secondary" type="button">Edit Budget Amounts</button>
         <button id="settingsOpenAddCatsBtn" class="secondary" type="button">Add Categories</button>
+        <button id="settingsOpenReorderBtn" class="secondary" type="button">Reorder Categories</button>
       </div>
 
       <div id="settingsEditBudgetsPanel" class="subcard hidden">
@@ -276,10 +277,6 @@ td.center, th.center{text-align:center}
         <div id="settingsAddCatsStatus" class="status"></div>
       </div>
 
-      <div class="row" style="margin-top:14px;">
-        <button id="settingsOpenReorderBtn" class="secondary" type="button">Reorder Categories</button>
-      </div>
-
       <div id="settingsReorderPanel" class="subcard hidden">
         <div class="status" style="margin-top:0;">
           Move categories up/down. This affects how categories are shown in the app on this device.
@@ -295,7 +292,7 @@ td.center, th.center{text-align:center}
 
     <div class="card subcard">
       <h1 style="text-align:center;">Account</h1>
-      <div class="row">
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
         <button id="settingsChangeNameBtn" class="secondary" type="button">Change Name</button>
         <button id="settingsLogoutBtn" class="secondary" type="button">Log Out</button>
         <button id="settingsResetBtn" class="danger" type="button">Reset Budget</button>
