@@ -227,36 +227,6 @@ td.center, th.center{text-align:center}
   <div id="globalStatus" class="status"></div>
 </div>
 
-<!-- CUSTOM PROMPT MODAL (Change Name) -->
-<div id="promptOverlay" class="modalOverlay hidden" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" style="max-width:400px;">
-    <div class="modalHeader">
-      <h1 id="promptTitle" style="margin:0;"></h1>
-    </div>
-    <div class="divider"></div>
-    <label id="promptLabel" style="margin-top:0;"></label>
-    <input id="promptInput" autocomplete="off" style="margin-top:6px;" />
-    <div class="row" style="margin-top:14px;">
-      <button id="promptOkBtn" type="button">Save</button>
-      <button id="promptCancelBtn" class="secondary" type="button">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- CUSTOM CONFIRM MODAL (Reset Budget) -->
-<div id="confirmOverlay" class="modalOverlay hidden" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" style="max-width:400px;">
-    <div class="modalHeader">
-      <h1 id="confirmTitle" style="margin:0;"></h1>
-    </div>
-    <div class="divider"></div>
-    <div id="confirmMessage" class="status" style="margin-top:0;"></div>
-    <div class="row" style="margin-top:14px;">
-      <button id="confirmOkBtn" class="danger" type="button">Delete</button>
-      <button id="confirmCancelBtn" class="secondary" type="button">Cancel</button>
-    </div>
-  </div>
-</div>
 <div id="settingsOverlay" class="modalOverlay hidden" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true">
     <div class="modalHeader">
@@ -1844,6 +1814,37 @@ window.addEventListener("unhandledrejection", (ev) => {
 
 bootstrap();
 </script>
+
+<!-- CUSTOM PROMPT MODAL (Change Name) -->
+<div id="promptOverlay" class="modalOverlay hidden" aria-hidden="true" style="z-index:200;">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:400px;">
+    <div class="modalHeader">
+      <h1 id="promptTitle" style="margin:0;"></h1>
+    </div>
+    <div class="divider"></div>
+    <label id="promptLabel" style="margin-top:0;"></label>
+    <input id="promptInput" autocomplete="off" style="margin-top:6px;" />
+    <div class="row" style="margin-top:14px;">
+      <button id="promptOkBtn" type="button">Save</button>
+      <button id="promptCancelBtn" class="secondary" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOM CONFIRM MODAL (Reset Budget) -->
+<div id="confirmOverlay" class="modalOverlay hidden" aria-hidden="true" style="z-index:200;">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:400px;">
+    <div class="modalHeader">
+      <h1 id="confirmTitle" style="margin:0;"></h1>
+    </div>
+    <div class="divider"></div>
+    <div id="confirmMessage" class="status" style="margin-top:0;"></div>
+    <div class="row" style="margin-top:14px;">
+      <button id="confirmOkBtn" class="danger" type="button">Delete</button>
+      <button id="confirmCancelBtn" class="secondary" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
