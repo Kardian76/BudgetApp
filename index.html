@@ -294,7 +294,7 @@ td.center, th.center{text-align:center}
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
         <button id="settingsChangeNameBtn" class="secondary" type="button">Change Name</button>
         <button id="settingsLogoutBtn" class="secondary" type="button">Log Out</button>
-        <button id="settingsResetBtn" class="danger" type="button">Reset Budget</button>
+        <button id="settingsResetBtn" class="danger" type="button">Reset Budget / Start Over</button>
       </div>
       <div class="small" style="margin-top:8px;">
         Reset clears categories, budgets, and all transaction history from the server.
@@ -1456,51 +1456,79 @@ async function saveEditBudgets(){
     }
   }
 
-  // The API doesn't have a direct "update budget" endpoint, so we need to use transactions
-  // to adjust budgets. We'll calculate the difference and post refunds/expenses to adjust.
+  // Only process categories that actually changed
   const cats = normalizeCategories(CURRENT_STATE);
-  const adjustments = [];
-  
-  for (const edit of edits){
+  const changed = edits.filter(edit => {
     const cat = cats.find(c => c.category_id === edit.categoryId);
-    if (!cat) continue;
-    
+    if (!cat) return false;
     const currentBudget = cat.spent_cents + cat.remaining_cents;
-    const diff = edit.cents - currentBudget;
-    
-    if (diff !== 0) {
-      // Positive diff = increase budget (refund), negative = decrease (expense)
-      adjustments.push({
-        category_id: edit.categoryId,
-        amount_cents: Math.abs(diff),
-        is_refund: diff > 0,
-        note: `Budget adjustment: ${diff > 0 ? 'increased' : 'decreased'} by ${fmtCents(Math.abs(diff))}`
-      });
-    }
-  }
+    return edit.cents !== currentBudget;
+  });
 
-  if (adjustments.length === 0) {
+  if (changed.length === 0) {
     return setStatus(settingsEditBudgetsStatus, "No changes to save.", "ok");
   }
 
-  const name = await idbGet(KEY_NAME);
-  if (!name) return showAuth("Missing name. Please re-enter.", true);
+  // For each changed category: remove the old one, add a new one with the same name
+  // but the new budget amount. The server resets spent to 0 for newly added categories,
+  // so we also need to re-post the spent amount as a transaction afterward.
+  const remove = changed.map(edit => {
+    const cat = cats.find(c => c.category_id === edit.categoryId);
+    return { category_id: edit.categoryId, name: cat.name };
+  });
 
-  const payload = {
-    created_by_label: name,
-    items: adjustments
-  };
+  const add = changed.map(edit => {
+    const cat = cats.find(c => c.category_id === edit.categoryId);
+    return { name: cat.name, budget_cents: edit.cents };
+  });
+
+  const payload = { add, remove };
 
   setStatus(settingsEditBudgetsStatus, "Saving…");
   try {
-    const res = await postTransaction(token, payload);
+    const res = await postCategories(token, payload);
     if (res.authFailed){
       await idbDel(KEY_TOKEN);
       closeSettings();
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
 
-    CURRENT_STATE = res.result || {};
+    // After re-adding, the new categories have spent_cents = 0.
+    // Re-post the original spent amounts as transactions to restore them.
+    const newState = res.result || {};
+    const newCats = normalizeCategories(newState);
+    const spentItems = [];
+
+    for (const edit of changed) {
+      const oldCat = cats.find(c => c.category_id === edit.categoryId);
+      if (!oldCat || oldCat.spent_cents <= 0) continue;
+
+      // Find the newly created category by name
+      const newCat = newCats.find(c => c.name === oldCat.name);
+      if (!newCat) continue;
+
+      spentItems.push({
+        category_id: newCat.category_id,
+        amount_cents: oldCat.spent_cents,
+        is_refund: false,
+        note: "Budget adjustment - restored spent amount"
+      });
+    }
+
+    if (spentItems.length > 0) {
+      const name = await idbGet(KEY_NAME);
+      const txPayload = { created_by_label: name || "System", items: spentItems };
+      const txRes = await postTransaction(token, txPayload);
+      if (txRes.authFailed){
+        await idbDel(KEY_TOKEN);
+        closeSettings();
+        return showAuth("Token invalid/expired. Please re-enter.", true);
+      }
+      CURRENT_STATE = txRes.result || {};
+    } else {
+      CURRENT_STATE = newState;
+    }
+
     await renderDashboard(CURRENT_STATE);
     setStatus(settingsEditBudgetsStatus, "Saved.", "ok");
     
