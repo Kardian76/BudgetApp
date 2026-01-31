@@ -247,7 +247,7 @@ td.center, th.center{text-align:center}
 
       <div id="settingsEditBudgetsPanel" class="subcard hidden">
         <div class="status" style="margin-top:0;">
-          Adjust the budget amounts for your categories. This affects the current period.
+          Adjust the budget amounts for your categories. Changes take effect at the start of the next period.
         </div>
         <div id="settingsEditBudgetsList"></div>
         <div class="row">
@@ -1443,10 +1443,11 @@ function readEditBudgets(){
   }).filter(x => Number.isFinite(x.categoryId) && x.categoryId > 0);
 }
 
-async function saveEditBudgets(){
-  const token = await idbGet(KEY_TOKEN);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
+/* ---- Pending-budget keys (IndexedDB) ---- */
+const KEY_PENDING_BUDGETS = "pendingBudgets";  // { "categoryId": targetCents, … }
+const KEY_LAST_PERIOD_KEY = "lastPeriodKey";   // the period_key we last saw
 
+async function saveEditBudgets(){
   const edits = readEditBudgets();
   if (!edits.length) return setStatus(settingsEditBudgetsStatus, "No budgets to save.", "error");
 
@@ -1456,7 +1457,7 @@ async function saveEditBudgets(){
     }
   }
 
-  // Only process categories that actually changed
+  // Only keep categories whose target budget actually differs from current
   const cats = normalizeCategories(CURRENT_STATE);
   const changed = edits.filter(edit => {
     const cat = cats.find(c => c.category_id === edit.categoryId);
@@ -1469,75 +1470,87 @@ async function saveEditBudgets(){
     return setStatus(settingsEditBudgetsStatus, "No changes to save.", "ok");
   }
 
-  // For each changed category: remove the old one, add a new one with the same name
-  // but the new budget amount. The server resets spent to 0 for newly added categories,
-  // so we also need to re-post the spent amount as a transaction afterward.
-  const remove = changed.map(edit => {
-    const cat = cats.find(c => c.category_id === edit.categoryId);
-    return { category_id: edit.categoryId, name: cat.name };
-  });
-
-  const add = changed.map(edit => {
-    const cat = cats.find(c => c.category_id === edit.categoryId);
-    return { name: cat.name, budget_cents: edit.cents };
-  });
-
-  const payload = { add, remove };
-
-  setStatus(settingsEditBudgetsStatus, "Saving…");
+  // Build the pending-changes map: { categoryId -> targetCents }
+  // Merge with any previously saved pending changes so nothing is lost.
+  let pending = {};
   try {
-    const res = await postCategories(token, payload);
-    if (res.authFailed){
-      await idbDel(KEY_TOKEN);
-      closeSettings();
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
+    const stored = await idbGet(KEY_PENDING_BUDGETS);
+    if (stored && typeof stored === "object") pending = stored;
+  } catch { /* first time */ }
 
-    // After re-adding, the new categories have spent_cents = 0.
-    // Re-post the original spent amounts as transactions to restore them.
-    const newState = res.result || {};
-    const newCats = normalizeCategories(newState);
-    const spentItems = [];
+  for (const edit of changed) {
+    pending[String(edit.categoryId)] = edit.cents;
+  }
 
-    for (const edit of changed) {
-      const oldCat = cats.find(c => c.category_id === edit.categoryId);
-      if (!oldCat || oldCat.spent_cents <= 0) continue;
+  // Persist to IndexedDB (no network call — changes apply next period)
+  try {
+    await idbSet(KEY_PENDING_BUDGETS, pending);
+    setStatus(settingsEditBudgetsStatus, "Saved. Changes will take effect at the start of the next budget period.", "ok");
 
-      // Find the newly created category by name
-      const newCat = newCats.find(c => c.name === oldCat.name);
-      if (!newCat) continue;
-
-      spentItems.push({
-        category_id: newCat.category_id,
-        amount_cents: oldCat.spent_cents,
-        is_refund: false,
-        note: "Budget adjustment - restored spent amount"
-      });
-    }
-
-    if (spentItems.length > 0) {
-      const name = await idbGet(KEY_NAME);
-      const txPayload = { created_by_label: name || "System", items: spentItems };
-      const txRes = await postTransaction(token, txPayload);
-      if (txRes.authFailed){
-        await idbDel(KEY_TOKEN);
-        closeSettings();
-        return showAuth("Token invalid/expired. Please re-enter.", true);
-      }
-      CURRENT_STATE = txRes.result || {};
-    } else {
-      CURRENT_STATE = newState;
-    }
-
-    await renderDashboard(CURRENT_STATE);
-    setStatus(settingsEditBudgetsStatus, "Saved.", "ok");
-    
     setTimeout(() => {
       hide(settingsEditBudgetsPanel);
       setStatus(settingsEditBudgetsStatus, "");
-    }, 1000);
+    }, 2200);
   } catch (e) {
     setStatus(settingsEditBudgetsStatus, e?.message || String(e), "error");
+  }
+}
+
+/* ---- Apply pending budget changes when a new period is detected ---- */
+async function applyPendingBudgetChanges(state){
+  // Nothing pending? Exit fast.
+  let pending;
+  try { pending = await idbGet(KEY_PENDING_BUDGETS); } catch { pending = null; }
+  if (!pending || typeof pending !== "object" || Object.keys(pending).length === 0) return;
+
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return; // can't do anything without auth
+
+  const cats = normalizeCategories(state);
+
+  // Build one transaction item per changed category.
+  // delta > 0  → budget went UP   → post a refund  (increases remaining)
+  // delta < 0  → budget went DOWN → post an expense (decreases remaining)
+  const items = [];
+  const applied = new Set();
+
+  for (const [idStr, targetCents] of Object.entries(pending)){
+    const categoryId = Number(idStr);
+    const cat = cats.find(c => c.category_id === categoryId);
+    if (!cat) continue; // category may have been removed; skip it
+
+    // In the fresh period remaining == full budget, spent == 0.
+    // The delta is simply (target − current full budget).
+    const currentBudget = cat.spent_cents + cat.remaining_cents;
+    const delta = targetCents - currentBudget;
+    if (delta === 0) { applied.add(idStr); continue; } // already matches
+
+    items.push({
+      category_id: categoryId,
+      amount_cents: Math.abs(delta),
+      is_refund: delta > 0,   // refund = add back, expense = subtract
+      note: "Budget adjustment: " + (delta > 0 ? "+" : "") + (delta/100).toFixed(2) + " (scheduled from prior period)"
+    });
+    applied.add(idStr);
+  }
+
+  if (items.length > 0) {
+    try {
+      const name = await idbGet(KEY_NAME);
+      const res = await postTransaction(token, { created_by_label: name || "Budget", items });
+      if (res.authFailed) return; // bootstrap will handle re-auth
+      CURRENT_STATE = res.result || {};
+      await renderDashboard(CURRENT_STATE);
+    } catch { /* silent — dashboard already shows current state */ }
+  }
+
+  // Remove applied entries; keep any that couldn't be matched (e.g. category gone)
+  for (const id of applied) delete pending[id];
+
+  if (Object.keys(pending).length === 0) {
+    try { await idbDel(KEY_PENDING_BUDGETS); } catch { /* ignore */ }
+  } else {
+    try { await idbSet(KEY_PENDING_BUDGETS, pending); } catch { /* ignore */ }
   }
 }
 
@@ -1750,6 +1763,8 @@ settingsLogoutBtn.addEventListener("click", async () => {
   await idbDel(KEY_TOKEN);
   await idbDel(KEY_NAME);
   await idbDel(KEY_CAT_ORDER);
+  try { await idbDel(KEY_PENDING_BUDGETS); } catch { /* ignore */ }
+  try { await idbDel(KEY_LAST_PERIOD_KEY); } catch { /* ignore */ }
   closeSettings();
   showAuth("Logged out. Enter your name and bearer token to continue.");
 });
@@ -1771,6 +1786,8 @@ settingsResetBtn.addEventListener("click", async () => {
     }
 
     await idbDel(KEY_CAT_ORDER);
+    try { await idbDel(KEY_PENDING_BUDGETS); } catch { /* ignore */ }
+    try { await idbDel(KEY_LAST_PERIOD_KEY); } catch { /* ignore */ }
 
     setStatus(settingsAccountStatus, "Reset complete.", "ok");
     closeSettings();
@@ -1801,6 +1818,21 @@ async function loadAppStateAndRender(token){
   showApp();
   await renderDashboard(CURRENT_STATE);
   setStatus(globalStatus, "");
+
+  // --- Detect period rollover and flush pending budget edits ---
+  const currentPeriodKey = state?.period?.period_key || "";
+  let lastKey;
+  try { lastKey = await idbGet(KEY_LAST_PERIOD_KEY); } catch { lastKey = null; }
+
+  if (lastKey && currentPeriodKey && lastKey !== currentPeriodKey) {
+    // Period changed since last visit — apply any pending budget adjustments
+    await applyPendingBudgetChanges(CURRENT_STATE);
+  }
+
+  // Always remember the current period key
+  if (currentPeriodKey) {
+    try { await idbSet(KEY_LAST_PERIOD_KEY, currentPeriodKey); } catch { /* ignore */ }
+  }
 }
 
 async function bootstrap(){
