@@ -238,10 +238,11 @@ td.center, th.center{text-align:center}
     <div class="divider"></div>
 
     <div class="card">
-      <h1>Budget Settings</h1>
+      <h1 style="text-align:center;">Budget Settings</h1>
       
       <div class="row">
         <button id="settingsOpenEditBudgetsBtn" class="secondary" type="button">Edit Budget Amounts</button>
+        <button id="settingsOpenAddCatsBtn" class="secondary" type="button">Add Categories</button>
       </div>
 
       <div id="settingsEditBudgetsPanel" class="subcard hidden">
@@ -254,6 +255,25 @@ td.center, th.center{text-align:center}
           <button id="settingsCancelEditBudgetsBtn" class="secondary" type="button">Cancel</button>
         </div>
         <div id="settingsEditBudgetsStatus" class="status"></div>
+      </div>
+
+      <div id="settingsAddCatsPanel" class="subcard hidden" style="margin-top:10px;">
+        <div class="status" style="margin-top:0;">
+          Add one or more categories with their starting budget amounts.
+        </div>
+
+        <div id="settingsAddCatsList"></div>
+
+        <div class="row">
+          <button id="settingsAddCatsRowBtn" class="secondary" type="button">Add Row</button>
+        </div>
+
+        <div class="row">
+          <button id="settingsSaveCatsBtn" type="button">Save Categories</button>
+          <button id="settingsCancelCatsBtn" class="secondary" type="button">Cancel</button>
+        </div>
+
+        <div id="settingsAddCatsStatus" class="status"></div>
       </div>
 
       <div class="row" style="margin-top:14px;">
@@ -271,37 +291,12 @@ td.center, th.center{text-align:center}
         </div>
         <div id="settingsReorderStatus" class="status"></div>
       </div>
-
-      <!-- Add Budget Categories -->
-      <div class="subcard" style="margin-top:14px;">
-        <div class="row">
-          <button id="settingsOpenAddCatsBtn" class="secondary" type="button">Add Budget Categories</button>
-        </div>
-
-        <div id="settingsAddCatsPanel" class="subcard hidden" style="margin-top:10px;">
-          <div class="status" style="margin-top:0;">
-            Add one or more categories with their starting budget amounts.
-          </div>
-
-          <div id="settingsAddCatsList"></div>
-
-          <div class="row">
-            <button id="settingsAddCatsRowBtn" class="secondary" type="button">Add Row</button>
-          </div>
-
-          <div class="row">
-            <button id="settingsSaveCatsBtn" type="button">Save Categories</button>
-            <button id="settingsCancelCatsBtn" class="secondary" type="button">Cancel</button>
-          </div>
-
-          <div id="settingsAddCatsStatus" class="status"></div>
-        </div>
-      </div>
     </div>
 
     <div class="card subcard">
-      <h1>Account</h1>
+      <h1 style="text-align:center;">Account</h1>
       <div class="row">
+        <button id="settingsChangeNameBtn" class="secondary" type="button">Change Name</button>
         <button id="settingsLogoutBtn" class="secondary" type="button">Log Out</button>
         <button id="settingsResetBtn" class="danger" type="button">Reset Budget</button>
       </div>
@@ -319,7 +314,7 @@ td.center, th.center{text-align:center}
     <div class="modalHeader">
       <div>
         <h1 style="margin:0;">History</h1>
-        <div id="historyPeriod" class="small" style="margin-top:4px;"></div>
+        <div id="historyPeriod" class="small" style="margin-top:4px;font-weight:600;"></div>
         <div class="small" style="margin-top:4px;color:var(--muted);">Tip: Scroll table left/right to see all columns</div>
       </div>
       <button id="historyCloseBtn" class="secondary" type="button">Close</button>
@@ -436,6 +431,7 @@ const settingsSaveCatsBtn = $("settingsSaveCatsBtn");
 const settingsCancelCatsBtn = $("settingsCancelCatsBtn");
 const settingsAddCatsStatus = $("settingsAddCatsStatus");
 
+const settingsChangeNameBtn = $("settingsChangeNameBtn");
 const settingsLogoutBtn = $("settingsLogoutBtn");
 const settingsResetBtn = $("settingsResetBtn");
 const settingsAccountStatus = $("settingsAccountStatus");
@@ -1644,6 +1640,23 @@ async function saveAddedCategories(){
 settingsSaveCatsBtn.addEventListener("click", saveAddedCategories);
 
 /* Account */
+settingsChangeNameBtn.addEventListener("click", async () => {
+  const currentName = await idbGet(KEY_NAME);
+  const newName = window.prompt("Enter your new name:", currentName || "");
+  
+  if (newName === null) return; // User cancelled
+  
+  const trimmed = String(newName).trim().slice(0, 40);
+  if (!trimmed) return setStatus(settingsAccountStatus, "Name cannot be empty.", "error");
+  
+  try {
+    await idbSet(KEY_NAME, trimmed);
+    setStatus(settingsAccountStatus, `Name changed to: ${trimmed}`, "ok");
+  } catch (e) {
+    setStatus(settingsAccountStatus, e?.message || String(e), "error");
+  }
+});
+
 settingsLogoutBtn.addEventListener("click", async () => {
   await idbDel(KEY_TOKEN);
   await idbDel(KEY_NAME);
