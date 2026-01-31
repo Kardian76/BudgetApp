@@ -10,11 +10,11 @@ const CACHE_NAME = `purrfect-budget-shell-${SW_VERSION}`;
 
 // Adjust if your file names differ
 const APP_SHELL = [
-  "/",
-  "/index.html",
-  "/manifest.webmanifest",
-  "/Icon_192.png",
-  "/Icon_512.png",
+  "./",
+  "./index.html",
+  "./manifest.webmanifest",
+  "./Icon_192.png",
+  "./Icon_512.png",
 ];
 
 // Install: pre-cache the app shell and activate immediately
