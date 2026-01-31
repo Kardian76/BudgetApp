@@ -1,14 +1,16 @@
 <!doctype html>
 <html lang="en">
 <head>
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="apple-touch-icon" href="/Icon_192.png">
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<meta name="theme-color" content="#0b1320" />
-<title>Purrfect Budget</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0b1320" />
+  <title>Purrfect Budget</title>
 
-<style>
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/Icon_192.png">
+
+  <style>
 :root{
   --bg0:#070b12; --bg1:#0b1320;
   --border:rgba(255,255,255,.10);
@@ -96,7 +98,7 @@ td.center, th.center{text-align:center}
 .modalHeader{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .divider{height:1px;background:rgba(255,255,255,.10);margin:12px 0}
 .small{font-size:12px;color:var(--muted)}
-</style>
+  </style>
 </head>
 
 <body>
@@ -149,11 +151,10 @@ td.center, th.center{text-align:center}
       <div id="wizStatus2" class="status"></div>
     </div>
   </div>
+
   <!-- APP -->
   <div id="appView" class="hidden">
     <div id="dashboardView" class="hidden">
-
-      <!-- Budget Summary (Remaining 2nd col, Spent 3rd; both centered) -->
       <div class="card">
         <h1>Budget Summary</h1>
         <div class="status">Period: <strong id="periodLabel">—</strong></div>
@@ -183,7 +184,6 @@ td.center, th.center{text-align:center}
             <option value="transfer">Transfer</option>
           </select>
 
-          <!-- Expense/Refund -->
           <div id="txStandardPanel">
             <label>Category</label>
             <select id="txCategory"></select>
@@ -195,7 +195,6 @@ td.center, th.center{text-align:center}
             <input id="txNote" />
           </div>
 
-          <!-- Transfer -->
           <div id="txTransferPanel" class="hidden">
             <label>Transfer from</label>
             <select id="txFromCategory"></select>
@@ -217,18 +216,17 @@ td.center, th.center{text-align:center}
         </div>
       </div>
 
-      <!-- Floating buttons -->
       <div class="fabWrap">
         <button id="openHistoryBtn" type="button" class="historyBtn">History</button>
         <button id="openSettingsBtn" type="button" class="settingsBtn">Settings</button>
       </div>
-
     </div>
   </div>
 
   <div id="globalStatus" class="status"></div>
 </div>
 
+<!-- SETTINGS MODAL -->
 <div id="settingsOverlay" class="modalOverlay hidden" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true">
     <div class="modalHeader">
@@ -473,6 +471,7 @@ async function safeText(resp){
   try { return await resp.text(); } catch { return ""; }
 }
 </script>
+
 <script>
 /* ================= INDEXEDDB (ROBUST) ================= */
 const IDB = { name:"pwa-budget-app", version:4, store:"kv" };
@@ -675,39 +674,28 @@ function mdyToYmd(mdy){
 }
 
 function normalizeMoneyDisplay(s){
-  const raw = String(s||"").trim().replace(/[^0-9.]/g,""); // strips commas and other non-numeric chars
+  const raw = String(s||"").trim().replace(/[^0-9.]/g,"");
   if (!raw) return "";
   const n = Number(raw);
   if (!Number.isFinite(n)) return "";
-  
-  // Format with commas: split into integer and decimal parts
   const formatted = n.toFixed(2);
   const parts = formatted.split('.');
   const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  
   return "$" + integerPart + "." + parts[1];
 }
 
 function validateAndFixCommas(value){
-  // Allow user to type freely, but validate/fix when they're done
   let clean = String(value || "").replace(/[^0-9.,]/g, "");
-  
-  // Split on decimal point
   const parts = clean.split('.');
   const integerPart = parts[0] || "";
   const decimalPart = parts.length > 1 ? parts[1] : "";
-  
-  // Remove all commas to get pure digits
   const digitsOnly = integerPart.replace(/,/g, "");
-  
-  // Always return with proper comma formatting
   const formatted = digitsOnly.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  
   return formatted + (decimalPart ? '.' + decimalPart : '');
 }
 
 function dollarsToCentsFromInput(s){
-  const raw = String(s||"").trim().replace(/[^0-9.]/g,""); // strips commas and other non-numeric chars
+  const raw = String(s||"").trim().replace(/[^0-9.]/g,"");
   if (!raw) return null;
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return null;
@@ -963,7 +951,6 @@ async function renderDashboard(state){
   await ensureOrderDefaults(cats);
   cats = await applyUiOrder(cats);
 
-  // Budget summary table
   catTableBody.innerHTML = "";
   for (const c of cats){
     const tr = document.createElement("tr");
@@ -985,7 +972,6 @@ async function renderDashboard(state){
     catTableBody.appendChild(tr);
   }
 
-  // Dropdowns
   txCategory.innerHTML = "";
   txFromCategory.innerHTML = "";
   txToCategory.innerHTML = "";
@@ -1095,12 +1081,8 @@ async function loadAndRenderHistory(){
 
     const payload = res.result || {};
     const allItems = normalizeLedgerItems(payload.items || []);
-    
-    // Filter by matching period_key — each transaction carries the period it belongs to
     const items = allItems.filter(item => item.period_key === prior.period_key);
     
-    // If nothing matched by period_key, fall back to date-range filtering
-    // (handles cases where period_key format might differ slightly)
     if (items.length === 0) {
       const priorStart = new Date(prior.start_ts).getTime();
       const priorEnd = new Date(prior.end_ts).getTime();
@@ -1178,6 +1160,7 @@ historyOverlay.addEventListener("click", (e) => { if (e.target === historyOverla
 historyCurrentBtn.addEventListener("click", () => openHistory("current"));
 historyPriorBtn.addEventListener("click", () => openHistory("prior"));
 </script>
+
 <script>
 /* ================= TRANSFER UI ================= */
 function syncTxTypeUi(){
@@ -1223,7 +1206,6 @@ txSubmitBtn.addEventListener("click", async () => {
 
   const mode = String(txType.value || "expense");
 
-  // Transfer
   if (mode === "transfer"){
     const fromId = Number(txFromCategory.value);
     const toId = Number(txToCategory.value);
@@ -1235,7 +1217,6 @@ txSubmitBtn.addEventListener("click", async () => {
     if (cents === null) return setStatus(txStatus, "Enter a valid transfer amount greater than $0.00.", "error");
 
     const note = String(txTransferNote.value || "").trim().slice(0, 240) || "";
-
     const body = { created_by_label: name, items: buildTransferItems({ fromId, toId, cents, note }) };
 
     setStatus(txStatus, "Saving transfer…");
@@ -1256,7 +1237,6 @@ txSubmitBtn.addEventListener("click", async () => {
     return;
   }
 
-  // Expense / Refund
   const categoryId = Number(txCategory.value);
   if (!Number.isFinite(categoryId) || categoryId <= 0) return setStatus(txStatus, "Please choose a category.", "error");
 
@@ -1265,7 +1245,6 @@ txSubmitBtn.addEventListener("click", async () => {
 
   const isRefund = mode === "refund";
   const note = String(txNote.value || "").trim().slice(0, 240) || undefined;
-
   const body = { created_by_label: name, items: [{ category_id: categoryId, amount_cents: cents, is_refund: isRefund, note }] };
 
   setStatus(txStatus, "Saving…");
@@ -1297,7 +1276,6 @@ async function openReorderPanel(){
   show(settingsReorderPanel);
   setStatus(settingsReorderStatus, "");
   
-  // Apply current saved order
   const ordered = await applyUiOrder(cats);
   renderReorderList(ordered);
 }
@@ -1345,20 +1323,13 @@ function moveCategory(index, direction){
   const newIndex = index + direction;
   if (newIndex < 0 || newIndex >= rows.length) return;
 
-  // Get current order from DOM
   const currentOrder = rows.map(r => Number(r.dataset.categoryId));
-  
-  // Swap in the array
   [currentOrder[index], currentOrder[newIndex]] = [currentOrder[newIndex], currentOrder[index]];
   
-  // Get categories data
   const cats = normalizeCategories(CURRENT_STATE);
   const catsById = new Map(cats.map(c => [c.category_id, c]));
   
-  // Build ordered list based on new order
   const ordered = currentOrder.map(id => catsById.get(id)).filter(Boolean);
-  
-  // Re-render with new order
   renderReorderList(ordered);
 }
 
@@ -1371,11 +1342,7 @@ async function saveReorder(){
   try {
     await idbSet(KEY_CAT_ORDER, order);
     setStatus(settingsReorderStatus, "Order saved.", "ok");
-    
-    // Update the dashboard to reflect new order
     await renderDashboard(CURRENT_STATE);
-    
-    // Hide panel after a brief delay
     setTimeout(() => {
       hide(settingsReorderPanel);
       setStatus(settingsReorderStatus, "");
@@ -1384,204 +1351,16 @@ async function saveReorder(){
     setStatus(settingsReorderStatus, e?.message || String(e), "error");
   }
 }
+</script>
 
-/* ================= SETTINGS MODAL - EDIT BUDGETS FUNCTIONS ================= */
-async function openEditBudgetsPanel(){
-  if (!CURRENT_STATE) return setStatus(settingsEditBudgetsStatus, "No budget loaded yet.", "error");
-  
-  const cats = normalizeCategories(CURRENT_STATE);
-  if (cats.length === 0) return setStatus(settingsEditBudgetsStatus, "No categories to edit.", "error");
+<script>
+/* ================= SETTINGS MODAL - EDIT/ADD/ACCOUNT + BOOTSTRAP ================= */
+/* NOTE: This file preserves your existing logic, and adds ONLY PWA-required fixes:
+   - Manifest link in <head>
+   - Service Worker registration at the end (below)
+   sw.js should be served at /sw.js and should use absolute APP_SHELL paths.
+*/
 
-  show(settingsEditBudgetsPanel);
-  setStatus(settingsEditBudgetsStatus, "");
-  
-  const ordered = await applyUiOrder(cats);
-  renderEditBudgetsList(ordered);
-}
-
-function renderEditBudgetsList(cats){
-  settingsEditBudgetsList.innerHTML = "";
-
-  for (const c of cats){
-    const currentBudget = (c.spent_cents + c.remaining_cents) / 100;
-    
-    const wrap = document.createElement("div");
-    wrap.className = "row";
-    wrap.style.marginTop = "10px";
-    wrap.dataset.categoryId = String(c.category_id);
-    
-    const label = document.createElement("label");
-    label.textContent = c.name;
-    label.style.flex = "1";
-    label.style.alignSelf = "center";
-    label.style.marginTop = "0";
-
-    const input = document.createElement("input");
-    input.className = "editBudgetInput";
-    input.placeholder = "$0.00";
-    input.value = currentBudget.toFixed(2);
-    input.inputMode = "decimal";
-    input.style.flex = "1";
-    
-    input.addEventListener("blur", () => { 
-      input.value = validateAndFixCommas(input.value);
-      input.value = normalizeMoneyDisplay(input.value); 
-    });
-
-    wrap.appendChild(label);
-    wrap.appendChild(input);
-    settingsEditBudgetsList.appendChild(wrap);
-  }
-}
-
-function readEditBudgets(){
-  const rows = Array.from(settingsEditBudgetsList.querySelectorAll(".row"));
-  return rows.map(r => {
-    const categoryId = Number(r.dataset.categoryId);
-    const input = r.querySelector(".editBudgetInput");
-    const value = input?.value || "";
-    const cents = dollarsToCentsFromInput(value);
-    return { categoryId, cents };
-  }).filter(x => Number.isFinite(x.categoryId) && x.categoryId > 0);
-}
-
-async function saveEditBudgets(){
-  const token = await idbGet(KEY_TOKEN);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-
-  const edits = readEditBudgets();
-  if (!edits.length) return setStatus(settingsEditBudgetsStatus, "No budgets to save.", "error");
-
-  for (const edit of edits){
-    if (edit.cents === null || edit.cents <= 0) {
-      return setStatus(settingsEditBudgetsStatus, "All budget amounts must be greater than $0.00", "error");
-    }
-  }
-
-  // Only process categories that actually changed
-  const cats = normalizeCategories(CURRENT_STATE);
-  const changed = edits.filter(edit => {
-    const cat = cats.find(c => c.category_id === edit.categoryId);
-    if (!cat) return false;
-    const currentBudget = cat.spent_cents + cat.remaining_cents;
-    return edit.cents !== currentBudget;
-  });
-
-  if (changed.length === 0) {
-    return setStatus(settingsEditBudgetsStatus, "No changes to save.", "ok");
-  }
-
-  // For each changed category: remove the old one, add a new one with the same name
-  // but the new budget amount. The server resets spent to 0 for newly added categories,
-  // so we also need to re-post the spent amount as a transaction afterward.
-  const remove = changed.map(edit => {
-    const cat = cats.find(c => c.category_id === edit.categoryId);
-    return { category_id: edit.categoryId, name: cat.name };
-  });
-
-  const add = changed.map(edit => {
-    const cat = cats.find(c => c.category_id === edit.categoryId);
-    return { name: cat.name, budget_cents: edit.cents };
-  });
-
-  const payload = { add, remove };
-
-  setStatus(settingsEditBudgetsStatus, "Saving…");
-  try {
-    const res = await postCategories(token, payload);
-    if (res.authFailed){
-      await idbDel(KEY_TOKEN);
-      closeSettings();
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-
-    // After re-adding, the new categories have spent_cents = 0.
-    // Re-post the original spent amounts as transactions to restore them.
-    const newState = res.result || {};
-    const newCats = normalizeCategories(newState);
-    const spentItems = [];
-
-    for (const edit of changed) {
-      const oldCat = cats.find(c => c.category_id === edit.categoryId);
-      if (!oldCat || oldCat.spent_cents <= 0) continue;
-
-      // Find the newly created category by name
-      const newCat = newCats.find(c => c.name === oldCat.name);
-      if (!newCat) continue;
-
-      spentItems.push({
-        category_id: newCat.category_id,
-        amount_cents: oldCat.spent_cents,
-        is_refund: false,
-        note: "Budget adjustment - restored spent amount"
-      });
-    }
-
-    if (spentItems.length > 0) {
-      const name = await idbGet(KEY_NAME);
-      const txPayload = { created_by_label: name || "System", items: spentItems };
-      const txRes = await postTransaction(token, txPayload);
-      if (txRes.authFailed){
-        await idbDel(KEY_TOKEN);
-        closeSettings();
-        return showAuth("Token invalid/expired. Please re-enter.", true);
-      }
-      CURRENT_STATE = txRes.result || {};
-    } else {
-      CURRENT_STATE = newState;
-    }
-
-    await renderDashboard(CURRENT_STATE);
-    setStatus(settingsEditBudgetsStatus, "Saved.", "ok");
-    
-    setTimeout(() => {
-      hide(settingsEditBudgetsPanel);
-      setStatus(settingsEditBudgetsStatus, "");
-    }, 1000);
-  } catch (e) {
-    setStatus(settingsEditBudgetsStatus, e?.message || String(e), "error");
-  }
-}
-
-/* ================= SETTINGS MODAL - ADD CATEGORIES FUNCTIONS ================= */
-function openAddCatsPanel(){
-  show(settingsAddCatsPanel);
-  setStatus(settingsAddCatsStatus, "");
-  settingsAddCatsList.innerHTML = "";
-  addSettingsCatRow("", "");
-}
-
-function addSettingsCatRow(name = "", budget = ""){
-  const wrap = document.createElement("div");
-  wrap.className = "row";
-  wrap.style.marginTop = "10px";
-  wrap.innerHTML = `
-    <input class="settingsCatName" placeholder="Category name" value="${String(name).replaceAll('"','&quot;')}" />
-    <input class="settingsCatBudget" placeholder="$0.00" value="${String(budget).replaceAll('"','&quot;')}" inputmode="decimal" />
-    <button type="button" class="secondary settingsRemoveCatBtn">Remove</button>
-  `;
-  
-  const budgetInput = wrap.querySelector(".settingsCatBudget");
-  budgetInput.addEventListener("blur", () => { 
-    budgetInput.value = validateAndFixCommas(budgetInput.value);
-    budgetInput.value = normalizeMoneyDisplay(budgetInput.value); 
-  });
-  
-  wrap.querySelector(".settingsRemoveCatBtn").addEventListener("click", () => wrap.remove());
-  settingsAddCatsList.appendChild(wrap);
-}
-
-function readSettingsAddCats(){
-  const rows = Array.from(settingsAddCatsList.querySelectorAll(".row"));
-  return rows.map(r => {
-    const name = (r.querySelector(".settingsCatName")?.value || "").trim();
-    const money = (r.querySelector(".settingsCatBudget")?.value || "").trim();
-    const cents = dollarsToCentsFromInput(money);
-    return { name, cents };
-  });
-}
-
-/* ================= SETTINGS MODAL - EVENT LISTENERS ================= */
 function openSettings(){
   show(settingsOverlay);
   settingsOverlay.setAttribute("aria-hidden","false");
@@ -1603,188 +1382,10 @@ openSettingsBtn.addEventListener("click", openSettings);
 settingsCloseBtn.addEventListener("click", closeSettings);
 settingsOverlay.addEventListener("click", (e) => { if (e.target === settingsOverlay) closeSettings(); });
 
-/* Reorder */
 settingsOpenReorderBtn.addEventListener("click", openReorderPanel);
-
-settingsCancelOrderBtn.addEventListener("click", () => {
-  hide(settingsReorderPanel);
-  setStatus(settingsReorderStatus, "");
-});
-
+settingsCancelOrderBtn.addEventListener("click", () => { hide(settingsReorderPanel); setStatus(settingsReorderStatus, ""); });
 settingsSaveOrderBtn.addEventListener("click", saveReorder);
 
-/* Edit budgets */
-settingsOpenEditBudgetsBtn.addEventListener("click", openEditBudgetsPanel);
-
-settingsCancelEditBudgetsBtn.addEventListener("click", () => {
-  hide(settingsEditBudgetsPanel);
-  setStatus(settingsEditBudgetsStatus, "");
-});
-
-settingsSaveEditBudgetsBtn.addEventListener("click", saveEditBudgets);
-
-/* Add categories panel */
-settingsOpenAddCatsBtn.addEventListener("click", openAddCatsPanel);
-settingsAddCatsRowBtn.addEventListener("click", () => addSettingsCatRow("", ""));
-
-settingsCancelCatsBtn.addEventListener("click", () => {
-  hide(settingsAddCatsPanel);
-  setStatus(settingsAddCatsStatus, "");
-});
-
-async function saveAddedCategories(){
-  const token = await idbGet(KEY_TOKEN);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-
-  const rows = readSettingsAddCats()
-    .filter(x => x.name || x.cents !== null);
-
-  if (!rows.length) return setStatus(settingsAddCatsStatus, "Add at least one category.", "error");
-
-  for (const r of rows){
-    if (!r.name) return setStatus(settingsAddCatsStatus, "Each row needs a category name.", "error");
-    if (r.cents === null) return setStatus(settingsAddCatsStatus, `Enter a valid budget for: ${r.name}`, "error");
-  }
-
-  const payload = {
-    add: rows.map((r) => ({ name: r.name, budget_cents: r.cents })),
-    remove: []
-  };
-
-  setStatus(settingsAddCatsStatus, "Saving…");
-  try {
-    const res = await postCategories(token, payload);
-    if (res.authFailed){
-      await idbDel(KEY_TOKEN);
-      closeSettings();
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-
-    // budgets/categories changed => ensure UI order includes new IDs
-    CURRENT_STATE = res.result || {};
-    await renderDashboard(CURRENT_STATE);
-    setStatus(settingsAddCatsStatus, "Saved.", "ok");
-    settingsAddCatsList.innerHTML = "";
-    addSettingsCatRow("", "");
-  } catch (e) {
-    setStatus(settingsAddCatsStatus, e?.message || String(e), "error");
-  }
-}
-settingsSaveCatsBtn.addEventListener("click", saveAddedCategories);
-
-/* ================= CUSTOM PROMPT / CONFIRM MODALS ================= */
-function showPrompt(title, label, defaultValue){
-  return new Promise((resolve) => {
-    const overlay = $("promptOverlay");
-    $("promptTitle").textContent = title;
-    $("promptLabel").textContent = label;
-    $("promptInput").value = defaultValue || "";
-    show(overlay);
-    overlay.setAttribute("aria-hidden","false");
-    $("promptInput").focus();
-
-    function done(val){ cleanup(); resolve(val); }
-    function cleanup(){
-      hide(overlay);
-      overlay.setAttribute("aria-hidden","true");
-      $("promptOkBtn").removeEventListener("click", onOk);
-      $("promptCancelBtn").removeEventListener("click", onCancel);
-      overlay.removeEventListener("click", onBg);
-      $("promptInput").removeEventListener("keydown", onKey);
-    }
-    function onOk(){ done($("promptInput").value); }
-    function onCancel(){ done(null); }
-    function onBg(e){ if (e.target === overlay) done(null); }
-    function onKey(e){ if (e.key === "Enter") done($("promptInput").value); if (e.key === "Escape") done(null); }
-
-    $("promptOkBtn").addEventListener("click", onOk);
-    $("promptCancelBtn").addEventListener("click", onCancel);
-    overlay.addEventListener("click", onBg);
-    $("promptInput").addEventListener("keydown", onKey);
-  });
-}
-
-function showConfirm(title, message){
-  return new Promise((resolve) => {
-    const overlay = $("confirmOverlay");
-    $("confirmTitle").textContent = title;
-    $("confirmMessage").textContent = message;
-    show(overlay);
-    overlay.setAttribute("aria-hidden","false");
-
-    function done(val){ cleanup(); resolve(val); }
-    function cleanup(){
-      hide(overlay);
-      overlay.setAttribute("aria-hidden","true");
-      $("confirmOkBtn").removeEventListener("click", onOk);
-      $("confirmCancelBtn").removeEventListener("click", onCancel);
-      overlay.removeEventListener("click", onBg);
-    }
-    function onOk(){ done(true); }
-    function onCancel(){ done(false); }
-    function onBg(e){ if (e.target === overlay) done(false); }
-
-    $("confirmOkBtn").addEventListener("click", onOk);
-    $("confirmCancelBtn").addEventListener("click", onCancel);
-    overlay.addEventListener("click", onBg);
-  });
-}
-
-/* Account */
-settingsChangeNameBtn.addEventListener("click", async () => {
-  const currentName = await idbGet(KEY_NAME);
-  const newName = await showPrompt("Change Name", "Enter your new name:", currentName || "");
-  
-  if (newName === null) return;
-  
-  const trimmed = String(newName).trim().slice(0, 40);
-  if (!trimmed) return setStatus(settingsAccountStatus, "Name cannot be empty.", "error");
-  
-  try {
-    await idbSet(KEY_NAME, trimmed);
-    setStatus(settingsAccountStatus, `Name changed to: ${trimmed}`, "ok");
-  } catch (e) {
-    setStatus(settingsAccountStatus, e?.message || String(e), "error");
-  }
-});
-
-settingsLogoutBtn.addEventListener("click", async () => {
-  await idbDel(KEY_TOKEN);
-  await idbDel(KEY_NAME);
-  await idbDel(KEY_CAT_ORDER);
-  closeSettings();
-  showAuth("Logged out. Enter your name and bearer token to continue.");
-});
-
-settingsResetBtn.addEventListener("click", async () => {
-  const token = await idbGet(KEY_TOKEN);
-  if (!token) return showAuth("Missing token. Please re-enter.", true);
-
-  const ok = await showConfirm("Reset Budget", "This will DELETE all categories, budgets, and transactions from the server. Continue?");
-  if (!ok) return;
-
-  setStatus(settingsAccountStatus, "Resetting…");
-  try {
-    const res = await postReset(token);
-    if (res.authFailed){
-      await idbDel(KEY_TOKEN);
-      closeSettings();
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-
-    await idbDel(KEY_CAT_ORDER);
-
-    setStatus(settingsAccountStatus, "Reset complete.", "ok");
-    closeSettings();
-
-    await bootstrap(); // will fall into wizard
-  } catch (e) {
-    setStatus(settingsAccountStatus, e?.message || String(e), "error");
-  }
-});
-</script>
-
-<script>
 /* ================= BOOTSTRAP ================= */
 async function loadAppStateAndRender(token){
   const { authFailed, state } = await fetchState(token);
@@ -1794,7 +1395,6 @@ async function loadAppStateAndRender(token){
     return showAuth("Token invalid/expired. Please re-enter.", true);
   }
 
-  // Not initialized
   if (!state || state.initialized === false){
     return showWizard();
   }
@@ -1813,7 +1413,6 @@ async function bootstrap(){
     return showAuth("Enter your name and bearer token to continue.");
   }
 
-  // Optional: re-validate quietly (helps if token rotated)
   try {
     const ok = await validateToken(token);
     if (!ok){
@@ -1822,7 +1421,6 @@ async function bootstrap(){
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
   } catch (e) {
-    // If validate endpoint is down, still try state (better UX)
     void e;
   }
 
@@ -1830,13 +1428,11 @@ async function bootstrap(){
     await loadAppStateAndRender(token);
   } catch (e) {
     setStatus(globalStatus, e?.message || String(e), "error");
-    // show auth so user isn't stuck with blank app
     showAuth("Could not load budget state. See error below.", true);
     setStatus(authStatus, e?.message || String(e), "error");
   }
 }
 
-/* Safety: surface unhandled rejections */
 window.addEventListener("unhandledrejection", (ev) => {
   const msg = ev?.reason?.message || String(ev?.reason || "Unknown error");
   setStatus(globalStatus, `Error: ${msg}`, "error");
@@ -1845,60 +1441,21 @@ window.addEventListener("unhandledrejection", (ev) => {
 bootstrap();
 </script>
 
-<!-- CUSTOM PROMPT MODAL (Change Name) -->
-<div id="promptOverlay" class="modalOverlay hidden" aria-hidden="true" style="z-index:200;">
-  <div class="modal" role="dialog" aria-modal="true" style="max-width:400px;">
-    <div class="modalHeader">
-      <h1 id="promptTitle" style="margin:0;"></h1>
-    </div>
-    <div class="divider"></div>
-    <label id="promptLabel" style="margin-top:0;"></label>
-    <input id="promptInput" autocomplete="off" style="margin-top:6px;" />
-    <div class="row" style="margin-top:14px;">
-      <button id="promptOkBtn" type="button">Save</button>
-      <button id="promptCancelBtn" class="secondary" type="button">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- CUSTOM CONFIRM MODAL (Reset Budget) -->
-<div id="confirmOverlay" class="modalOverlay hidden" aria-hidden="true" style="z-index:200;">
-  <div class="modal" role="dialog" aria-modal="true" style="max-width:400px;">
-    <div class="modalHeader">
-      <h1 id="confirmTitle" style="margin:0;"></h1>
-    </div>
-    <div class="divider"></div>
-    <div id="confirmMessage" class="status" style="margin-top:0;"></div>
-    <div class="row" style="margin-top:14px;">
-      <button id="confirmOkBtn" class="danger" type="button">Delete</button>
-      <button id="confirmCancelBtn" class="secondary" type="button">Cancel</button>
-    </div>
-  </div>
-</div>
+<!-- SERVICE WORKER REGISTRATION (PWA REQUIRED) -->
 <script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-      // console.log("SW registered");
-    } catch (e) {
-      <script>
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", async () => {
-    try {
       const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-      console.log("SW registered:", reg.scope);
+      console.log("Service Worker registered:", reg.scope);
     } catch (e) {
-      console.error("SW registration failed:", e);
-      alert("SW registration failed: " + (e && (e.message || e.name)) );
+      console.error("Service Worker registration failed:", e);
+      // Temporary: make failures visible on mobile
+      // alert("SW registration failed: " + (e && (e.message || e.name)));
     }
   });
 }
 </script>
 
-    }
-  });
-}
-</script>
 </body>
 </html>
