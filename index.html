@@ -317,7 +317,11 @@ td.center, th.center{text-align:center}
 <div id="historyOverlay" class="modalOverlay hidden" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true">
     <div class="modalHeader">
-      <h1 id="historyTitle" style="margin:0;">History</h1>
+      <div>
+        <h1 style="margin:0;">History</h1>
+        <div id="historyPeriod" class="small" style="margin-top:4px;"></div>
+        <div class="small" style="margin-top:4px;color:var(--muted);">Tip: Scroll table left/right to see all columns</div>
+      </div>
       <button id="historyCloseBtn" class="secondary" type="button">Close</button>
     </div>
 
@@ -444,7 +448,7 @@ const historyCurrentBtn = $("historyCurrentBtn");
 const historyPriorBtn = $("historyPriorBtn");
 const historyStatus = $("historyStatus");
 const historyBody = $("historyBody");
-const historyTitle = $("historyTitle");
+const historyPeriod = $("historyPeriod");
 
 /* ================= UI HELPERS ================= */
 function show(el){ if (el) el.classList.remove("hidden"); }
@@ -1085,7 +1089,7 @@ async function loadAndRenderHistory(){
   if (HISTORY_MODE === "prior"){
     if (!prior?.period_key) return setStatus(historyStatus, "No prior period available yet.", "error");
     
-    historyTitle.textContent = `History — ${String(prior.start_ts).slice(0,10)} → ${String(prior.end_ts).slice(0,10)}`;
+    historyPeriod.textContent = `${String(prior.start_ts).slice(0,10)} → ${String(prior.end_ts).slice(0,10)}`;
     
     // For prior period, we'll need to filter transactions by date range
     setStatus(historyStatus, "Loading…");
@@ -1113,9 +1117,9 @@ async function loadAndRenderHistory(){
     return;
   }
 
-  historyTitle.textContent = cur?.start_ts && cur?.end_ts
-    ? `History — ${String(cur.start_ts).slice(0,10)} → ${String(cur.end_ts).slice(0,10)}`
-    : "History — Current Period";
+  historyPeriod.textContent = cur?.start_ts && cur?.end_ts
+    ? `${String(cur.start_ts).slice(0,10)} → ${String(cur.end_ts).slice(0,10)}`
+    : "Current Period";
 
   setStatus(historyStatus, "Loading…");
   const res = await fetchTransactions(token, { limit: 500 });
