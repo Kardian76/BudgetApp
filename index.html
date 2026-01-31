@@ -227,7 +227,36 @@ td.center, th.center{text-align:center}
   <div id="globalStatus" class="status"></div>
 </div>
 
-<!-- SETTINGS MODAL -->
+<!-- CUSTOM PROMPT MODAL (Change Name) -->
+<div id="promptOverlay" class="modalOverlay hidden" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:400px;">
+    <div class="modalHeader">
+      <h1 id="promptTitle" style="margin:0;"></h1>
+    </div>
+    <div class="divider"></div>
+    <label id="promptLabel" style="margin-top:0;"></label>
+    <input id="promptInput" autocomplete="off" style="margin-top:6px;" />
+    <div class="row" style="margin-top:14px;">
+      <button id="promptOkBtn" type="button">Save</button>
+      <button id="promptCancelBtn" class="secondary" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOM CONFIRM MODAL (Reset Budget) -->
+<div id="confirmOverlay" class="modalOverlay hidden" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:400px;">
+    <div class="modalHeader">
+      <h1 id="confirmTitle" style="margin:0;"></h1>
+    </div>
+    <div class="divider"></div>
+    <div id="confirmMessage" class="status" style="margin-top:0;"></div>
+    <div class="row" style="margin-top:14px;">
+      <button id="confirmOkBtn" class="danger" type="button">Delete</button>
+      <button id="confirmCancelBtn" class="secondary" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
 <div id="settingsOverlay" class="modalOverlay hidden" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true">
     <div class="modalHeader">
@@ -1643,12 +1672,70 @@ async function saveAddedCategories(){
 }
 settingsSaveCatsBtn.addEventListener("click", saveAddedCategories);
 
+/* ================= CUSTOM PROMPT / CONFIRM MODALS ================= */
+function showPrompt(title, label, defaultValue){
+  return new Promise((resolve) => {
+    const overlay = $("promptOverlay");
+    $("promptTitle").textContent = title;
+    $("promptLabel").textContent = label;
+    $("promptInput").value = defaultValue || "";
+    show(overlay);
+    overlay.setAttribute("aria-hidden","false");
+    $("promptInput").focus();
+
+    function done(val){ cleanup(); resolve(val); }
+    function cleanup(){
+      hide(overlay);
+      overlay.setAttribute("aria-hidden","true");
+      $("promptOkBtn").removeEventListener("click", onOk);
+      $("promptCancelBtn").removeEventListener("click", onCancel);
+      overlay.removeEventListener("click", onBg);
+      $("promptInput").removeEventListener("keydown", onKey);
+    }
+    function onOk(){ done($("promptInput").value); }
+    function onCancel(){ done(null); }
+    function onBg(e){ if (e.target === overlay) done(null); }
+    function onKey(e){ if (e.key === "Enter") done($("promptInput").value); if (e.key === "Escape") done(null); }
+
+    $("promptOkBtn").addEventListener("click", onOk);
+    $("promptCancelBtn").addEventListener("click", onCancel);
+    overlay.addEventListener("click", onBg);
+    $("promptInput").addEventListener("keydown", onKey);
+  });
+}
+
+function showConfirm(title, message){
+  return new Promise((resolve) => {
+    const overlay = $("confirmOverlay");
+    $("confirmTitle").textContent = title;
+    $("confirmMessage").textContent = message;
+    show(overlay);
+    overlay.setAttribute("aria-hidden","false");
+
+    function done(val){ cleanup(); resolve(val); }
+    function cleanup(){
+      hide(overlay);
+      overlay.setAttribute("aria-hidden","true");
+      $("confirmOkBtn").removeEventListener("click", onOk);
+      $("confirmCancelBtn").removeEventListener("click", onCancel);
+      overlay.removeEventListener("click", onBg);
+    }
+    function onOk(){ done(true); }
+    function onCancel(){ done(false); }
+    function onBg(e){ if (e.target === overlay) done(false); }
+
+    $("confirmOkBtn").addEventListener("click", onOk);
+    $("confirmCancelBtn").addEventListener("click", onCancel);
+    overlay.addEventListener("click", onBg);
+  });
+}
+
 /* Account */
 settingsChangeNameBtn.addEventListener("click", async () => {
   const currentName = await idbGet(KEY_NAME);
-  const newName = window.prompt("Enter your new name:", currentName || "");
+  const newName = await showPrompt("Change Name", "Enter your new name:", currentName || "");
   
-  if (newName === null) return; // User cancelled
+  if (newName === null) return;
   
   const trimmed = String(newName).trim().slice(0, 40);
   if (!trimmed) return setStatus(settingsAccountStatus, "Name cannot be empty.", "error");
@@ -1673,7 +1760,7 @@ settingsResetBtn.addEventListener("click", async () => {
   const token = await idbGet(KEY_TOKEN);
   if (!token) return showAuth("Missing token. Please re-enter.", true);
 
-  const ok = window.confirm("This will DELETE all categories, budgets, and transactions from the server. Continue?");
+  const ok = await showConfirm("Reset Budget", "This will DELETE all categories, budgets, and transactions from the server. Continue?");
   if (!ok) return;
 
   setStatus(settingsAccountStatus, "Resetting…");
