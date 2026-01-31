@@ -1882,7 +1882,20 @@ if ("serviceWorker" in navigator) {
       await navigator.serviceWorker.register("/sw.js", { scope: "/" });
       // console.log("SW registered");
     } catch (e) {
-      console.warn("SW registration failed:", e);
+      <script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", async () => {
+    try {
+      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      console.log("SW registered:", reg.scope);
+    } catch (e) {
+      console.error("SW registration failed:", e);
+      alert("SW registration failed: " + (e && (e.message || e.name)) );
+    }
+  });
+}
+</script>
+
     }
   });
 }
