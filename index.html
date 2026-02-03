@@ -112,7 +112,7 @@ td.center, th.center{text-align:center}
   <div id="authView" class="card hidden">
     <label>Your name</label>
     <input id="userNameInput" autocomplete="off" />
-    <label>Bearer token</label>
+    <label>Password</label>
     <input id="tokenInput" type="password" autocomplete="off" />
     <div class="row">
       <button id="saveTokenBtn" type="button">Continue</button>
@@ -130,13 +130,13 @@ td.center, th.center{text-align:center}
       <select id="wizPeriodType">
         <option value="daily">Daily</option>
         <option value="weekly">Weekly</option>
-        <option value="biweekly" selected>Every Two Weeks</option>
-        <option value="semi_monthly">Twice a Month</option>
+        <option value="biweekly" selected>Every Two Weeks (Bi-weekly)</option>
+        <option value="semi_monthly">Twice a Month (1st and 15th)</option>
         <option value="monthly">Monthly</option>
         <option value="quarterly">Quarterly</option>
       </select>
 
-      <label>Start date (MM-DD-YYYY)</label>
+      <label>When was your last paycheck? (MM-DD-YYYY)</label>
       <input id="wizStartDate" placeholder="MM-DD-YYYY" />
 
       <div class="row">
