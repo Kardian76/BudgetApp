@@ -139,6 +139,12 @@ td.center, th.center{text-align:center}
       <label>When was your last paycheck? (MM-DD-YYYY)</label>
       <input id="wizStartDate" placeholder="MM-DD-YYYY" />
 
+      <label>When should the budget start?</label>
+      <select id="wizBudgetStart">
+        <option value="immediate" selected>Start immediately with full budget</option>
+        <option value="wait">Wait until the date above (budget at $0 until then)</option>
+      </select>
+
       <div class="row">
         <button id="wizNext1" type="button">Next</button>
       </div>
@@ -381,6 +387,7 @@ const wizStep1 = $("wizStep1");
 const wizStep2 = $("wizStep2");
 const wizPeriodType = $("wizPeriodType");
 const wizStartDate = $("wizStartDate");
+const wizBudgetStart = $("wizBudgetStart");
 const wizCatList = $("wizCatList");
 const wizNext1 = $("wizNext1");
 const wizAddCat = $("wizAddCat");
@@ -818,10 +825,20 @@ async function submitInit(){
   const token = await idbGet(KEY_TOKEN);
   if (!token) return showAuth("Missing token. Please re-enter.", true);
 
+  const budgetStartMode = String(wizBudgetStart.value || "immediate").trim();
+  const categories = readWizardCategories();
+  
+  // If user chose to wait, set all budgets to 0 initially
+  if (budgetStartMode === "wait") {
+    categories.forEach(cat => {
+      cat.budget_dollars = "0";
+    });
+  }
+
   const payload = {
     period_type: String(wizPeriodType.value || "").trim(),
     period_anchor_date: mdyToYmd(wizStartDate.value),
-    categories: readWizardCategories()
+    categories: categories
   };
 
   setStatus(wizStatus2, "Initializing…");
@@ -1764,11 +1781,12 @@ function showPrompt(title, label, defaultValue){
   });
 }
 
-function showConfirm(title, message){
+function showConfirm(title, message, confirmText = "Delete"){
   return new Promise((resolve) => {
     const overlay = $("confirmOverlay");
     $("confirmTitle").textContent = title;
     $("confirmMessage").textContent = message;
+    $("confirmOkBtn").textContent = confirmText;
     show(overlay);
     overlay.setAttribute("aria-hidden","false");
 
@@ -1809,6 +1827,9 @@ settingsChangeNameBtn.addEventListener("click", async () => {
 });
 
 settingsLogoutBtn.addEventListener("click", async () => {
+  const confirmed = await showConfirm("Log Out", "Are you sure you want to log out? You'll need to enter your credentials again to access the app.", "Log Out");
+  if (!confirmed) return;
+
   await idbDel(KEY_TOKEN);
   await idbDel(KEY_NAME);
   await idbDel(KEY_CAT_ORDER);
