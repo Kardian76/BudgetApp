@@ -249,51 +249,53 @@ td.center, th.center{text-align:center}
       
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
         <button id="settingsOpenEditBudgetsBtn" class="secondary" type="button">Edit Budget Amounts</button>
+        
+        <div id="settingsEditBudgetsPanel" class="subcard hidden">
+          <div class="status" style="margin-top:0;">
+            Adjust the budget amounts for your categories. Changes take effect at the start of the next period.
+          </div>
+          <div id="settingsEditBudgetsList"></div>
+          <div class="row">
+            <button id="settingsSaveEditBudgetsBtn" type="button">Save Changes</button>
+            <button id="settingsCancelEditBudgetsBtn" class="secondary" type="button">Cancel</button>
+          </div>
+          <div id="settingsEditBudgetsStatus" class="status"></div>
+        </div>
+
         <button id="settingsOpenAddCatsBtn" class="secondary" type="button">Add Categories</button>
+
+        <div id="settingsAddCatsPanel" class="subcard hidden">
+          <div class="status" style="margin-top:0;">
+            Add one or more categories with their starting budget amounts.
+          </div>
+
+          <div id="settingsAddCatsList"></div>
+
+          <div class="row">
+            <button id="settingsAddCatsRowBtn" class="secondary" type="button">Add Row</button>
+          </div>
+
+          <div class="row">
+            <button id="settingsSaveCatsBtn" type="button">Save Categories</button>
+            <button id="settingsCancelCatsBtn" class="secondary" type="button">Cancel</button>
+          </div>
+
+          <div id="settingsAddCatsStatus" class="status"></div>
+        </div>
+
         <button id="settingsOpenReorderBtn" class="secondary" type="button">Reorder Categories</button>
-      </div>
 
-      <div id="settingsEditBudgetsPanel" class="subcard hidden">
-        <div class="status" style="margin-top:0;">
-          Adjust the budget amounts for your categories. Changes take effect at the start of the next period.
+        <div id="settingsReorderPanel" class="subcard hidden">
+          <div class="status" style="margin-top:0;">
+            Move categories up/down. This affects how categories are shown in the app on this device.
+          </div>
+          <div id="settingsReorderList"></div>
+          <div class="row">
+            <button id="settingsSaveOrderBtn" type="button">Save Order</button>
+            <button id="settingsCancelOrderBtn" class="secondary" type="button">Cancel</button>
+          </div>
+          <div id="settingsReorderStatus" class="status"></div>
         </div>
-        <div id="settingsEditBudgetsList"></div>
-        <div class="row">
-          <button id="settingsSaveEditBudgetsBtn" type="button">Save Changes</button>
-          <button id="settingsCancelEditBudgetsBtn" class="secondary" type="button">Cancel</button>
-        </div>
-        <div id="settingsEditBudgetsStatus" class="status"></div>
-      </div>
-
-      <div id="settingsAddCatsPanel" class="subcard hidden" style="margin-top:10px;">
-        <div class="status" style="margin-top:0;">
-          Add one or more categories with their starting budget amounts.
-        </div>
-
-        <div id="settingsAddCatsList"></div>
-
-        <div class="row">
-          <button id="settingsAddCatsRowBtn" class="secondary" type="button">Add Row</button>
-        </div>
-
-        <div class="row">
-          <button id="settingsSaveCatsBtn" type="button">Save Categories</button>
-          <button id="settingsCancelCatsBtn" class="secondary" type="button">Cancel</button>
-        </div>
-
-        <div id="settingsAddCatsStatus" class="status"></div>
-      </div>
-
-      <div id="settingsReorderPanel" class="subcard hidden">
-        <div class="status" style="margin-top:0;">
-          Move categories up/down. This affects how categories are shown in the app on this device.
-        </div>
-        <div id="settingsReorderList"></div>
-        <div class="row">
-          <button id="settingsSaveOrderBtn" type="button">Save Order</button>
-          <button id="settingsCancelOrderBtn" class="secondary" type="button">Cancel</button>
-        </div>
-        <div id="settingsReorderStatus" class="status"></div>
       </div>
     </div>
 
@@ -886,7 +888,7 @@ saveTokenBtn.addEventListener("click", async () => {
   const name = String(userNameInput.value || "").trim().slice(0, 40);
   const token = String(tokenInput.value || "").trim();
   if (!name) return setStatus(authStatus, "Please enter your name.", "error");
-  if (!token) return setStatus(authStatus, "Please enter your bearer token.", "error");
+  if (!token) return setStatus(authStatus, "Please enter your password.", "error");
 
   setStatus(authStatus, "Validating…");
   try {
@@ -1295,6 +1297,19 @@ txSubmitBtn.addEventListener("click", async () => {
 <script>
 /* ================= SETTINGS MODAL - REORDER FUNCTIONS ================= */
 async function openReorderPanel(){
+  // Toggle: if already visible, close it
+  if (!settingsReorderPanel.classList.contains("hidden")) {
+    hide(settingsReorderPanel);
+    setStatus(settingsReorderStatus, "");
+    return;
+  }
+
+  // Close other panels
+  hide(settingsEditBudgetsPanel);
+  hide(settingsAddCatsPanel);
+  setStatus(settingsEditBudgetsStatus, "");
+  setStatus(settingsAddCatsStatus, "");
+
   if (!CURRENT_STATE) return setStatus(settingsReorderStatus, "No budget loaded yet.", "error");
   
   const cats = normalizeCategories(CURRENT_STATE);
@@ -1393,6 +1408,19 @@ async function saveReorder(){
 
 /* ================= SETTINGS MODAL - EDIT BUDGETS FUNCTIONS ================= */
 async function openEditBudgetsPanel(){
+  // Toggle: if already visible, close it
+  if (!settingsEditBudgetsPanel.classList.contains("hidden")) {
+    hide(settingsEditBudgetsPanel);
+    setStatus(settingsEditBudgetsStatus, "");
+    return;
+  }
+
+  // Close other panels
+  hide(settingsReorderPanel);
+  hide(settingsAddCatsPanel);
+  setStatus(settingsReorderStatus, "");
+  setStatus(settingsAddCatsStatus, "");
+
   if (!CURRENT_STATE) return setStatus(settingsEditBudgetsStatus, "No budget loaded yet.", "error");
   
   const cats = normalizeCategories(CURRENT_STATE);
@@ -1564,6 +1592,19 @@ async function applyPendingBudgetChanges(state){
 
 /* ================= SETTINGS MODAL - ADD CATEGORIES FUNCTIONS ================= */
 function openAddCatsPanel(){
+  // Toggle: if already visible, close it
+  if (!settingsAddCatsPanel.classList.contains("hidden")) {
+    hide(settingsAddCatsPanel);
+    setStatus(settingsAddCatsStatus, "");
+    return;
+  }
+
+  // Close other panels
+  hide(settingsReorderPanel);
+  hide(settingsEditBudgetsPanel);
+  setStatus(settingsReorderStatus, "");
+  setStatus(settingsEditBudgetsStatus, "");
+
   show(settingsAddCatsPanel);
   setStatus(settingsAddCatsStatus, "");
   settingsAddCatsList.innerHTML = "";
@@ -1774,7 +1815,7 @@ settingsLogoutBtn.addEventListener("click", async () => {
   try { await idbDel(KEY_PENDING_BUDGETS); } catch { /* ignore */ }
   try { await idbDel(KEY_LAST_PERIOD_KEY); } catch { /* ignore */ }
   closeSettings();
-  showAuth("Logged out. Enter your name and bearer token to continue.");
+  showAuth("Logged out. Enter your name and password to continue.");
 });
 
 settingsResetBtn.addEventListener("click", async () => {
@@ -1848,7 +1889,7 @@ async function bootstrap(){
   const name = await idbGet(KEY_NAME);
 
   if (!token || !name){
-    return showAuth("Enter your name and bearer token to continue.");
+    return showAuth("Enter your name and password to continue.");
   }
 
   // Optional: re-validate quietly (helps if token rotated)
