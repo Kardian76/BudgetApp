@@ -1111,43 +1111,42 @@ async function loadAndRenderHistory(){
     historyPeriod.textContent = `${String(prior.start_ts).slice(0,10)} → ${String(prior.end_ts).slice(0,10)}`;
     
     setStatus(historyStatus, "Loading…");
-    const res = await fetchTransactions(token, { limit: 1000 });
-    if (res.authFailed){
-      await idbDel(KEY_TOKEN);
-      closeHistory();
-      return showAuth("Token invalid/expired. Please re-enter.", true);
-    }
-
-    const payload = res.result || {};
-    const allItems = normalizeLedgerItems(payload.items || []);
     
-    // Filter by matching period_key — each transaction carries the period it belongs to
-    const items = allItems.filter(item => item.period_key === prior.period_key);
+    // Use the backend's ?period=prior parameter to fetch prior period transactions
+    const url = new URL(API.base + API.tx);
+    url.searchParams.set("period", "prior");
+    url.searchParams.set("limit", "500");
     
-    // If nothing matched by period_key, fall back to date-range filtering
-    // (handles cases where period_key format might differ slightly)
-    if (items.length === 0) {
-      const priorStart = new Date(prior.start_ts).getTime();
-      const priorEnd = new Date(prior.end_ts).getTime();
-      const fallback = allItems.filter(item => {
-        const itemTime = new Date(item.created_at).getTime();
-        return itemTime >= priorStart && itemTime <= priorEnd;
-      });
-      setStatus(historyStatus, fallback.length ? "" : "No transactions found for prior period.");
-      renderHistoryTable(fallback);
-      return;
+    const resp = await fetchWithTimeout(url.toString(), { 
+      method:"GET", 
+      headers: authHeaders(token) 
+    });
+    
+    if (!resp.ok){
+      if (resp.status === 401 || resp.status === 403) {
+        await idbDel(KEY_TOKEN);
+        closeHistory();
+        return showAuth("Token invalid/expired. Please re-enter.", true);
+      }
+      const t = await safeText(resp);
+      return setStatus(historyStatus, `Error: ${t || resp.statusText}`, "error");
     }
     
-    setStatus(historyStatus, "");
+    const payload = await resp.json().catch(() => ({}));
+    const items = normalizeLedgerItems(payload.items || []);
+    setStatus(historyStatus, items.length ? "" : "No transactions found for prior period.");
     renderHistoryTable(items);
     return;
   }
 
+  // Current period
   historyPeriod.textContent = cur?.start_ts && cur?.end_ts
     ? `${String(cur.start_ts).slice(0,10)} → ${String(cur.end_ts).slice(0,10)}`
     : "Current Period";
 
   setStatus(historyStatus, "Loading…");
+  
+  // Fetch current period transactions (default behavior)
   const res = await fetchTransactions(token, { limit: 500 });
   if (res.authFailed){
     await idbDel(KEY_TOKEN);
