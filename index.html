@@ -165,68 +165,66 @@ td.center, th.center{text-align:center}
   <div id="appView" class="hidden">
     <div id="dashboardView" class="hidden">
 
-      <div class="grid2">
-        <!-- Budget Summary (Remaining 2nd col, Spent 3rd; both centered) -->
-        <div class="card">
-          <h1>Budget Summary</h1>
-          <div class="status">Period: <strong id="periodLabel">—</strong></div>
+      <!-- Budget Summary (Remaining 2nd col, Spent 3rd; both centered) -->
+      <div class="card">
+        <h1>Budget Summary</h1>
+        <div class="status">Period: <strong id="periodLabel">—</strong></div>
 
-          <div class="tableScroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Category</th>
-                  <th class="center">Remaining</th>
-                  <th class="center">Spent</th>
-                </tr>
-              </thead>
-              <tbody id="catTableBody"></tbody>
-            </table>
-          </div>
+        <div class="tableScroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th class="center">Remaining</th>
+                <th class="center">Spent</th>
+              </tr>
+            </thead>
+            <tbody id="catTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card subcard">
+        <h1>Add Transaction</h1>
+
+        <label>Type</label>
+        <select id="txType">
+          <option value="expense">Expense</option>
+          <option value="refund">Refund</option>
+          <option value="transfer">Transfer</option>
+        </select>
+
+        <!-- Expense/Refund -->
+        <div id="txStandardPanel">
+          <label>Category</label>
+          <select id="txCategory"></select>
+
+          <label>Amount</label>
+          <input id="txAmount" placeholder="$0.00" inputmode="decimal" />
+
+          <label>Note</label>
+          <input id="txNote" />
         </div>
 
-        <div class="card">
-          <h1>Add Transaction</h1>
+        <!-- Transfer -->
+        <div id="txTransferPanel" class="hidden">
+          <label>Transfer from</label>
+          <select id="txFromCategory"></select>
 
-          <label>Type</label>
-          <select id="txType">
-            <option value="expense">Expense</option>
-            <option value="refund">Refund</option>
-            <option value="transfer">Transfer</option>
-          </select>
+          <label>Transfer to</label>
+          <select id="txToCategory"></select>
 
-          <!-- Expense/Refund -->
-          <div id="txStandardPanel">
-            <label>Category</label>
-            <select id="txCategory"></select>
+          <label>Amount</label>
+          <input id="txTransferAmount" placeholder="$0.00" inputmode="decimal" />
 
-            <label>Amount</label>
-            <input id="txAmount" placeholder="$0.00" inputmode="decimal" />
-
-            <label>Note</label>
-            <input id="txNote" />
-          </div>
-
-          <!-- Transfer -->
-          <div id="txTransferPanel" class="hidden">
-            <label>Transfer from</label>
-            <select id="txFromCategory"></select>
-
-            <label>Transfer to</label>
-            <select id="txToCategory"></select>
-
-            <label>Amount</label>
-            <input id="txTransferAmount" placeholder="$0.00" inputmode="decimal" />
-
-            <label>Note (optional)</label>
-            <input id="txTransferNote" placeholder="e.g. moved budget to cover overage" />
-          </div>
-
-          <div class="row">
-            <button id="txSubmitBtn" type="button">Save</button>
-          </div>
-          <div id="txStatus" class="status"></div>
+          <label>Note (optional)</label>
+          <input id="txTransferNote" placeholder="e.g. moved budget to cover overage" />
         </div>
+
+        <div class="row">
+          <button id="txSubmitBtn" type="button">Save</button>
+        </div>
+        <div id="txStatus" class="status"></div>
       </div>
 
       <!-- Floating buttons -->
