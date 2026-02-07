@@ -1116,9 +1116,10 @@ async function loadAndRenderHistory(){
     
     setStatus(historyStatus, "Loading…");
     
-    // Use the backend's ?period=prior parameter to fetch prior period transactions
+    // Use the specific period_key parameter instead of ?period=prior
+    // This is more reliable, especially with daily periods
     const url = new URL(API.base + API.tx);
-    url.searchParams.set("period", "prior");
+    url.searchParams.set("period_key", prior.period_key);
     url.searchParams.set("limit", "500");
     
     const resp = await fetchWithTimeout(url.toString(), { 
@@ -1137,8 +1138,26 @@ async function loadAndRenderHistory(){
     }
     
     const payload = await resp.json().catch(() => ({}));
+    
+    // Debug logging
+    console.log("Prior period request:", {
+      requestedPeriodKey: prior.period_key,
+      returnedPeriodKey: payload.period_key,
+      itemCount: payload.items?.length || 0,
+      items: payload.items
+    });
+    
     const items = normalizeLedgerItems(payload.items || []);
-    setStatus(historyStatus, items.length ? "" : "No transactions found for prior period.");
+    
+    // Better error message with period info
+    if (items.length === 0) {
+      const msg = `No transactions found for prior period (${prior.period_key})`;
+      console.warn(msg, { prior, payload });
+      setStatus(historyStatus, msg);
+    } else {
+      setStatus(historyStatus, "");
+    }
+    
     renderHistoryTable(items);
     return;
   }
