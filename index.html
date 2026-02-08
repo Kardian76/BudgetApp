@@ -12,16 +12,16 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Purrfect Budget" />
-<title>Purrfect Budget - Light & Clean</title>
+<title>Purrfect Budget - Soft Lavender</title>
 
 <style>
 
 :root{
-  --bg0:#f8f9fa; --bg1:#ffffff;
-  --border:#dee2e6;
-  --text:#212529; --muted:#6c757d;
-  --danger:#dc3545; --ok:#28a745;
-  --radius:12px;
+  --bg0:#faf8ff; --bg1:#f5f3ff;
+  --border:#e9d5ff;
+  --text:#1e1b4b; --muted:#6b7280;
+  --danger:#ef4444; --ok:#10b981;
+  --radius:16px;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -29,19 +29,20 @@ body{
   margin:0;
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   color:var(--text);
-  background:linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background:linear-gradient(135deg, #faf8ff 0%, #ede9fe 100%);
 }
 .wrap{max-width:1100px;margin:0 auto;padding:18px}
 h1{font-size:18px;margin:0 0 10px}
 .card{
-  background:#ffffff;
-  border:1px solid #dee2e6;
+  background:rgba(255,255,255,0.9);
+  border:1px solid #e9d5ff;
   border-radius:var(--radius);
   padding:16px;
   max-width:600px;
   margin-left:auto;
   margin-right:auto;
-  box-shadow:0 2px 8px rgba(0,0,0,0.08);
+  box-shadow:0 4px 12px rgba(139,92,246,0.1);
+  backdrop-filter:blur(10px);
 }
 .subcard{margin-top:14px}
 .hidden{display:none!important}
@@ -55,10 +56,10 @@ input,select{
 button{
   border:0;border-radius:12px;padding:10px 14px;
   font-weight:600;color:#fff;cursor:pointer;
-  background:linear-gradient(135deg, #667eea 0%, #764ba2 100%)
+  background:linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)
 }
-button.secondary{background:#e9ecef;color:#495057}
-button.danger{background:#dc3545;color:#fff}
+button.secondary{background:#f3f4f6;color:#4b5563}
+button.danger{background:#ef4444;color:#fff}
 button:disabled{opacity:.55}
 .status{font-size:13px;color:var(--muted);margin-top:8px;white-space:pre-wrap}
 .status.ok{color:var(--ok)}
@@ -83,11 +84,11 @@ td.center, th.center{text-align:center}
   margin-right:auto;
 }
 .historyBtn, .settingsBtn{
-  background:#e9ecef;
-  color:#495057;
+  background:#f3f4f6;
+  color:#4b5563;
 }
 .historyBtn:hover, .settingsBtn:hover{
-  background:#dee2e6;
+  background:#e9d5ff;
 }
 
 .modalOverlay{
