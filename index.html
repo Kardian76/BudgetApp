@@ -12,15 +12,16 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Purrfect Budget" />
-<title>Purrfect Budget</title>
+<title>Purrfect Budget - Light & Clean</title>
 
 <style>
+
 :root{
-  --bg0:#070b12; --bg1:#0b1320;
-  --border:rgba(255,255,255,.10);
-  --text:#e9eef7; --muted:rgba(233,238,247,.75);
-  --danger:#ffb4b4; --ok:#b6ffcf;
-  --radius:16px;
+  --bg0:#f8f9fa; --bg1:#ffffff;
+  --border:#dee2e6;
+  --text:#212529; --muted:#6c757d;
+  --danger:#dc3545; --ok:#28a745;
+  --radius:12px;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -28,21 +29,19 @@ body{
   margin:0;
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   color:var(--text);
-  background:
-    radial-gradient(900px 480px at 10% 0%, rgba(45,108,223,.22), transparent 60%),
-    radial-gradient(720px 360px at 90% 10%, rgba(182,255,207,.10), transparent 60%),
-    linear-gradient(180deg,var(--bg0),var(--bg1));
+  background:linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 .wrap{max-width:1100px;margin:0 auto;padding:18px}
 h1{font-size:18px;margin:0 0 10px}
 .card{
-  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.045));
-  border:1px solid var(--border);
+  background:#ffffff;
+  border:1px solid #dee2e6;
   border-radius:var(--radius);
   padding:16px;
   max-width:600px;
   margin-left:auto;
   margin-right:auto;
+  box-shadow:0 2px 8px rgba(0,0,0,0.08);
 }
 .subcard{margin-top:14px}
 .hidden{display:none!important}
@@ -50,16 +49,16 @@ h1{font-size:18px;margin:0 0 10px}
 label{font-size:13px;color:var(--muted);margin-top:10px;display:block}
 input,select{
   width:100%;padding:10px;border-radius:12px;
-  background:rgba(0,0,0,.35);color:var(--text);
+  background:#ffffff;color:var(--text);
   border:1px solid var(--border)
 }
 button{
   border:0;border-radius:12px;padding:10px 14px;
   font-weight:600;color:#fff;cursor:pointer;
-  background:linear-gradient(180deg,#2d6cdf,#1f57c8)
+  background:linear-gradient(135deg, #667eea 0%, #764ba2 100%)
 }
-button.secondary{background:rgba(255,255,255,.12)}
-button.danger{background:rgba(255,180,180,.18);color:#ffd7d7}
+button.secondary{background:#e9ecef;color:#495057}
+button.danger{background:#dc3545;color:#fff}
 button:disabled{opacity:.55}
 .status{font-size:13px;color:var(--muted);margin-top:8px;white-space:pre-wrap}
 .status.ok{color:var(--ok)}
@@ -84,11 +83,11 @@ td.center, th.center{text-align:center}
   margin-right:auto;
 }
 .historyBtn, .settingsBtn{
-  background:rgba(255,255,255,.12);
-  color:var(--text);
+  background:#e9ecef;
+  color:#495057;
 }
 .historyBtn:hover, .settingsBtn:hover{
-  background:rgba(255,255,255,.18);
+  background:#dee2e6;
 }
 
 .modalOverlay{
