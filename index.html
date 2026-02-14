@@ -12,16 +12,16 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Purrfect Budget" />
-<title>Purrfect Budget - High Contrast</title>
+<title>Purrfect Budget - Light & Clean</title>
 
 <style>
 
 :root{
-  --bg0:#ffffff; --bg1:#ffffff;
-  --border:#000000;
-  --text:#000000; --muted:#4a4a4a;
-  --danger:#cc0000; --ok:#008000;
-  --radius:8px;
+  --bg0:#f8f9fa; --bg1:#ffffff;
+  --border:#dee2e6;
+  --text:#212529; --muted:#6c757d;
+  --danger:#dc3545; --ok:#28a745;
+  --radius:12px;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -29,47 +29,46 @@ body{
   margin:0;
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   color:var(--text);
-  background:#ffffff;
+  background:linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 .wrap{max-width:1100px;margin:0 auto;padding:18px}
-h1{font-size:18px;margin:0 0 10px;font-weight:700}
+h1{font-size:18px;margin:0 0 10px}
 .card{
   background:#ffffff;
-  border:2px solid #000000;
+  border:1px solid #dee2e6;
   border-radius:var(--radius);
   padding:16px;
   max-width:600px;
   margin-left:auto;
   margin-right:auto;
-  box-shadow:0 4px 8px rgba(0,0,0,0.2);
+  box-shadow:0 2px 8px rgba(0,0,0,0.08);
 }
 .subcard{margin-top:14px}
 .hidden{display:none!important}
 .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-label{font-size:13px;color:var(--muted);margin-top:10px;display:block;font-weight:600}
+label{font-size:13px;color:var(--muted);margin-top:10px;display:block}
 input,select{
-  width:100%;padding:10px;border-radius:8px;
+  width:100%;padding:10px;border-radius:12px;
   background:#ffffff;color:var(--text);
-  border:2px solid var(--border);
-  font-weight:500;
+  border:1px solid var(--border)
 }
 button{
-  border:2px solid #000000;border-radius:8px;padding:10px 14px;
-  font-weight:700;color:#fff;cursor:pointer;
-  background:#0000ee;
+  border:0;border-radius:12px;padding:10px 14px;
+  font-weight:600;color:#fff;cursor:pointer;
+  background:linear-gradient(135deg, #667eea 0%, #764ba2 100%)
 }
-button.secondary{background:#ffffff;color:#000000;border:2px solid #000000}
-button.danger{background:#cc0000;color:#fff;border:2px solid #000000}
+button.secondary{background:#e9ecef;color:#495057}
+button.danger{background:#dc3545;color:#fff}
 button:disabled{opacity:.55}
-.status{font-size:13px;color:var(--muted);margin-top:8px;white-space:pre-wrap;font-weight:600}
+.status{font-size:13px;color:var(--muted);margin-top:8px;white-space:pre-wrap}
 .status.ok{color:var(--ok)}
 .status.error{color:var(--danger)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:900px){.grid2{grid-template-columns:1fr}}
 
 table{width:100%;border-collapse:collapse;margin-top:10px}
-th,td{padding:6px;border-bottom:2px solid var(--border)}
-th{text-align:left;font-size:13px;color:var(--text);font-weight:700}
+th,td{padding:6px;border-bottom:1px solid var(--border)}
+th{text-align:left;font-size:13px;color:var(--muted)}
 td.right{text-align:right}
 td.center, th.center{text-align:center}
 .tableScroll{max-height:360px;overflow:auto}
@@ -84,12 +83,11 @@ td.center, th.center{text-align:center}
   margin-right:auto;
 }
 .historyBtn, .settingsBtn{
-  background:#ffffff;
-  color:#000000;
-  border:2px solid #000000;
+  background:#e9ecef;
+  color:#495057;
 }
 .historyBtn:hover, .settingsBtn:hover{
-  background:#f0f0f0;
+  background:#dee2e6;
 }
 
 .modalOverlay{
