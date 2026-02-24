@@ -170,7 +170,7 @@ td.center, th.center{text-align:center}
   <div id="appView" class="hidden">
     <div id="dashboardView" class="hidden">
 
-      <!-- Budget Summary (Remaining 2nd col, Spent 3rd; both centered) -->
+      <!-- Budget Summary (Spent 2nd col, Remaining 3rd; both centered) -->
       <div class="card">
         <h1>Budget Summary</h1>
         <div class="status">Period: <strong id="periodLabel">—</strong></div>
@@ -180,8 +180,8 @@ td.center, th.center{text-align:center}
             <thead>
               <tr>
                 <th>Category</th>
-                <th class="center">Remaining</th>
                 <th class="center">Spent</th>
+                <th class="center">Remaining</th>
               </tr>
             </thead>
             <tbody id="catTableBody"></tbody>
@@ -350,7 +350,6 @@ td.center, th.center{text-align:center}
           <tr>
             <th>Date</th>
             <th>Who</th>
-            <th>Type</th>
             <th>Category</th>
             <th class="right">Amount</th>
             <th>Note</th>
@@ -999,17 +998,17 @@ async function renderDashboard(state){
     const tdName = document.createElement("td");
     tdName.textContent = c.name;
 
-    const tdRemaining = document.createElement("td");
-    tdRemaining.className = "center";
-    tdRemaining.textContent = fmtCents(c.remaining_cents);
-
     const tdSpent = document.createElement("td");
     tdSpent.className = "center";
     tdSpent.textContent = fmtCents(c.spent_cents);
 
+    const tdRemaining = document.createElement("td");
+    tdRemaining.className = "center";
+    tdRemaining.textContent = fmtCents(c.remaining_cents);
+
     tr.appendChild(tdName);
-    tr.appendChild(tdRemaining);
     tr.appendChild(tdSpent);
+    tr.appendChild(tdRemaining);
     catTableBody.appendChild(tr);
   }
 
@@ -1193,9 +1192,6 @@ function renderHistoryTable(items){
     const tdWho = document.createElement("td");
     tdWho.textContent = it.created_by_label || "—";
 
-    const tdType = document.createElement("td");
-    tdType.textContent = labelForType(it);
-
     const tdCat = document.createElement("td");
     tdCat.textContent = labelForCategoryId(it.category_id);
 
@@ -1207,9 +1203,11 @@ function renderHistoryTable(items){
     const tdNote = document.createElement("td");
     tdNote.innerHTML = it.note ? escapeHtml(it.note) : "";
 
+    // Color entire row: green for refunds, red for expenses
+    tr.style.color = it.is_refund ? "var(--ok)" : "var(--danger)";
+
     tr.appendChild(tdWhen);
     tr.appendChild(tdWho);
-    tr.appendChild(tdType);
     tr.appendChild(tdCat);
     tr.appendChild(tdAmt);
     tr.appendChild(tdNote);
