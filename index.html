@@ -746,6 +746,21 @@ function fmtLocalDateTime(iso){
     hour:"2-digit", minute:"2-digit"
   });
 }
+
+// History table date column: MM/DD only
+function fmtHistoryDate(iso){
+  const s = String(iso || "");
+  const d = new Date(s);
+  if (!Number.isFinite(d.getTime())) return s || "—";
+  return pad2(d.getMonth()+1) + "/" + pad2(d.getDate());
+}
+
+// Convert YYYY-MM-DD to MM/DD/YYYY for history period header
+function fmtYmdToMdySlash(ymd){
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(ymd || ""));
+  if (!m) return String(ymd || "");
+  return `${m[2]}/${m[3]}/${m[1]}`;
+}
 </script>
 
 <script>
@@ -1005,6 +1020,7 @@ async function renderDashboard(state){
     const tdRemaining = document.createElement("td");
     tdRemaining.className = "center";
     tdRemaining.textContent = fmtCents(c.remaining_cents);
+    if (c.remaining_cents < 0) tdRemaining.style.color = "var(--danger)";
 
     tr.appendChild(tdName);
     tr.appendChild(tdSpent);
@@ -1110,7 +1126,7 @@ async function loadAndRenderHistory(){
   if (HISTORY_MODE === "prior"){
     if (!prior?.period_key) return setStatus(historyStatus, "No prior period available yet.", "error");
     
-    historyPeriod.textContent = `${String(prior.start_ts).slice(0,10)} → ${String(prior.end_ts).slice(0,10)}`;
+    historyPeriod.textContent = `${fmtYmdToMdySlash(String(prior.start_ts).slice(0,10))} → ${fmtYmdToMdySlash(String(prior.end_ts).slice(0,10))}`;
     
     setStatus(historyStatus, "Loading…");
     
@@ -1162,7 +1178,7 @@ async function loadAndRenderHistory(){
 
   // Current period
   historyPeriod.textContent = cur?.start_ts && cur?.end_ts
-    ? `${String(cur.start_ts).slice(0,10)} → ${String(cur.end_ts).slice(0,10)}`
+    ? `${fmtYmdToMdySlash(String(cur.start_ts).slice(0,10))} → ${fmtYmdToMdySlash(String(cur.end_ts).slice(0,10))}`
     : "Current Period";
 
   setStatus(historyStatus, "Loading…");
@@ -1187,7 +1203,7 @@ function renderHistoryTable(items){
     const tr = document.createElement("tr");
 
     const tdWhen = document.createElement("td");
-    tdWhen.textContent = fmtLocalDateTime(it.created_at);
+    tdWhen.textContent = fmtHistoryDate(it.created_at);
 
     const tdWho = document.createElement("td");
     tdWho.textContent = it.created_by_label || "—";
