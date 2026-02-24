@@ -194,8 +194,8 @@ td.center, th.center{text-align:center}
 
         <label>Type</label>
         <select id="txType">
-          <option value="expense">Expense</option>
-          <option value="refund">Refund</option>
+          <option value="expense" style="color:#dc3545;">Expense</option>
+          <option value="refund" style="color:#28a745;">Refund</option>
           <option value="transfer">Transfer</option>
         </select>
 
@@ -330,7 +330,6 @@ td.center, th.center{text-align:center}
       <div>
         <h1 style="margin:0;">History</h1>
         <div id="historyPeriod" class="small" style="margin-top:4px;font-weight:600;"></div>
-        <div class="small" style="margin-top:4px;color:var(--muted);">Tip: Scroll table left/right to see all columns</div>
       </div>
       <button id="historyCloseBtn" class="secondary" type="button">Close</button>
     </div>
@@ -341,6 +340,7 @@ td.center, th.center{text-align:center}
       <button id="historyCurrentBtn" class="secondary" type="button">Current Period</button>
       <button id="historyPriorBtn" class="secondary" type="button">Prior Period</button>
     </div>
+    <div class="small" style="margin-top:6px;color:var(--muted);">Tip: Scroll table left/right to see all columns</div>
 
     <div id="historyStatus" class="status"></div>
 
@@ -996,7 +996,7 @@ let HISTORY_CATEGORY_MAP = new Map(); // category_id -> name
 async function renderDashboard(state){
   const p = state?.period;
   if (p?.start_ts && p?.end_ts) {
-    periodLabel.textContent = `${String(p.start_ts).slice(0,10)} → ${String(p.end_ts).slice(0,10)}`;
+    periodLabel.textContent = `${fmtYmdToMdySlash(String(p.start_ts).slice(0,10))} → ${fmtYmdToMdySlash(String(p.end_ts).slice(0,10))}`;
   } else {
     periodLabel.textContent = "—";
   }
@@ -1246,6 +1246,10 @@ function syncTxTypeUi(){
   txTransferPanel.classList.toggle("hidden", !isTransfer);
   txStandardPanel.classList.toggle("hidden", isTransfer);
   setStatus(txStatus, "");
+  // Color the select to match the selected option
+  if (t === "expense") txType.style.color = "#dc3545";
+  else if (t === "refund") txType.style.color = "#28a745";
+  else txType.style.color = "";
 }
 
 txType.addEventListener("change", syncTxTypeUi);
