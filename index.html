@@ -194,9 +194,9 @@ td.center, th.center{text-align:center}
 
         <label>Type</label>
         <select id="txType">
-          <option value="expense" style="color:#dc3545;">Expense</option>
-          <option value="refund" style="color:#28a745;">Refund</option>
-          <option value="transfer">Transfer</option>
+          <option value="expense" style="color:#dc3545;font-weight:bold;">Expense</option>
+          <option value="refund" style="color:#28a745;font-weight:bold;">Refund</option>
+          <option value="transfer" style="color:#000000;font-weight:bold;">Transfer</option>
         </select>
 
         <!-- Expense/Refund -->
@@ -1246,10 +1246,11 @@ function syncTxTypeUi(){
   txTransferPanel.classList.toggle("hidden", !isTransfer);
   txStandardPanel.classList.toggle("hidden", isTransfer);
   setStatus(txStatus, "");
-  // Color the select to match the selected option
+  // Color the select to match the selected option; always bold
+  txType.style.fontWeight = "bold";
   if (t === "expense") txType.style.color = "#dc3545";
   else if (t === "refund") txType.style.color = "#28a745";
-  else txType.style.color = "";
+  else txType.style.color = "#000000";
 }
 
 txType.addEventListener("change", syncTxTypeUi);
