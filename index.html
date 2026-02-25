@@ -1456,9 +1456,12 @@ function dueDaysInPeriod(startYmd, endYmd){
   const endDate   = new Date(endParts[0],   endParts[1]-1,   endParts[2]);
 
   const days = new Set();
-  // Walk through each day in the range and collect day-of-month values
+  // Walk through each day in the range and collect day-of-month values.
+  // endDate is the EXCLUSIVE boundary (same convention as the server's end_ts),
+  // so stop before reaching it — a bill due on the 1st of next month is not
+  // due in a period that ends on the 1st.
   const cur = new Date(startDate);
-  while (cur <= endDate) {
+  while (cur < endDate) {
     days.add(cur.getDate());
     cur.setDate(cur.getDate() + 1);
   }
