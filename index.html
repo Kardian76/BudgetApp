@@ -868,6 +868,20 @@ function fmtYmdToMdySlash(ymd){
   if (!m) return String(ymd || "");
   return `${m[2]}/${m[3]}/${m[1]}`;
 }
+
+// The server stores period end_ts as the EXCLUSIVE start of the next period.
+// Subtract one day before displaying so "Feb 15 → Mar 1" shows as "Feb 15 → Feb 28".
+function fmtEndTsForDisplay(isoTs){
+  const ymd = String(isoTs || "").slice(0, 10);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return fmtYmdToMdySlash(ymd);
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  d.setUTCDate(d.getUTCDate() - 1);
+  const y2  = String(d.getUTCFullYear());
+  const mo2 = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const d2  = String(d.getUTCDate()).padStart(2, "0");
+  return `${mo2}/${d2}/${y2}`;
+}
 </script>
 
 <script>
@@ -1121,7 +1135,7 @@ let HISTORY_CATEGORY_MAP = new Map(); // category_id -> name
 async function renderDashboard(state){
   const p = state?.period;
   if (p?.start_ts && p?.end_ts) {
-    periodLabel.textContent = `${fmtYmdToMdySlash(String(p.start_ts).slice(0,10))} → ${fmtYmdToMdySlash(String(p.end_ts).slice(0,10))}`;
+    periodLabel.textContent = `${fmtYmdToMdySlash(String(p.start_ts).slice(0,10))} → ${fmtEndTsForDisplay(p.end_ts)}`;
   } else {
     periodLabel.textContent = "—";
   }
@@ -1254,7 +1268,7 @@ async function loadAndRenderHistory(){
   if (HISTORY_MODE === "prior"){
     if (!prior?.period_key) return setStatus(historyStatus, "No prior period available yet.", "error");
     
-    historyPeriod.textContent = `${fmtYmdToMdySlash(String(prior.start_ts).slice(0,10))} → ${fmtYmdToMdySlash(String(prior.end_ts).slice(0,10))}`;
+    historyPeriod.textContent = `${fmtYmdToMdySlash(String(prior.start_ts).slice(0,10))} → ${fmtEndTsForDisplay(prior.end_ts)}`;
     
     setStatus(historyStatus, "Loading…");
     
@@ -1306,7 +1320,7 @@ async function loadAndRenderHistory(){
 
   // Current period
   historyPeriod.textContent = cur?.start_ts && cur?.end_ts
-    ? `${fmtYmdToMdySlash(String(cur.start_ts).slice(0,10))} → ${fmtYmdToMdySlash(String(cur.end_ts).slice(0,10))}`
+    ? `${fmtYmdToMdySlash(String(cur.start_ts).slice(0,10))} → ${fmtEndTsForDisplay(cur.end_ts)}`
     : "Current Period";
 
   setStatus(historyStatus, "Loading…");
