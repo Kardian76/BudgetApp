@@ -161,9 +161,20 @@ td.center, th.center{text-align:center}
       <div id="wizCatList"></div>
       <div class="row">
         <button id="wizAddCat" class="secondary" type="button">Add Category</button>
-        <button id="wizSubmit" type="button">Initialize Budget</button>
+        <button id="wizNext2" type="button">Next</button>
       </div>
       <div id="wizStatus2" class="status"></div>
+    </div>
+
+    <div id="wizStep3" class="card hidden">
+      <h1>Step 3 — Fixed Expenses <span style="font-size:13px;font-weight:400;color:var(--muted);">(optional)</span></h1>
+      <div class="small" style="margin-top:4px;color:var(--muted);">Add recurring bills charged on a fixed day each month (e.g. Netflix $15.99 on the 8th). You can skip this and add them later in Settings.</div>
+      <div id="wizFixedList" style="margin-top:10px;"></div>
+      <div class="row">
+        <button id="wizAddFixed" class="secondary" type="button">Add Fixed Expense</button>
+        <button id="wizSubmit" type="button">Initialize Budget</button>
+      </div>
+      <div id="wizStatus3" class="status"></div>
     </div>
   </div>
   <!-- APP -->
@@ -187,6 +198,11 @@ td.center, th.center{text-align:center}
             <tbody id="catTableBody"></tbody>
           </table>
         </div>
+        <div id="keepInBankRow" style="margin-top:12px;padding:10px 8px;background:linear-gradient(135deg,#f0f4ff,#e8effe);border-radius:10px;border:1px solid #c9d6f5;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-weight:700;font-size:14px;">🏦 Keep in Bank</span>
+          <span id="keepInBankAmt" style="font-weight:800;font-size:16px;color:#3a5bc7;">—</span>
+        </div>
+        <div id="keepInBankBreakdown" class="small" style="margin-top:4px;color:var(--muted);padding:0 2px;"></div>
       </div>
 
       <div class="card subcard">
@@ -230,6 +246,19 @@ td.center, th.center{text-align:center}
           <button id="txSubmitBtn" type="button">Save</button>
         </div>
         <div id="txStatus" class="status"></div>
+      </div>
+
+      <!-- Fixed Expenses Card -->
+      <div class="card subcard" id="fixedExpensesCard">
+        <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" id="fixedExpensesToggle">
+          <h1 style="margin:0;">Fixed Expenses</h1>
+          <span id="fixedExpensesChevron" style="font-size:18px;color:var(--muted);user-select:none;">&#9654;</span>
+        </div>
+        <div id="fixedExpensesPanel" class="hidden">
+          <div class="small" style="margin-top:6px;color:var(--muted);">Fixed bills due within this budget period. Check them off once paid.</div>
+          <div id="fixedExpensesList" style="margin-top:10px;"></div>
+          <div id="fixedExpensesStatus" class="status"></div>
+        </div>
       </div>
 
       <!-- Floating buttons -->
@@ -290,6 +319,23 @@ td.center, th.center{text-align:center}
           </div>
 
           <div id="settingsAddCatsStatus" class="status"></div>
+        </div>
+
+        <button id="settingsOpenFixedExpensesBtn" class="secondary" type="button">Manage Fixed Expenses</button>
+
+        <div id="settingsFixedExpensesPanel" class="subcard hidden">
+          <div class="status" style="margin-top:0;">
+            Fixed bills charged on a specific day each month (e.g. Netflix on the 8th). Only bills whose due date falls within the current budget period count toward Keep in Bank.
+          </div>
+          <div id="settingsFixedExpensesList"></div>
+          <div class="row">
+            <button id="settingsAddFixedExpenseRowBtn" class="secondary" type="button">Add Fixed Expense</button>
+          </div>
+          <div class="row">
+            <button id="settingsSaveFixedExpensesBtn" type="button">Save Fixed Expenses</button>
+            <button id="settingsCancelFixedExpensesBtn" class="secondary" type="button">Cancel</button>
+          </div>
+          <div id="settingsFixedExpensesStatus" class="status"></div>
         </div>
 
         <button id="settingsOpenReorderBtn" class="secondary" type="button">Reorder Categories</button>
@@ -371,6 +417,8 @@ const API = {
   tx: "/api/budget/transactions",
   categories: "/api/budget/categories",
   reset: "/api/budget/reset",
+  fixedExpenses: "/api/budget/fixed-expenses",
+  fixedPaid:     "/api/budget/fixed-paid",
   timeoutMs: 12000
 };
 
@@ -393,9 +441,14 @@ const wizBudgetStart = $("wizBudgetStart");
 const wizCatList = $("wizCatList");
 const wizNext1 = $("wizNext1");
 const wizAddCat = $("wizAddCat");
+const wizNext2 = $("wizNext2");
+const wizFixedList = $("wizFixedList");
+const wizAddFixed = $("wizAddFixed");
 const wizSubmit = $("wizSubmit");
 const wizStatus1 = $("wizStatus1");
 const wizStatus2 = $("wizStatus2");
+const wizStep3   = $("wizStep3");
+const wizStatus3 = $("wizStatus3");
 
 const appView = $("appView");
 const dashboardView = $("dashboardView");
@@ -663,6 +716,60 @@ async function fetchTransactions(token, opts = {}){
   }
   return { authFailed:false, result: await resp.json().catch(()=> ({})) };
 }
+
+async function fetchFixedExpenses(token){
+  const url = join(API.fixedExpenses);
+  const resp = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(token) });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Fixed expenses fetch failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function postFixedExpenses(token, items){
+  // items: [{id, name, amount_cents, due_day}, ...]
+  const url = join(API.fixedExpenses);
+  const resp = await fetchWithTimeout(url, {
+    method:"POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ items })
+  });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Fixed expenses save failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function fetchFixedPaid(token){
+  const url = join(API.fixedPaid);
+  const resp = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(token) });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Fixed paid fetch failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function postFixedPaid(token, paid){
+  // paid: { [period_key]: [id, id, ...] }
+  const url = join(API.fixedPaid);
+  const resp = await fetchWithTimeout(url, {
+    method:"POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ paid })
+  });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Fixed paid save failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
 </script>
 
 <script>
@@ -766,7 +873,7 @@ function fmtYmdToMdySlash(ymd){
 <script>
 /* ================= WIZARD ================= */
 function showWizardStep(n){
-  [wizStep1, wizStep2].forEach((el, idx) => el.classList.toggle("hidden", idx !== n));
+  [wizStep1, wizStep2, wizStep3].forEach((el, idx) => el.classList.toggle("hidden", idx !== n));
 }
 
 function addWizRow(name = "", budget = ""){
@@ -789,11 +896,13 @@ function addWizRow(name = "", budget = ""){
 
 function initWizard(){
   wizCatList.innerHTML = "";
+  wizFixedList.innerHTML = "";
   wizStartDate.value = ymdToMdy(todayYMD());
   addWizRow("Groceries", "300.00");
   addWizRow("Gas", "120.00");
   setStatus(wizStatus1, "");
   setStatus(wizStatus2, "");
+  setStatus(wizStatus3, "");
   showWizardStep(0);
 }
 
@@ -837,7 +946,7 @@ async function submitInit(){
   const err1 = validateWizardStep1();
   if (err1){ showWizardStep(0); return setStatus(wizStatus1, err1, "error"); }
   const err2 = validateWizardStep2();
-  if (err2){ return setStatus(wizStatus2, err2, "error"); }
+  if (err2){ showWizardStep(1); return setStatus(wizStatus2, err2, "error"); }
 
   const token = await idbGet(KEY_TOKEN);
   if (!token) return showAuth("Missing token. Please re-enter.", true);
@@ -858,17 +967,21 @@ async function submitInit(){
     categories: categories
   };
 
-  setStatus(wizStatus2, "Initializing…");
+  setStatus(wizStatus3, "Initializing…");
   try {
     const res = await postInit(token, payload);
     if (res.authFailed){
       await idbDel(KEY_TOKEN);
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
-    setStatus(wizStatus2, "Initialized. Loading…", "ok");
+    // Save fixed expenses from step 3 (API-backed; non-fatal if fails — user can re-add in Settings)
+    try { await saveWizardFixed(); } catch(fxErr) {
+      console.warn("Fixed expenses not saved during init:", fxErr);
+    }
+    setStatus(wizStatus3, "Initialized. Loading…", "ok");
     await bootstrap();
   } catch (e) {
-    setStatus(wizStatus2, e?.message || String(e), "error");
+    setStatus(wizStatus3, e?.message || String(e), "error");
   }
 }
 
@@ -880,7 +993,19 @@ wizNext1.addEventListener("click", () => {
   showWizardStep(1);
 });
 wizAddCat.addEventListener("click", () => addWizRow("", ""));
-wizSubmit.addEventListener("click", submitInit);
+wizNext2.addEventListener("click", () => {
+  const err = validateWizardStep2();
+  if (err) return setStatus(wizStatus2, err, "error");
+  setStatus(wizStatus2, "");
+  showWizardStep(2);
+});
+wizAddFixed.addEventListener("click", () => addWizFixedRow(genFixedId(), "", "", ""));
+wizSubmit.addEventListener("click", async () => {
+  const fxErr = validateWizardFixed();
+  if (fxErr) return setStatus(wizStatus3, fxErr, "error");
+  setStatus(wizStatus3, "");
+  await submitInit();
+});
 </script>
 
 <script>
@@ -1051,6 +1176,9 @@ async function renderDashboard(state){
   }
 
   HISTORY_CATEGORY_MAP = new Map(cats.map(c => [c.category_id, c.name]));
+
+  // Keep in Bank
+  await renderKeepInBank(state);
 }
 </script>
 
@@ -1239,6 +1367,423 @@ historyCurrentBtn.addEventListener("click", () => openHistory("current"));
 historyPriorBtn.addEventListener("click", () => openHistory("prior"));
 </script>
 <script>
+/* ================= FIXED EXPENSES ================= */
+
+/* --- Helpers --- */
+function genFixedId(){
+  return "fx_" + Date.now() + "_" + Math.floor(Math.random()*10000);
+}
+
+/* Load fixed expense definitions from server; fall back to IDB cache on error */
+async function loadFixedExpenses(){
+  const token = await idbGet(KEY_TOKEN).catch(() => null);
+  if (token){
+    try {
+      const res = await fetchFixedExpenses(token);
+      if (!res.authFailed){
+        const list = Array.isArray(res.result?.items) ? res.result.items : [];
+        await idbSet(KEY_FX_CACHE, list).catch(() => {});
+        return list;
+      }
+    } catch { /* fall through to cache */ }
+  }
+  // Cache fallback (offline / auth not yet ready)
+  try {
+    const cached = await idbGet(KEY_FX_CACHE);
+    return Array.isArray(cached) ? cached : [];
+  } catch { return []; }
+}
+
+/* Save fixed expense definitions to server and update IDB cache */
+async function saveFixedExpenses(list){
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) throw new Error("Not authenticated");
+  const res = await postFixedExpenses(token, list);
+  if (res.authFailed) throw new Error("Authentication failed — please log in again.");
+  // Update local cache
+  await idbSet(KEY_FX_CACHE, list).catch(() => {});
+}
+
+/* Load paid-state from server; fall back to IDB cache on error */
+async function loadFixedPaid(){
+  const token = await idbGet(KEY_TOKEN).catch(() => null);
+  if (token){
+    try {
+      const res = await fetchFixedPaid(token);
+      if (!res.authFailed){
+        const paid = (res.result?.paid && typeof res.result.paid === "object") ? res.result.paid : {};
+        await idbSet(KEY_FP_CACHE, paid).catch(() => {});
+        return paid;
+      }
+    } catch { /* fall through to cache */ }
+  }
+  try {
+    const cached = await idbGet(KEY_FP_CACHE);
+    return (cached && typeof cached === "object") ? cached : {};
+  } catch { return {}; }
+}
+
+/* Save paid-state to server and update IDB cache */
+async function saveFixedPaid(paid){
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) throw new Error("Not authenticated");
+  const res = await postFixedPaid(token, paid);
+  if (res.authFailed) throw new Error("Authentication failed — please log in again.");
+  // Update local cache
+  await idbSet(KEY_FP_CACHE, paid).catch(() => {});
+}
+
+/* Given period start/end YYYY-MM-DD strings, return set of due_days (1-31) that fall in range */
+function dueDaysInPeriod(startYmd, endYmd){
+  if (!startYmd || !endYmd) return new Set();
+  const startParts = startYmd.split("-").map(Number);
+  const endParts = endYmd.split("-").map(Number);
+  const startDate = new Date(startParts[0], startParts[1]-1, startParts[2]);
+  const endDate   = new Date(endParts[0],   endParts[1]-1,   endParts[2]);
+
+  const days = new Set();
+  // Walk through each day in the range and collect day-of-month values
+  const cur = new Date(startDate);
+  while (cur <= endDate) {
+    days.add(cur.getDate());
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+}
+
+/* Return fixed expenses that are due within the current period and not yet marked paid */
+async function getUnpaidFixedDuThisPeriod(state){
+  const fixed = await loadFixedExpenses();
+  if (!fixed.length) return [];
+
+  const p = state?.period;
+  if (!p?.start_ts || !p?.end_ts) return fixed; // no period info, show all
+
+  const startYmd = String(p.start_ts).slice(0,10);
+  const endYmd   = String(p.end_ts).slice(0,10);
+  const activeDays = dueDaysInPeriod(startYmd, endYmd);
+
+  const paid = await loadFixedPaid();
+  const paidSet = new Set(Array.isArray(paid[p.period_key]) ? paid[p.period_key] : []);
+
+  return fixed.filter(fx => activeDays.has(fx.due_day) && !paidSet.has(fx.id));
+}
+
+/* Return ALL fixed expenses due this period (paid + unpaid), for breakdown display */
+async function getAllFixedDueThisPeriod(state){
+  const fixed = await loadFixedExpenses();
+  if (!fixed.length) return [];
+
+  const p = state?.period;
+  if (!p?.start_ts || !p?.end_ts) return fixed;
+
+  const startYmd = String(p.start_ts).slice(0,10);
+  const endYmd   = String(p.end_ts).slice(0,10);
+  const activeDays = dueDaysInPeriod(startYmd, endYmd);
+
+  return fixed.filter(fx => activeDays.has(fx.due_day));
+}
+
+/* --- Keep in Bank calculation and rendering --- */
+async function renderKeepInBank(state){
+  const keepInBankAmt = $("keepInBankAmt");
+  const keepInBankBreakdown = $("keepInBankBreakdown");
+  if (!keepInBankAmt) return;
+
+  const cats = normalizeCategories(state);
+  const variableRemaining = cats.reduce((sum, c) => sum + Math.max(0, c.remaining_cents), 0);
+
+  const unpaid = await getUnpaidFixedDuThisPeriod(state);
+  const fixedUnpaidTotal = unpaid.reduce((sum, fx) => sum + fx.amount_cents, 0);
+
+  const total = variableRemaining + fixedUnpaidTotal;
+  keepInBankAmt.textContent = fmtCents(total);
+  keepInBankAmt.style.color = total < 0 ? "var(--danger)" : "#3a5bc7";
+
+  // Breakdown text
+  const allDue = await getAllFixedDueThisPeriod(state);
+  const paidCount = allDue.length - unpaid.length;
+  if (allDue.length > 0) {
+    keepInBankBreakdown.textContent =
+      `Variable remaining + ${unpaid.length} unpaid fixed expense${unpaid.length !== 1 ? "s" : ""} due this period` +
+      (paidCount > 0 ? ` (${paidCount} paid ✓)` : "");
+  } else {
+    keepInBankBreakdown.textContent = "Variable remaining only — no fixed expenses due this period";
+  }
+}
+
+/* --- Fixed Expenses collapsible card on main screen --- */
+let fixedExpensesPanelOpen = false;
+
+$("fixedExpensesToggle").addEventListener("click", async () => {
+  fixedExpensesPanelOpen = !fixedExpensesPanelOpen;
+  const panel = $("fixedExpensesPanel");
+  const chevron = $("fixedExpensesChevron");
+  if (fixedExpensesPanelOpen) {
+    panel.classList.remove("hidden");
+    chevron.textContent = "▼";
+    await renderFixedExpensesMainCard();
+  } else {
+    panel.classList.add("hidden");
+    chevron.textContent = "▶";
+  }
+});
+
+async function renderFixedExpensesMainCard(){
+  const list = $("fixedExpensesList");
+  const statusEl = $("fixedExpensesStatus");
+  if (!list) return;
+
+  const allFixed = await loadFixedExpenses();
+  const p = CURRENT_STATE?.period;
+
+  if (!allFixed.length) {
+    list.innerHTML = `<div class="small" style="color:var(--muted);margin-top:4px;">No fixed expenses set up yet. Add them in Settings.</div>`;
+    setStatus(statusEl, "");
+    return;
+  }
+
+  const startYmd = p?.start_ts ? String(p.start_ts).slice(0,10) : null;
+  const endYmd   = p?.end_ts   ? String(p.end_ts).slice(0,10)   : null;
+  const activeDays = (startYmd && endYmd) ? dueDaysInPeriod(startYmd, endYmd) : new Set();
+
+  const paid = await loadFixedPaid();
+  const periodKey = p?.period_key || "";
+  const paidSet = new Set(Array.isArray(paid[periodKey]) ? paid[periodKey] : []);
+
+  // Sort: due this period first, then others; within each group by due_day
+  const duePeriod = allFixed.filter(fx => activeDays.has(fx.due_day)).sort((a,b) => a.due_day - b.due_day);
+  const notDue    = allFixed.filter(fx => !activeDays.has(fx.due_day)).sort((a,b) => a.due_day - b.due_day);
+
+  list.innerHTML = "";
+
+  function makeRow(fx, isDue){
+    const isPaid = paidSet.has(fx.id);
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border);";
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = isPaid;
+    cb.disabled = !isDue;
+    cb.style.cssText = "width:18px;height:18px;cursor:" + (isDue ? "pointer" : "default") + ";flex-shrink:0;";
+    cb.addEventListener("change", async () => {
+      const statusEl = $("fixedExpensesStatus");
+      try {
+        const latestPaid = await loadFixedPaid();
+        const arr = Array.isArray(latestPaid[periodKey]) ? [...latestPaid[periodKey]] : [];
+        if (cb.checked) {
+          if (!arr.includes(fx.id)) arr.push(fx.id);
+        } else {
+          const idx = arr.indexOf(fx.id);
+          if (idx > -1) arr.splice(idx, 1);
+        }
+        latestPaid[periodKey] = arr;
+        await saveFixedPaid(latestPaid);
+        await renderKeepInBank(CURRENT_STATE);
+        await renderFixedExpensesMainCard();
+      } catch(e) {
+        cb.checked = !cb.checked; // revert checkbox on error
+        setStatus(statusEl, "Could not save: " + (e?.message || String(e)), "error");
+      }
+    });
+
+    const info = document.createElement("div");
+    info.style.flex = "1";
+    const nameSpan = document.createElement("div");
+    nameSpan.style.cssText = "font-weight:600;font-size:14px;" + (isPaid ? "text-decoration:line-through;color:var(--muted);" : "");
+    nameSpan.textContent = fx.name;
+    const detailSpan = document.createElement("div");
+    detailSpan.className = "small";
+    const amtStr = fmtCents(fx.amount_cents);
+    const dayStr = "Due: " + (fx.due_day === 1 ? "1st" : fx.due_day === 2 ? "2nd" : fx.due_day === 3 ? "3rd" : fx.due_day + "th") + " of month";
+    detailSpan.textContent = amtStr + " · " + dayStr;
+    if (!isDue) detailSpan.textContent += " · not due this period";
+    info.appendChild(nameSpan);
+    info.appendChild(detailSpan);
+
+    const amtEl = document.createElement("div");
+    amtEl.style.cssText = "font-weight:700;font-size:14px;min-width:60px;text-align:right;" +
+      (isPaid ? "color:var(--ok);" : isDue ? "color:var(--danger);" : "color:var(--muted);");
+    amtEl.textContent = isPaid ? "✓ Paid" : (isDue ? fmtCents(fx.amount_cents) : "—");
+
+    row.appendChild(cb);
+    row.appendChild(info);
+    row.appendChild(amtEl);
+    return row;
+  }
+
+  if (duePeriod.length > 0) {
+    const hdr = document.createElement("div");
+    hdr.className = "small";
+    hdr.style.cssText = "font-weight:700;color:var(--text);margin-bottom:4px;";
+    hdr.textContent = "Due this period";
+    list.appendChild(hdr);
+    duePeriod.forEach(fx => list.appendChild(makeRow(fx, true)));
+  }
+
+  if (notDue.length > 0) {
+    const hdr2 = document.createElement("div");
+    hdr2.className = "small";
+    hdr2.style.cssText = "font-weight:700;color:var(--muted);margin-top:12px;margin-bottom:4px;";
+    hdr2.textContent = "Not due this period";
+    list.appendChild(hdr2);
+    notDue.forEach(fx => list.appendChild(makeRow(fx, false)));
+  }
+
+  setStatus(statusEl, "");
+}
+
+/* --- Settings: Manage Fixed Expenses panel --- */
+const settingsOpenFixedExpensesBtn = $("settingsOpenFixedExpensesBtn");
+const settingsFixedExpensesPanel = $("settingsFixedExpensesPanel");
+const settingsFixedExpensesList = $("settingsFixedExpensesList");
+const settingsAddFixedExpenseRowBtn = $("settingsAddFixedExpenseRowBtn");
+const settingsSaveFixedExpensesBtn = $("settingsSaveFixedExpensesBtn");
+const settingsCancelFixedExpensesBtn = $("settingsCancelFixedExpensesBtn");
+const settingsFixedExpensesStatus = $("settingsFixedExpensesStatus");
+
+async function openFixedExpensesPanel(){
+  if (!settingsFixedExpensesPanel.classList.contains("hidden")) {
+    settingsFixedExpensesPanel.classList.add("hidden");
+    setStatus(settingsFixedExpensesStatus, "");
+    return;
+  }
+  // Close other panels
+  $("settingsEditBudgetsPanel").classList.add("hidden");
+  $("settingsAddCatsPanel").classList.add("hidden");
+  $("settingsReorderPanel").classList.add("hidden");
+
+  const existing = await loadFixedExpenses();
+  settingsFixedExpensesList.innerHTML = "";
+  if (existing.length > 0) {
+    existing.forEach(fx => addSettingsFixedRow(fx.id, fx.name, (fx.amount_cents/100).toFixed(2), fx.due_day));
+  } else {
+    addSettingsFixedRow(genFixedId(), "", "", "");
+  }
+  settingsFixedExpensesPanel.classList.remove("hidden");
+  setStatus(settingsFixedExpensesStatus, "");
+}
+
+function addSettingsFixedRow(id, name = "", amount = "", due_day = ""){
+  const wrap = document.createElement("div");
+  wrap.className = "row";
+  wrap.style.marginTop = "10px";
+  wrap.style.alignItems = "flex-end";
+  wrap.dataset.fixedId = String(id || genFixedId());
+  wrap.innerHTML = `
+    <input class="fixedName" placeholder="Bill name" value="${String(name).replaceAll('"','&quot;')}" style="flex:2;" />
+    <input class="fixedAmt" placeholder="$0.00" value="${String(amount).replaceAll('"','&quot;')}" inputmode="decimal" style="flex:1;" />
+    <input class="fixedDay" placeholder="Day (1-31)" value="${String(due_day).replaceAll('"','&quot;')}" inputmode="numeric" style="flex:1;" />
+    <button type="button" class="secondary fixedRemoveBtn" style="flex-shrink:0;">Remove</button>
+  `;
+  const amtInput = wrap.querySelector(".fixedAmt");
+  amtInput.addEventListener("blur", () => {
+    amtInput.value = validateAndFixCommas(amtInput.value);
+    amtInput.value = normalizeMoneyDisplay(amtInput.value);
+  });
+  wrap.querySelector(".fixedRemoveBtn").addEventListener("click", () => wrap.remove());
+  settingsFixedExpensesList.appendChild(wrap);
+}
+
+async function saveSettingsFixedExpenses(){
+  const rows = Array.from(settingsFixedExpensesList.querySelectorAll(".row"));
+  const result = [];
+  for (const r of rows){
+    const id   = r.dataset.fixedId || genFixedId();
+    const name = (r.querySelector(".fixedName")?.value || "").trim();
+    const amt  = dollarsToCentsFromInput(r.querySelector(".fixedAmt")?.value || "");
+    const day  = parseInt(r.querySelector(".fixedDay")?.value || "", 10);
+    if (!name && !r.querySelector(".fixedAmt")?.value.trim()) continue; // skip blank rows
+    if (!name) return setStatus(settingsFixedExpensesStatus, "Each row needs a name.", "error");
+    if (amt === null) return setStatus(settingsFixedExpensesStatus, `Enter a valid amount for: ${name}`, "error");
+    if (!Number.isFinite(day) || day < 1 || day > 31) return setStatus(settingsFixedExpensesStatus, `Enter a due day (1–31) for: ${name}`, "error");
+    result.push({ id, name, amount_cents: amt, due_day: day });
+  }
+  setStatus(settingsFixedExpensesStatus, "Saving…");
+  try {
+    await saveFixedExpenses(result);
+  } catch(e) {
+    return setStatus(settingsFixedExpensesStatus, e?.message || String(e), "error");
+  }
+  setStatus(settingsFixedExpensesStatus, "Saved.", "ok");
+  // Refresh Keep in Bank and main card
+  if (CURRENT_STATE) await renderKeepInBank(CURRENT_STATE);
+  if (fixedExpensesPanelOpen) await renderFixedExpensesMainCard();
+  setTimeout(() => {
+    settingsFixedExpensesPanel.classList.add("hidden");
+    setStatus(settingsFixedExpensesStatus, "");
+  }, 1400);
+}
+
+settingsOpenFixedExpensesBtn.addEventListener("click", openFixedExpensesPanel);
+settingsAddFixedExpenseRowBtn.addEventListener("click", () => addSettingsFixedRow(genFixedId(), "", "", ""));
+settingsSaveFixedExpensesBtn.addEventListener("click", saveSettingsFixedExpenses);
+settingsCancelFixedExpensesBtn.addEventListener("click", () => {
+  settingsFixedExpensesPanel.classList.add("hidden");
+  setStatus(settingsFixedExpensesStatus, "");
+});
+
+/* --- Wizard Step 3: Fixed Expenses --- */
+function addWizFixedRow(id, name = "", amount = "", due_day = ""){
+  const wrap = document.createElement("div");
+  wrap.className = "row";
+  wrap.style.marginTop = "10px";
+  wrap.dataset.fixedId = String(id || genFixedId());
+  wrap.innerHTML = `
+    <input class="wizFixedName" placeholder="Bill name" value="${String(name).replaceAll('"','&quot;')}" style="flex:2;" />
+    <input class="wizFixedAmt" placeholder="$0.00" value="${String(amount).replaceAll('"','&quot;')}" inputmode="decimal" style="flex:1;" />
+    <input class="wizFixedDay" placeholder="Day (1-31)" value="${String(due_day).replaceAll('"','&quot;')}" inputmode="numeric" style="flex:1;" />
+    <button type="button" class="secondary wizFixedRemoveBtn" style="flex-shrink:0;">Remove</button>
+  `;
+  const amtInput = wrap.querySelector(".wizFixedAmt");
+  amtInput.addEventListener("blur", () => {
+    amtInput.value = validateAndFixCommas(amtInput.value);
+    amtInput.value = normalizeMoneyDisplay(amtInput.value);
+  });
+  wrap.querySelector(".wizFixedRemoveBtn").addEventListener("click", () => wrap.remove());
+  wizFixedList.appendChild(wrap);
+}
+
+function readWizardFixed(){
+  const rows = Array.from(wizFixedList.querySelectorAll(".row"));
+  return rows.map(r => ({
+    id:           r.dataset.fixedId || genFixedId(),
+    name:         (r.querySelector(".wizFixedName")?.value || "").trim(),
+    amtRaw:       r.querySelector(".wizFixedAmt")?.value || "",
+    dayRaw:       r.querySelector(".wizFixedDay")?.value || "",
+  }));
+}
+
+function validateWizardFixed(){
+  const items = readWizardFixed();
+  for (const it of items){
+    if (!it.name && !it.amtRaw.trim() && !it.dayRaw.trim()) continue; // blank row — skip
+    if (!it.name)  return "Each fixed expense needs a name.";
+    const cents = dollarsToCentsFromInput(it.amtRaw);
+    if (cents === null) return `Enter a valid amount for: ${it.name}`;
+    const day = parseInt(it.dayRaw, 10);
+    if (!Number.isFinite(day) || day < 1 || day > 31) return `Enter a due day (1–31) for: ${it.name}`;
+  }
+  return null;
+}
+
+async function saveWizardFixed(){
+  const items = readWizardFixed().filter(it => it.name || it.amtRaw.trim());
+  const result = [];
+  for (const it of items){
+    const cents = dollarsToCentsFromInput(it.amtRaw);
+    const day   = parseInt(it.dayRaw, 10);
+    if (it.name && cents !== null && Number.isFinite(day) && day >= 1 && day <= 31){
+      result.push({ id: it.id, name: it.name, amount_cents: cents, due_day: day });
+    }
+  }
+  if (result.length > 0) await saveFixedExpenses(result);
+}
+
+</script>
+
+<script>
 /* ================= TRANSFER UI ================= */
 function syncTxTypeUi(){
   const t = String(txType.value || "expense");
@@ -1364,6 +1909,7 @@ async function openReorderPanel(){
   // Close other panels
   hide(settingsEditBudgetsPanel);
   hide(settingsAddCatsPanel);
+  hide($("settingsFixedExpensesPanel"));
   setStatus(settingsEditBudgetsStatus, "");
   setStatus(settingsAddCatsStatus, "");
 
@@ -1475,6 +2021,7 @@ async function openEditBudgetsPanel(){
   // Close other panels
   hide(settingsReorderPanel);
   hide(settingsAddCatsPanel);
+  hide($("settingsFixedExpensesPanel"));
   setStatus(settingsReorderStatus, "");
   setStatus(settingsAddCatsStatus, "");
 
@@ -1537,8 +2084,12 @@ function readEditBudgets(){
 }
 
 /* ---- Pending-budget keys (IndexedDB) ---- */
-const KEY_PENDING_BUDGETS = "pendingBudgets";  // { "categoryId": targetCents, … }
-const KEY_LAST_PERIOD_KEY = "lastPeriodKey";   // the period_key we last saw
+const KEY_PENDING_BUDGETS  = "pendingBudgets";   // { "categoryId": targetCents, … }
+const KEY_LAST_PERIOD_KEY  = "lastPeriodKey";    // the period_key we last saw
+// Fixed expenses and paid state are stored server-side (see /api/budget/fixed-expenses and /api/budget/fixed-paid)
+// IDB is used only as a read-through cache for faster initial renders.
+const KEY_FX_CACHE  = "fxCache";   // [{id, name, amount_cents, due_day}] — local cache
+const KEY_FP_CACHE  = "fpCache";   // { [period_key]: [id,...] } — local cache
 
 async function saveEditBudgets(){
   const edits = readEditBudgets();
@@ -1659,6 +2210,7 @@ function openAddCatsPanel(){
   // Close other panels
   hide(settingsReorderPanel);
   hide(settingsEditBudgetsPanel);
+  hide($("settingsFixedExpensesPanel"));
   setStatus(settingsReorderStatus, "");
   setStatus(settingsEditBudgetsStatus, "");
 
@@ -1709,6 +2261,7 @@ function openSettings(){
   hide(settingsReorderPanel);
   hide(settingsEditBudgetsPanel);
   hide(settingsAddCatsPanel);
+  hide($("settingsFixedExpensesPanel"));
 }
 
 function closeSettings(){
@@ -1875,6 +2428,8 @@ settingsLogoutBtn.addEventListener("click", async () => {
   await idbDel(KEY_CAT_ORDER);
   try { await idbDel(KEY_PENDING_BUDGETS); } catch { /* ignore */ }
   try { await idbDel(KEY_LAST_PERIOD_KEY); } catch { /* ignore */ }
+  try { await idbDel(KEY_FX_CACHE); } catch { /* ignore */ }
+  try { await idbDel(KEY_FP_CACHE); } catch { /* ignore */ }
   closeSettings();
   showAuth("Logged out. Enter your name and password to continue.");
 });
@@ -1898,6 +2453,11 @@ settingsResetBtn.addEventListener("click", async () => {
     await idbDel(KEY_CAT_ORDER);
     try { await idbDel(KEY_PENDING_BUDGETS); } catch { /* ignore */ }
     try { await idbDel(KEY_LAST_PERIOD_KEY); } catch { /* ignore */ }
+    // Clear fixed expense server data and local caches
+    try { await postFixedExpenses(token, []); } catch { /* ignore — backend may already be wiped */ }
+    try { await postFixedPaid(token, {}); } catch { /* ignore */ }
+    try { await idbDel(KEY_FX_CACHE); } catch { /* ignore */ }
+    try { await idbDel(KEY_FP_CACHE); } catch { /* ignore */ }
 
     setStatus(settingsAccountStatus, "Reset complete.", "ok");
     closeSettings();
