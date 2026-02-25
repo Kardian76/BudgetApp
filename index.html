@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<meta name="theme-color" content="#0b1320" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#c3cfe2" />
 <meta name="description" content="Purrfect Budget - Track your spending and manage budgets across periods" />
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
@@ -32,7 +32,7 @@ body{
   color:var(--text);
   background:linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%) fixed;
 }
-.wrap{max-width:1100px;margin:0 auto;padding:18px}
+.wrap{max-width:1100px;margin:0 auto;padding:18px;padding-bottom:calc(32px + env(safe-area-inset-bottom))}
 h1{font-size:18px;margin:0 0 10px}
 .card{
   background:#ffffff;
