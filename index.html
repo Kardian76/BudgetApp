@@ -1464,19 +1464,57 @@ async function saveFixedPaid(paid){
   await idbSet(KEY_FP_CACHE, paid).catch(() => {});
 }
 
-/* Given period start/end YYYY-MM-DD strings, return set of due_days (1-31) that fall in range */
+/* Return the actual calendar date (Date object) on which a bill with the given
+   due_day should be charged within a specific year/month.
+   If the month is shorter than due_day (e.g. due_day=30 in February), the bill
+   is treated as due on the last day of that month — matching standard bank/
+   subscription service convention. */
+function effectiveDueDate(year, month, due_day){
+  // Day 0 of the next month = last day of this month
+  const lastDay = new Date(year, month, 0).getDate(); // month is 1-based, so month+0 = next month day 0
+  const actual  = Math.min(due_day, lastDay);
+  return new Date(year, month - 1, actual);
+}
+
+/* Return true if a bill with the given due_day is due within the period
+   defined by startYmd / endYmd (endYmd is the EXCLUSIVE boundary).
+   Accounts for months shorter than the due_day. */
+function isDueInPeriod(due_day, startYmd, endYmd){
+  if (!startYmd || !endYmd) return true;
+  const [sy, sm, sd] = startYmd.split("-").map(Number);
+  const [ey, em, ed] = endYmd.split("-").map(Number);
+  const startDate = new Date(sy, sm - 1, sd);
+  const endDate   = new Date(ey, em - 1, ed); // exclusive
+
+  // Walk each calendar month that overlaps the period and check whether the
+  // effective due date for that month falls inside the window.
+  // We iterate by month from the month containing startDate to the month
+  // containing the last inclusive day (endDate - 1 day).
+  const lastInclusive = new Date(endDate);
+  lastInclusive.setDate(lastInclusive.getDate() - 1);
+
+  let y = sy, m = sm;
+  while (true) {
+    const candidate = effectiveDueDate(y, m, due_day);
+    if (candidate >= startDate && candidate < endDate) return true;
+    // Advance to next month
+    if (y > lastInclusive.getFullYear() ||
+       (y === lastInclusive.getFullYear() && m >= lastInclusive.getMonth() + 1)) break;
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return false;
+}
+
+/* Legacy helper retained for getCarriedOverIds — returns Set of actual day
+   numbers that exist in the period (still needed for the carryover check). */
 function dueDaysInPeriod(startYmd, endYmd){
   if (!startYmd || !endYmd) return new Set();
-  const startParts = startYmd.split("-").map(Number);
-  const endParts = endYmd.split("-").map(Number);
-  const startDate = new Date(startParts[0], startParts[1]-1, startParts[2]);
-  const endDate   = new Date(endParts[0],   endParts[1]-1,   endParts[2]);
-
+  const [sy, sm, sd] = startYmd.split("-").map(Number);
+  const [ey, em, ed] = endYmd.split("-").map(Number);
+  const startDate = new Date(sy, sm - 1, sd);
+  const endDate   = new Date(ey, em - 1, ed);
   const days = new Set();
-  // Walk through each day in the range and collect day-of-month values.
-  // endDate is the EXCLUSIVE boundary (same convention as the server's end_ts),
-  // so stop before reaching it — a bill due on the 1st of next month is not
-  // due in a period that ends on the 1st.
   const cur = new Date(startDate);
   while (cur < endDate) {
     days.add(cur.getDate());
@@ -1493,13 +1531,14 @@ async function getCarriedOverIds(state, paid){
 
   const priorStart   = String(prior.start_ts).slice(0,10);
   const priorEnd     = String(prior.end_ts).slice(0,10);
-  const priorDays    = dueDaysInPeriod(priorStart, priorEnd);
   const priorPaidSet = new Set(Array.isArray(paid[prior.period_key]) ? paid[prior.period_key] : []);
 
   const fixed = await loadFixedExpenses();
   const carriedIds = new Set();
   for (const fx of fixed){
-    if (priorDays.has(fx.due_day) && !priorPaidSet.has(fx.id)){
+    // Use isDueInPeriod so bills due on days that don't exist in the prior
+    // month (e.g. 30th in February) are still correctly recognised as overdue.
+    if (isDueInPeriod(fx.due_day, priorStart, priorEnd) && !priorPaidSet.has(fx.id)){
       carriedIds.add(fx.id);
     }
   }
@@ -1517,14 +1556,13 @@ async function getUnpaidFixedDuThisPeriod(state){
 
   const startYmd   = String(p.start_ts).slice(0,10);
   const endYmd     = String(p.end_ts).slice(0,10);
-  const activeDays = dueDaysInPeriod(startYmd, endYmd);
 
   const paid        = await loadFixedPaid();
   const paidSet     = new Set(Array.isArray(paid[p.period_key]) ? paid[p.period_key] : []);
   const carriedIds  = await getCarriedOverIds(state, paid);
 
   return fixed.filter(fx =>
-    (activeDays.has(fx.due_day) || carriedIds.has(fx.id)) && !paidSet.has(fx.id)
+    (isDueInPeriod(fx.due_day, startYmd, endYmd) || carriedIds.has(fx.id)) && !paidSet.has(fx.id)
   );
 }
 
@@ -1539,12 +1577,11 @@ async function getAllFixedDueThisPeriod(state){
 
   const startYmd   = String(p.start_ts).slice(0,10);
   const endYmd     = String(p.end_ts).slice(0,10);
-  const activeDays = dueDaysInPeriod(startYmd, endYmd);
 
   const paid       = await loadFixedPaid();
   const carriedIds = await getCarriedOverIds(state, paid);
 
-  return fixed.filter(fx => activeDays.has(fx.due_day) || carriedIds.has(fx.id));
+  return fixed.filter(fx => isDueInPeriod(fx.due_day, startYmd, endYmd) || carriedIds.has(fx.id));
 }
 
 /* --- Keep in Bank calculation and rendering --- */
@@ -1608,20 +1645,19 @@ async function renderFixedExpensesMainCard(){
 
   const startYmd   = p?.start_ts ? String(p.start_ts).slice(0,10) : null;
   const endYmd     = p?.end_ts   ? String(p.end_ts).slice(0,10)   : null;
-  const activeDays = (startYmd && endYmd) ? dueDaysInPeriod(startYmd, endYmd) : new Set();
-
   const paid       = await loadFixedPaid();
   const periodKey  = p?.period_key || "";
   const paidSet    = new Set(Array.isArray(paid[periodKey]) ? paid[periodKey] : []);
   const carriedIds = await getCarriedOverIds(CURRENT_STATE, paid);
 
   // Three buckets:
-  //   duePeriod  — due_day falls in this period
+  //   duePeriod   — bill is due this period (accounting for short months)
   //   carriedOver — not due this period but unpaid from prior period
   //   notDue      — not due this period and not a carryover
-  const duePeriod   = allFixed.filter(fx => activeDays.has(fx.due_day)).sort((a,b) => a.due_day - b.due_day);
-  const carriedOver = allFixed.filter(fx => !activeDays.has(fx.due_day) && carriedIds.has(fx.id)).sort((a,b) => a.due_day - b.due_day);
-  const notDue      = allFixed.filter(fx => !activeDays.has(fx.due_day) && !carriedIds.has(fx.id)).sort((a,b) => a.due_day - b.due_day);
+  const isDue = fx => startYmd && endYmd ? isDueInPeriod(fx.due_day, startYmd, endYmd) : true;
+  const duePeriod   = allFixed.filter(fx =>  isDue(fx)).sort((a,b) => a.due_day - b.due_day);
+  const carriedOver = allFixed.filter(fx => !isDue(fx) &&  carriedIds.has(fx.id)).sort((a,b) => a.due_day - b.due_day);
+  const notDue      = allFixed.filter(fx => !isDue(fx) && !carriedIds.has(fx.id)).sort((a,b) => a.due_day - b.due_day);
 
   list.innerHTML = "";
 
