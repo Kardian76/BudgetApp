@@ -214,7 +214,7 @@ td.center, th.center{text-align:center}
         <label>Type</label>
         <select id="txType">
           <option value="expense" style="color:#dc3545;font-weight:bold;">Expense</option>
-          <option value="refund" style="color:#28a745;font-weight:bold;">Credit</option>
+          <option value="credit" style="color:#28a745;font-weight:bold;">Credit</option>
           <option value="transfer" style="color:#000000;font-weight:bold;">Transfer</option>
         </select>
 
@@ -874,6 +874,20 @@ function fmtYmdToMdySlash(ymd){
 
 // The server stores period end_ts as the EXCLUSIVE start of the next period.
 // Subtract one day before displaying so "Feb 15 → Mar 1" shows as "Feb 15 → Feb 28".
+
+// Return a proper English ordinal string for a day-of-month number (1–31).
+// Handles the -th/-st/-nd/-rd suffix correctly, including 11th/12th/13th,
+// 21st, 22nd, 23rd, 31st, etc.
+function dayOrdinal(n){
+  const mod100 = n % 100;
+  const mod10  = n % 10;
+  // 11, 12, 13 are always "th" regardless of their last digit
+  if (mod100 >= 11 && mod100 <= 13) return n + "th";
+  if (mod10 === 1) return n + "st";
+  if (mod10 === 2) return n + "nd";
+  if (mod10 === 3) return n + "rd";
+  return n + "th";
+}
 function fmtEndTsForDisplay(isoTs){
   const ymd = String(isoTs || "").slice(0, 10);
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
@@ -1218,13 +1232,13 @@ function labelForCategoryId(id){
 }
 
 function labelForType(it){
-  if (it.is_refund) return "Credit";
+  if (it.is_credit) return "Credit";
   if (String(it.note || "").startsWith("Transfer:")) return "Transfer";
   return "Expense";
 }
 
 function signedAmountCents(it){
-  const sign = it.is_refund ? -1 : 1;
+  const sign = it.is_credit ? -1 : 1;
   return sign * Number(it.amount_cents || 0);
 }
 
@@ -1235,7 +1249,7 @@ function normalizeLedgerItems(items){
     period_key: String(x.period_key || ""),
     category_id: Number(x.category_id),
     amount_cents: Number(x.amount_cents) || 0,
-    is_refund: Boolean(x.is_refund),
+    is_credit: Boolean(x.is_credit),
     note: String(x.note || ""),
     created_at: String(x.created_at || ""),
     created_by_label: String(x.created_by_label || "")
@@ -1364,8 +1378,8 @@ function renderHistoryTable(items){
     const tdNote = document.createElement("td");
     tdNote.innerHTML = it.note ? escapeHtml(it.note) : "";
 
-    // Color entire row: green for refunds, red for expenses
-    tr.style.color = it.is_refund ? "var(--ok)" : "var(--danger)";
+    // Color entire row: green for credits, red for expenses
+    tr.style.color = it.is_credit ? "var(--ok)" : "var(--danger)";
 
     tr.appendChild(tdWhen);
     tr.appendChild(tdWho);
@@ -1471,7 +1485,29 @@ function dueDaysInPeriod(startYmd, endYmd){
   return days;
 }
 
-/* Return fixed expenses that are due within the current period and not yet marked paid */
+/* Return IDs of fixed expenses that were due in the prior period but never marked paid.
+   These carry forward into the current period regardless of their due_day. */
+async function getCarriedOverIds(state, paid){
+  const prior = state?.prior_period;
+  if (!prior?.period_key || !prior?.start_ts || !prior?.end_ts) return new Set();
+
+  const priorStart   = String(prior.start_ts).slice(0,10);
+  const priorEnd     = String(prior.end_ts).slice(0,10);
+  const priorDays    = dueDaysInPeriod(priorStart, priorEnd);
+  const priorPaidSet = new Set(Array.isArray(paid[prior.period_key]) ? paid[prior.period_key] : []);
+
+  const fixed = await loadFixedExpenses();
+  const carriedIds = new Set();
+  for (const fx of fixed){
+    if (priorDays.has(fx.due_day) && !priorPaidSet.has(fx.id)){
+      carriedIds.add(fx.id);
+    }
+  }
+  return carriedIds;
+}
+
+/* Return fixed expenses that are due within the current period and not yet marked paid,
+   plus any that were due last period but never checked off (carried over). */
 async function getUnpaidFixedDuThisPeriod(state){
   const fixed = await loadFixedExpenses();
   if (!fixed.length) return [];
@@ -1479,17 +1515,21 @@ async function getUnpaidFixedDuThisPeriod(state){
   const p = state?.period;
   if (!p?.start_ts || !p?.end_ts) return fixed; // no period info, show all
 
-  const startYmd = String(p.start_ts).slice(0,10);
-  const endYmd   = String(p.end_ts).slice(0,10);
+  const startYmd   = String(p.start_ts).slice(0,10);
+  const endYmd     = String(p.end_ts).slice(0,10);
   const activeDays = dueDaysInPeriod(startYmd, endYmd);
 
-  const paid = await loadFixedPaid();
-  const paidSet = new Set(Array.isArray(paid[p.period_key]) ? paid[p.period_key] : []);
+  const paid        = await loadFixedPaid();
+  const paidSet     = new Set(Array.isArray(paid[p.period_key]) ? paid[p.period_key] : []);
+  const carriedIds  = await getCarriedOverIds(state, paid);
 
-  return fixed.filter(fx => activeDays.has(fx.due_day) && !paidSet.has(fx.id));
+  return fixed.filter(fx =>
+    (activeDays.has(fx.due_day) || carriedIds.has(fx.id)) && !paidSet.has(fx.id)
+  );
 }
 
-/* Return ALL fixed expenses due this period (paid + unpaid), for breakdown display */
+/* Return ALL fixed expenses due this period (paid + unpaid) including carryovers,
+   for the Keep in Bank breakdown display. */
 async function getAllFixedDueThisPeriod(state){
   const fixed = await loadFixedExpenses();
   if (!fixed.length) return [];
@@ -1497,11 +1537,14 @@ async function getAllFixedDueThisPeriod(state){
   const p = state?.period;
   if (!p?.start_ts || !p?.end_ts) return fixed;
 
-  const startYmd = String(p.start_ts).slice(0,10);
-  const endYmd   = String(p.end_ts).slice(0,10);
+  const startYmd   = String(p.start_ts).slice(0,10);
+  const endYmd     = String(p.end_ts).slice(0,10);
   const activeDays = dueDaysInPeriod(startYmd, endYmd);
 
-  return fixed.filter(fx => activeDays.has(fx.due_day));
+  const paid       = await loadFixedPaid();
+  const carriedIds = await getCarriedOverIds(state, paid);
+
+  return fixed.filter(fx => activeDays.has(fx.due_day) || carriedIds.has(fx.id));
 }
 
 /* --- Keep in Bank calculation and rendering --- */
@@ -1563,21 +1606,26 @@ async function renderFixedExpensesMainCard(){
     return;
   }
 
-  const startYmd = p?.start_ts ? String(p.start_ts).slice(0,10) : null;
-  const endYmd   = p?.end_ts   ? String(p.end_ts).slice(0,10)   : null;
+  const startYmd   = p?.start_ts ? String(p.start_ts).slice(0,10) : null;
+  const endYmd     = p?.end_ts   ? String(p.end_ts).slice(0,10)   : null;
   const activeDays = (startYmd && endYmd) ? dueDaysInPeriod(startYmd, endYmd) : new Set();
 
-  const paid = await loadFixedPaid();
-  const periodKey = p?.period_key || "";
-  const paidSet = new Set(Array.isArray(paid[periodKey]) ? paid[periodKey] : []);
+  const paid       = await loadFixedPaid();
+  const periodKey  = p?.period_key || "";
+  const paidSet    = new Set(Array.isArray(paid[periodKey]) ? paid[periodKey] : []);
+  const carriedIds = await getCarriedOverIds(CURRENT_STATE, paid);
 
-  // Sort: due this period first, then others; within each group by due_day
-  const duePeriod = allFixed.filter(fx => activeDays.has(fx.due_day)).sort((a,b) => a.due_day - b.due_day);
-  const notDue    = allFixed.filter(fx => !activeDays.has(fx.due_day)).sort((a,b) => a.due_day - b.due_day);
+  // Three buckets:
+  //   duePeriod  — due_day falls in this period
+  //   carriedOver — not due this period but unpaid from prior period
+  //   notDue      — not due this period and not a carryover
+  const duePeriod   = allFixed.filter(fx => activeDays.has(fx.due_day)).sort((a,b) => a.due_day - b.due_day);
+  const carriedOver = allFixed.filter(fx => !activeDays.has(fx.due_day) && carriedIds.has(fx.id)).sort((a,b) => a.due_day - b.due_day);
+  const notDue      = allFixed.filter(fx => !activeDays.has(fx.due_day) && !carriedIds.has(fx.id)).sort((a,b) => a.due_day - b.due_day);
 
   list.innerHTML = "";
 
-  function makeRow(fx, isDue){
+  function makeRow(fx, isDue, isCarryover = false){
     const isPaid = paidSet.has(fx.id);
     const row = document.createElement("div");
     row.style.cssText = "display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border);";
@@ -1603,7 +1651,7 @@ async function renderFixedExpensesMainCard(){
         await renderKeepInBank(CURRENT_STATE);
         await renderFixedExpensesMainCard();
       } catch(e) {
-        cb.checked = !cb.checked; // revert checkbox on error
+        cb.checked = !cb.checked;
         setStatus(statusEl, "Could not save: " + (e?.message || String(e)), "error");
       }
     });
@@ -1616,9 +1664,11 @@ async function renderFixedExpensesMainCard(){
     const detailSpan = document.createElement("div");
     detailSpan.className = "small";
     const amtStr = fmtCents(fx.amount_cents);
-    const dayStr = "Due: " + (fx.due_day === 1 ? "1st" : fx.due_day === 2 ? "2nd" : fx.due_day === 3 ? "3rd" : fx.due_day + "th") + " of month";
+    const ordinal = dayOrdinal(fx.due_day);
+    const dayStr = "Due: " + ordinal + " of month";
     detailSpan.textContent = amtStr + " · " + dayStr;
-    if (!isDue) detailSpan.textContent += " · not due this period";
+    if (isCarryover) detailSpan.textContent += " · carried over (unpaid last period)";
+    else if (!isDue)  detailSpan.textContent += " · not due this period";
     info.appendChild(nameSpan);
     info.appendChild(detailSpan);
 
@@ -1639,7 +1689,16 @@ async function renderFixedExpensesMainCard(){
     hdr.style.cssText = "font-weight:700;color:var(--text);margin-bottom:4px;";
     hdr.textContent = "Due this period";
     list.appendChild(hdr);
-    duePeriod.forEach(fx => list.appendChild(makeRow(fx, true)));
+    duePeriod.forEach(fx => list.appendChild(makeRow(fx, true, false)));
+  }
+
+  if (carriedOver.length > 0) {
+    const hdr = document.createElement("div");
+    hdr.className = "small";
+    hdr.style.cssText = "font-weight:700;color:var(--danger);margin-top:12px;margin-bottom:4px;";
+    hdr.textContent = "⚠ Carried over from last period";
+    list.appendChild(hdr);
+    carriedOver.forEach(fx => list.appendChild(makeRow(fx, true, true)));
   }
 
   if (notDue.length > 0) {
@@ -1648,7 +1707,7 @@ async function renderFixedExpensesMainCard(){
     hdr2.style.cssText = "font-weight:700;color:var(--muted);margin-top:12px;margin-bottom:4px;";
     hdr2.textContent = "Not due this period";
     list.appendChild(hdr2);
-    notDue.forEach(fx => list.appendChild(makeRow(fx, false)));
+    notDue.forEach(fx => list.appendChild(makeRow(fx, false, false)));
   }
 
   setStatus(statusEl, "");
@@ -1688,7 +1747,7 @@ async function openFixedExpensesPanel(){
 function addSettingsFixedRow(id, name = "", amount = "", due_day = ""){
   const wrap = document.createElement("div");
   wrap.dataset.fixedId = String(id || genFixedId());
-  wrap.style.cssText = "margin-top:0;padding-top:12px;border-top:1px solid var(--border);";
+  wrap.style.cssText = "margin-top:0;padding-top:14px;padding-bottom:14px;border-top:1px solid var(--border);";
 
   // Row 1: bill name full width
   const row1 = document.createElement("div");
@@ -1837,7 +1896,7 @@ function syncTxTypeUi(){
   // Color the select to match the selected option; always bold
   txType.style.fontWeight = "bold";
   if (t === "expense") txType.style.color = "#dc3545";
-  else if (t === "refund") txType.style.color = "#28a745";
+  else if (t === "credit") txType.style.color = "#28a745";
   else txType.style.color = "#000000";
 }
 
@@ -1860,8 +1919,8 @@ function buildTransferItems({ fromId, toId, cents, note }){
   const fullNote = n ? `${prefix} • ${n}` : prefix;
 
   return [
-    { category_id: fromId, amount_cents: cents, is_refund: false, note: fullNote },
-    { category_id: toId,   amount_cents: cents, is_refund: true,  note: fullNote }
+    { category_id: fromId, amount_cents: cents, is_credit: false, note: fullNote },
+    { category_id: toId,   amount_cents: cents, is_credit: true,  note: fullNote }
   ];
 }
 
@@ -1909,17 +1968,17 @@ txSubmitBtn.addEventListener("click", async () => {
     return;
   }
 
-  // Expense / Refund
+  // Expense / Credit
   const categoryId = Number(txCategory.value);
   if (!Number.isFinite(categoryId) || categoryId <= 0) return setStatus(txStatus, "Please choose a category.", "error");
 
   const cents = dollarsToCentsFromInput(txAmount.value);
   if (cents === null) return setStatus(txStatus, "Enter a valid amount greater than $0.00.", "error");
 
-  const isRefund = mode === "refund";
+  const isCredit = mode === "credit";
   const note = String(txNote.value || "").trim().slice(0, 240) || undefined;
 
-  const body = { created_by_label: name, items: [{ category_id: categoryId, amount_cents: cents, is_refund: isRefund, note }] };
+  const body = { created_by_label: name, items: [{ category_id: categoryId, amount_cents: cents, is_credit: isCredit, note }] };
 
   setStatus(txStatus, "Saving…");
   try {
@@ -2196,7 +2255,7 @@ async function applyPendingBudgetChanges(state){
   const cats = normalizeCategories(state);
 
   // Build one transaction item per changed category.
-  // delta > 0  → budget went UP   → post a refund  (increases remaining)
+  // delta > 0  → budget went UP   → post a credit  (increases remaining)
   // delta < 0  → budget went DOWN → post an expense (decreases remaining)
   const items = [];
   const applied = new Set();
@@ -2215,7 +2274,7 @@ async function applyPendingBudgetChanges(state){
     items.push({
       category_id: categoryId,
       amount_cents: Math.abs(delta),
-      is_refund: delta > 0,   // refund = add back, expense = subtract
+      is_credit: delta > 0,   // credit = add back, expense = subtract
       note: "Budget adjustment: " + (delta > 0 ? "+" : "") + (delta/100).toFixed(2) + " (scheduled from prior period)"
     });
     applied.add(idStr);
