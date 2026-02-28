@@ -214,7 +214,7 @@ td.center, th.center{text-align:center}
         <label>Type</label>
         <select id="txType">
           <option value="expense" style="color:#dc3545;font-weight:bold;">Expense</option>
-          <option value="refund" style="color:#28a745;font-weight:bold;">Refund</option>
+          <option value="refund" style="color:#28a745;font-weight:bold;">Credit</option>
           <option value="transfer" style="color:#000000;font-weight:bold;">Transfer</option>
         </select>
 
@@ -1218,7 +1218,7 @@ function labelForCategoryId(id){
 }
 
 function labelForType(it){
-  if (it.is_refund) return "Refund";
+  if (it.is_refund) return "Credit";
   if (String(it.note || "").startsWith("Transfer:")) return "Transfer";
   return "Expense";
 }
@@ -1687,27 +1687,50 @@ async function openFixedExpensesPanel(){
 
 function addSettingsFixedRow(id, name = "", amount = "", due_day = ""){
   const wrap = document.createElement("div");
-  wrap.className = "row";
-  wrap.style.marginTop = "10px";
-  wrap.style.alignItems = "flex-end";
   wrap.dataset.fixedId = String(id || genFixedId());
-  wrap.innerHTML = `
-    <input class="fixedName" placeholder="Bill name" value="${String(name).replaceAll('"','&quot;')}" style="flex:2;" />
-    <input class="fixedAmt" placeholder="$0.00" value="${String(amount).replaceAll('"','&quot;')}" inputmode="decimal" style="flex:1;" />
-    <input class="fixedDay" placeholder="Day (1-31)" value="${String(due_day).replaceAll('"','&quot;')}" inputmode="numeric" style="flex:1;" />
+  wrap.style.cssText = "margin-top:0;padding-top:12px;border-top:1px solid var(--border);";
+
+  // Row 1: bill name full width
+  const row1 = document.createElement("div");
+  row1.style.cssText = "display:flex;gap:10px;margin-bottom:8px;";
+  row1.innerHTML = `
+    <input class="fixedName" placeholder="Bill name"
+      value="${String(name).replaceAll('"','&quot;')}"
+      style="flex:1;" />
+  `;
+
+  // Row 2: amount + day + remove button
+  const row2 = document.createElement("div");
+  row2.style.cssText = "display:flex;gap:10px;align-items:flex-end;";
+  row2.innerHTML = `
+    <input class="fixedAmt" placeholder="$0.00"
+      value="${String(amount).replaceAll('"','&quot;')}"
+      inputmode="decimal" style="flex:1;" />
+    <input class="fixedDay" placeholder="Day (1-31)"
+      value="${String(due_day).replaceAll('"','&quot;')}"
+      inputmode="numeric" style="flex:1;" />
     <button type="button" class="secondary fixedRemoveBtn" style="flex-shrink:0;">Remove</button>
   `;
-  const amtInput = wrap.querySelector(".fixedAmt");
+
+  const amtInput = row2.querySelector(".fixedAmt");
   amtInput.addEventListener("blur", () => {
     amtInput.value = validateAndFixCommas(amtInput.value);
     amtInput.value = normalizeMoneyDisplay(amtInput.value);
   });
-  wrap.querySelector(".fixedRemoveBtn").addEventListener("click", () => wrap.remove());
+  row2.querySelector(".fixedRemoveBtn").addEventListener("click", () => wrap.remove());
+
+  wrap.appendChild(row1);
+  wrap.appendChild(row2);
   settingsFixedExpensesList.appendChild(wrap);
+  // No top border on the very first entry
+  if (settingsFixedExpensesList.children.length === 1) {
+    wrap.style.borderTop = "none";
+    wrap.style.paddingTop = "0";
+  }
 }
 
 async function saveSettingsFixedExpenses(){
-  const rows = Array.from(settingsFixedExpensesList.querySelectorAll(".row"));
+  const rows = Array.from(settingsFixedExpensesList.querySelectorAll("[data-fixed-id]"));
   const result = [];
   for (const r of rows){
     const id   = r.dataset.fixedId || genFixedId();
@@ -2597,12 +2620,53 @@ bootstrap();
 </div>
 
 <script>
-/* ================= SERVICE WORKER REGISTRATION ================= */
+/* ================= SERVICE WORKER REGISTRATION + AUTO-UPDATE ================= */
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(reg => console.log('Service Worker registered:', reg.scope))
-      .catch(err => console.log('Service Worker registration failed:', err));
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('sw.js');
+
+      // Check for a new version immediately on every page load, and then
+      // periodically every 60 seconds while the tab stays open.
+      reg.update();
+      setInterval(() => reg.update(), 60_000);
+
+      // If a new SW just installed and is waiting, tell it to activate now.
+      function activateWaiting(reg) {
+        if (reg.waiting) {
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+      }
+      activateWaiting(reg);
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed') activateWaiting(reg);
+        });
+      });
+
+      // When the SW broadcasts SW_UPDATED (new version took control),
+      // reload the page so the user immediately gets the latest code.
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'SW_UPDATED') {
+          console.log('New app version active:', event.data.version, '— reloading.');
+          window.location.reload();
+        }
+      });
+
+      // If the controller changes mid-session (new SW claimed all clients),
+      // also reload to pick up the fresh assets.
+      let currentController = navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (currentController) {
+          window.location.reload();
+        }
+        currentController = navigator.serviceWorker.controller;
+      });
+
+    } catch (err) {
+      console.warn('Service Worker registration failed:', err);
+    }
   });
 }
 </script>
