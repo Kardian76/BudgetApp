@@ -438,6 +438,7 @@ const API = {
   init: "/api/budget/init",
   tx: "/api/budget/transactions",
   categories: "/api/budget/categories",
+  adjustNext: "/api/budget/adjust-next",
   reset: "/api/budget/reset",
   fixedExpenses: "/api/budget/fixed-expenses",
   fixedPaid:     "/api/budget/fixed-paid",
@@ -722,6 +723,23 @@ async function postCategories(token, payload){
     if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
     const t = await safeText(resp);
     throw new Error(`Categories failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function postAdjustNext(token, budgets){
+  // budgets: [{ category_id, budget_cents }, ...]
+  // Updates category_budgets_next_items (the true default amounts)
+  const url = join(API.adjustNext);
+  const resp = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ budgets })
+  });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Adjust-next failed (${resp.status}): ${t || resp.statusText}`);
   }
   return { authFailed:false, result: await resp.json().catch(()=> ({})) };
 }
@@ -2288,81 +2306,73 @@ async function saveEditBudgets(){
     }
   }
 
-  // Only keep categories whose target budget actually differs from current
+  // Only keep categories whose new amount differs from their current default
   const cats = normalizeCategories(CURRENT_STATE);
   const changed = edits.filter(edit => {
     const cat = cats.find(c => c.category_id === edit.categoryId);
     if (!cat) return false;
-    const currentBudget = cat.default_budget_cents ?? (cat.spent_cents + cat.remaining_cents);
-    return edit.cents !== currentBudget;
+    const currentDefault = cat.default_budget_cents ?? (cat.spent_cents + cat.remaining_cents);
+    return edit.cents !== currentDefault;
   });
 
   if (changed.length === 0) {
-    return setStatus(settingsEditBudgetsStatus, "No changes to save — selected amounts match current budgets.", "ok");
+    return setStatus(settingsEditBudgetsStatus, "No changes to save — selected amounts match current defaults.", "ok");
   }
 
-  // Read the timing radio choice
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return setStatus(settingsEditBudgetsStatus, "Not authenticated.", "error");
+  const name = await idbGet(KEY_NAME);
   const applyNow = document.getElementById("budgetTimingNow")?.checked === true;
 
-  if (applyNow) {
-    // ── Immediate: post adjustment transactions right now ──────────────────
-    const token = await idbGet(KEY_TOKEN);
-    if (!token) return setStatus(settingsEditBudgetsStatus, "Not authenticated.", "error");
+  setStatus(settingsEditBudgetsStatus, "Saving…");
 
-    const name = await idbGet(KEY_NAME);
-    const items = [];
+  try {
+    // ── Always update the default (category_budgets_next_items) ─────────────
+    // This ensures the Budget column and Edit panel always show the user's
+    // chosen default, regardless of rollovers or overruns.
+    const budgetPayload = changed.map(edit => ({
+      category_id: edit.categoryId,
+      budget_cents: edit.cents
+    }));
+    const adjRes = await postAdjustNext(token, budgetPayload);
+    if (adjRes.authFailed) return setStatus(settingsEditBudgetsStatus, "Authentication failed.", "error");
+    // Update state so Budget column refreshes immediately
+    CURRENT_STATE = adjRes.result || CURRENT_STATE;
+    await renderDashboard(CURRENT_STATE);
 
-    for (const edit of changed) {
-      const cat = cats.find(c => c.category_id === edit.categoryId);
-      if (!cat) continue;
-      // Use actual current period budget (spent+remaining) for delta so
-      // the transaction correctly adjusts what's available right now.
-      const currentBudget = cat.spent_cents + cat.remaining_cents;
-      const delta = edit.cents - currentBudget;
-      if (delta === 0) continue;
-      items.push({
-        category_id: edit.categoryId,
-        amount_cents: Math.abs(delta),
-        is_credit: delta > 0,
-        note: "Budget adjustment: " + (delta > 0 ? "+" : "") + (delta / 100).toFixed(2) + " (applied immediately)"
-      });
+    if (applyNow) {
+      // ── Also apply a transaction for the current-period delta ────────────
+      const items = [];
+      for (const edit of changed) {
+        const cat = cats.find(c => c.category_id === edit.categoryId);
+        if (!cat) continue;
+        // Delta is relative to what's currently available this period
+        const currentPeriodBudget = cat.spent_cents + cat.remaining_cents;
+        const delta = edit.cents - currentPeriodBudget;
+        if (delta === 0) continue;
+        items.push({
+          category_id: edit.categoryId,
+          amount_cents: Math.abs(delta),
+          is_credit: delta > 0,
+          note: "Budget adjustment: " + (delta > 0 ? "+" : "") + (delta / 100).toFixed(2) + " (applied immediately)"
+        });
+      }
+
+      if (items.length > 0) {
+        const txRes = await postTransaction(token, { created_by_label: name || "Budget", items });
+        if (txRes.authFailed) return setStatus(settingsEditBudgetsStatus, "Authentication failed.", "error");
+        CURRENT_STATE = txRes.result || CURRENT_STATE;
+        await renderDashboard(CURRENT_STATE);
+      }
+
+      setStatus(settingsEditBudgetsStatus, "Done — default and current period updated.", "ok");
+    } else {
+      setStatus(settingsEditBudgetsStatus, "Saved. Default budget updated; takes full effect next period.", "ok");
     }
 
-    if (items.length === 0) {
-      return setStatus(settingsEditBudgetsStatus, "No changes to apply.", "ok");
-    }
-
-    setStatus(settingsEditBudgetsStatus, "Saving…");
-    try {
-      const res = await postTransaction(token, { created_by_label: name || "Budget", items });
-      if (res.authFailed) return setStatus(settingsEditBudgetsStatus, "Authentication failed.", "error");
-      CURRENT_STATE = res.result || CURRENT_STATE;
-      await renderDashboard(CURRENT_STATE);
-      setStatus(settingsEditBudgetsStatus, "Done — budget updated immediately.", "ok");
-      setTimeout(() => { hide(settingsEditBudgetsPanel); setStatus(settingsEditBudgetsStatus, ""); }, 2200);
-    } catch (e) {
-      setStatus(settingsEditBudgetsStatus, e?.message || String(e), "error");
-    }
-
-  } else {
-    // ── Next period: merge into pending-budgets map in IndexedDB ──────────
-    let pending = {};
-    try {
-      const stored = await idbGet(KEY_PENDING_BUDGETS);
-      if (stored && typeof stored === "object") pending = stored;
-    } catch { /* first time */ }
-
-    for (const edit of changed) {
-      pending[String(edit.categoryId)] = edit.cents;
-    }
-
-    try {
-      await idbSet(KEY_PENDING_BUDGETS, pending);
-      setStatus(settingsEditBudgetsStatus, "Saved. Changes will take effect at the start of the next budget period.", "ok");
-      setTimeout(() => { hide(settingsEditBudgetsPanel); setStatus(settingsEditBudgetsStatus, ""); }, 2200);
-    } catch (e) {
-      setStatus(settingsEditBudgetsStatus, e?.message || String(e), "error");
-    }
+    setTimeout(() => { hide(settingsEditBudgetsPanel); setStatus(settingsEditBudgetsStatus, ""); }, 2400);
+  } catch (e) {
+    setStatus(settingsEditBudgetsStatus, e?.message || String(e), "error");
   }
 }
 
@@ -2492,11 +2502,13 @@ function renderExistingCatsList(){
       wrap.style.opacity = "0.4";
       wrap.dataset.markedForRemoval = "1";
       removeBtn.textContent = "Undo";
+      removeBtn.className = "";  // primary button style — matches Save Changes
       removeBtn.style.cssText = "flex-shrink:0;";
       removeBtn.addEventListener("click", () => {
         wrap.style.opacity = "1";
         delete wrap.dataset.markedForRemoval;
         removeBtn.textContent = "Remove";
+        removeBtn.className = "secondary";
         removeBtn.style.cssText = "flex-shrink:0;background:rgba(220,53,69,0.08);color:var(--danger);border-color:rgba(220,53,69,0.3);";
       }, { once: true });
     }, { once: true });
@@ -2626,7 +2638,7 @@ async function saveAddedCategories(){
 
   const payload = {
     add: rows.map(r => ({ name: r.name, budget_cents: r.cents })),
-    remove: removeIds,
+    remove: removeIds.map(id => ({ category_id: id })),  // worker expects objects
   };
 
   setStatus(settingsAddCatsStatus, "Saving…");
