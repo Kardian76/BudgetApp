@@ -360,7 +360,7 @@ async function deleteDebt(id) {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const reg = await navigator.serviceWorker.register('/service-worker.js');
+      const reg = await navigator.serviceWorker.register('/snowball-sw.js');
       console.log('✅ Service Worker registered:', reg.scope);
       
       reg.addEventListener('updatefound', () => {
