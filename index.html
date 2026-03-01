@@ -2502,14 +2502,16 @@ function renderExistingCatsList(){
       wrap.style.opacity = "0.4";
       wrap.dataset.markedForRemoval = "1";
       removeBtn.textContent = "Undo";
-      removeBtn.className = "";  // primary button style — matches Save Changes
-      removeBtn.style.cssText = "flex-shrink:0;";
+      removeBtn.className = "";
+      // Explicitly apply primary button appearance (inline style was already set
+      // for the red Remove state, so class alone won't override it — set it directly)
+      removeBtn.style.cssText = "flex-shrink:0;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:0;";
       removeBtn.addEventListener("click", () => {
         wrap.style.opacity = "1";
         delete wrap.dataset.markedForRemoval;
         removeBtn.textContent = "Remove";
         removeBtn.className = "secondary";
-        removeBtn.style.cssText = "flex-shrink:0;background:rgba(220,53,69,0.08);color:var(--danger);border-color:rgba(220,53,69,0.3);";
+        removeBtn.style.cssText = "flex-shrink:0;background:rgba(220,53,69,0.08);color:var(--danger);border-color:rgba(220,53,69,0.3);border-width:1px;border-style:solid;";
       }, { once: true });
     }, { once: true });
 
