@@ -293,8 +293,23 @@ td.center, th.center{text-align:center}
         
         <div id="settingsEditBudgetsPanel" class="subcard hidden">
           <div class="status" style="margin-top:0;">
-            Adjust the budget amounts for your categories. Changes take effect at the start of the next period.
+            Check the categories you want to change, enter new amounts, then choose when to apply.
           </div>
+
+          <div style="margin-top:10px;">
+            <label style="font-size:13px;font-weight:600;color:var(--text);margin-top:0;margin-bottom:6px;display:block;">When to apply</label>
+            <div style="display:flex;gap:18px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:14px;margin-top:0;cursor:pointer;">
+                <input type="radio" name="budgetTiming" id="budgetTimingNext" value="next" checked />
+                Next period
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:14px;margin-top:0;cursor:pointer;">
+                <input type="radio" name="budgetTiming" id="budgetTimingNow" value="now" />
+                Immediately
+              </label>
+            </div>
+          </div>
+
           <div id="settingsEditBudgetsList"></div>
           <div class="row">
             <button id="settingsSaveEditBudgetsBtn" type="button">Save Changes</button>
@@ -2180,30 +2195,42 @@ function renderEditBudgetsList(cats){
 
   for (const c of cats){
     const currentBudget = (c.spent_cents + c.remaining_cents) / 100;
-    
+
     const wrap = document.createElement("div");
     wrap.className = "row";
-    wrap.style.marginTop = "10px";
+    wrap.style.cssText = "margin-top:10px;align-items:center;";
     wrap.dataset.categoryId = String(c.category_id);
-    
+
+    // Checkbox — only rows with this checked are included when saving
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.className = "editBudgetCheck";
+    cb.style.cssText = "width:18px;height:18px;flex-shrink:0;cursor:pointer;";
+
     const label = document.createElement("label");
     label.textContent = c.name;
-    label.style.flex = "1";
-    label.style.alignSelf = "center";
-    label.style.marginTop = "0";
+    label.style.cssText = "flex:1;align-self:center;margin-top:0;cursor:pointer;";
+    label.addEventListener("click", () => { cb.checked = !cb.checked; input.disabled = !cb.checked; });
 
     const input = document.createElement("input");
     input.className = "editBudgetInput";
     input.placeholder = "$0.00";
     input.value = currentBudget.toFixed(2);
     input.inputMode = "decimal";
-    input.style.flex = "1";
-    
-    input.addEventListener("blur", () => { 
-      input.value = validateAndFixCommas(input.value);
-      input.value = normalizeMoneyDisplay(input.value); 
+    input.style.cssText = "flex:1;";
+    input.disabled = true; // enabled only when row is checked
+
+    cb.addEventListener("change", () => {
+      input.disabled = !cb.checked;
+      if (cb.checked) input.focus();
     });
 
+    input.addEventListener("blur", () => {
+      input.value = validateAndFixCommas(input.value);
+      input.value = normalizeMoneyDisplay(input.value);
+    });
+
+    wrap.appendChild(cb);
     wrap.appendChild(label);
     wrap.appendChild(input);
     settingsEditBudgetsList.appendChild(wrap);
@@ -2212,13 +2239,15 @@ function renderEditBudgetsList(cats){
 
 function readEditBudgets(){
   const rows = Array.from(settingsEditBudgetsList.querySelectorAll(".row"));
-  return rows.map(r => {
-    const categoryId = Number(r.dataset.categoryId);
-    const input = r.querySelector(".editBudgetInput");
-    const value = input?.value || "";
-    const cents = dollarsToCentsFromInput(value);
-    return { categoryId, cents };
-  }).filter(x => Number.isFinite(x.categoryId) && x.categoryId > 0);
+  return rows
+    .filter(r => r.querySelector(".editBudgetCheck")?.checked) // only selected rows
+    .map(r => {
+      const categoryId = Number(r.dataset.categoryId);
+      const input = r.querySelector(".editBudgetInput");
+      const value = input?.value || "";
+      const cents = dollarsToCentsFromInput(value);
+      return { categoryId, cents };
+    }).filter(x => Number.isFinite(x.categoryId) && x.categoryId > 0);
 }
 
 /* ---- Pending-budget keys (IndexedDB) ---- */
@@ -2231,11 +2260,11 @@ const KEY_FP_CACHE  = "fpCache";   // { [period_key]: [id,...] } — local cache
 
 async function saveEditBudgets(){
   const edits = readEditBudgets();
-  if (!edits.length) return setStatus(settingsEditBudgetsStatus, "No budgets to save.", "error");
+  if (!edits.length) return setStatus(settingsEditBudgetsStatus, "Select at least one category to change.", "error");
 
   for (const edit of edits){
     if (edit.cents === null || edit.cents <= 0) {
-      return setStatus(settingsEditBudgetsStatus, "All budget amounts must be greater than $0.00", "error");
+      return setStatus(settingsEditBudgetsStatus, "All selected budget amounts must be greater than $0.00", "error");
     }
   }
 
@@ -2249,32 +2278,69 @@ async function saveEditBudgets(){
   });
 
   if (changed.length === 0) {
-    return setStatus(settingsEditBudgetsStatus, "No changes to save.", "ok");
+    return setStatus(settingsEditBudgetsStatus, "No changes to save — selected amounts match current budgets.", "ok");
   }
 
-  // Build the pending-changes map: { categoryId -> targetCents }
-  // Merge with any previously saved pending changes so nothing is lost.
-  let pending = {};
-  try {
-    const stored = await idbGet(KEY_PENDING_BUDGETS);
-    if (stored && typeof stored === "object") pending = stored;
-  } catch { /* first time */ }
+  // Read the timing radio choice
+  const applyNow = document.getElementById("budgetTimingNow")?.checked === true;
 
-  for (const edit of changed) {
-    pending[String(edit.categoryId)] = edit.cents;
-  }
+  if (applyNow) {
+    // ── Immediate: post adjustment transactions right now ──────────────────
+    const token = await idbGet(KEY_TOKEN);
+    if (!token) return setStatus(settingsEditBudgetsStatus, "Not authenticated.", "error");
 
-  // Persist to IndexedDB (no network call — changes apply next period)
-  try {
-    await idbSet(KEY_PENDING_BUDGETS, pending);
-    setStatus(settingsEditBudgetsStatus, "Saved. Changes will take effect at the start of the next budget period.", "ok");
+    const name = await idbGet(KEY_NAME);
+    const items = [];
 
-    setTimeout(() => {
-      hide(settingsEditBudgetsPanel);
-      setStatus(settingsEditBudgetsStatus, "");
-    }, 2200);
-  } catch (e) {
-    setStatus(settingsEditBudgetsStatus, e?.message || String(e), "error");
+    for (const edit of changed) {
+      const cat = cats.find(c => c.category_id === edit.categoryId);
+      if (!cat) continue;
+      const currentBudget = cat.spent_cents + cat.remaining_cents;
+      const delta = edit.cents - currentBudget;
+      if (delta === 0) continue;
+      items.push({
+        category_id: edit.categoryId,
+        amount_cents: Math.abs(delta),
+        is_credit: delta > 0,
+        note: "Budget adjustment: " + (delta > 0 ? "+" : "") + (delta / 100).toFixed(2) + " (applied immediately)"
+      });
+    }
+
+    if (items.length === 0) {
+      return setStatus(settingsEditBudgetsStatus, "No changes to apply.", "ok");
+    }
+
+    setStatus(settingsEditBudgetsStatus, "Saving…");
+    try {
+      const res = await postTransaction(token, { created_by_label: name || "Budget", items });
+      if (res.authFailed) return setStatus(settingsEditBudgetsStatus, "Authentication failed.", "error");
+      CURRENT_STATE = res.result || CURRENT_STATE;
+      await renderDashboard(CURRENT_STATE);
+      setStatus(settingsEditBudgetsStatus, "Done — budget updated immediately.", "ok");
+      setTimeout(() => { hide(settingsEditBudgetsPanel); setStatus(settingsEditBudgetsStatus, ""); }, 2200);
+    } catch (e) {
+      setStatus(settingsEditBudgetsStatus, e?.message || String(e), "error");
+    }
+
+  } else {
+    // ── Next period: merge into pending-budgets map in IndexedDB ──────────
+    let pending = {};
+    try {
+      const stored = await idbGet(KEY_PENDING_BUDGETS);
+      if (stored && typeof stored === "object") pending = stored;
+    } catch { /* first time */ }
+
+    for (const edit of changed) {
+      pending[String(edit.categoryId)] = edit.cents;
+    }
+
+    try {
+      await idbSet(KEY_PENDING_BUDGETS, pending);
+      setStatus(settingsEditBudgetsStatus, "Saved. Changes will take effect at the start of the next budget period.", "ok");
+      setTimeout(() => { hide(settingsEditBudgetsPanel); setStatus(settingsEditBudgetsStatus, ""); }, 2200);
+    } catch (e) {
+      setStatus(settingsEditBudgetsStatus, e?.message || String(e), "error");
+    }
   }
 }
 
