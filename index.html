@@ -1825,7 +1825,8 @@ async function openFixedExpensesPanel(){
   const existing = await loadFixedExpenses();
   settingsFixedExpensesList.innerHTML = "";
   if (existing.length > 0) {
-    existing.forEach(fx => addSettingsFixedRow(fx.id, fx.name, (fx.amount_cents/100).toFixed(2), fx.due_day));
+    const sorted = [...existing].sort((a, b) => a.due_day - b.due_day);
+    sorted.forEach(fx => addSettingsFixedRow(fx.id, fx.name, (fx.amount_cents/100).toFixed(2), fx.due_day));
   } else {
     addSettingsFixedRow(genFixedId(), "", "", "");
   }
@@ -2499,15 +2500,17 @@ function renderExistingCatsList(){
     removeBtn.style.cssText = "flex-shrink:0;background:rgba(220,53,69,0.08);color:var(--danger);border-color:rgba(220,53,69,0.3);";
     removeBtn.textContent = "Remove";
     removeBtn.addEventListener("click", () => {
-      wrap.style.opacity = "0.4";
+      // Dim only the text content, not the whole row, so the Undo button stays
+      // clearly visible and doesn't look disabled
+      row1.style.opacity = "0.35";
+      budgetLabel.style.opacity = "0.35";
       wrap.dataset.markedForRemoval = "1";
       removeBtn.textContent = "Undo";
       removeBtn.className = "";
-      // Explicitly apply primary button appearance (inline style was already set
-      // for the red Remove state, so class alone won't override it — set it directly)
       removeBtn.style.cssText = "flex-shrink:0;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:0;";
       removeBtn.addEventListener("click", () => {
-        wrap.style.opacity = "1";
+        row1.style.opacity = "1";
+        budgetLabel.style.opacity = "1";
         delete wrap.dataset.markedForRemoval;
         removeBtn.textContent = "Remove";
         removeBtn.className = "secondary";
