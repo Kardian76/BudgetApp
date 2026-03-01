@@ -1783,7 +1783,7 @@ async function openFixedExpensesPanel(){
 function addSettingsFixedRow(id, name = "", amount = "", due_day = ""){
   const wrap = document.createElement("div");
   wrap.dataset.fixedId = String(id || genFixedId());
-  wrap.style.cssText = "margin-top:0;padding-top:14px;padding-bottom:14px;border-top:1px solid var(--border);";
+  wrap.style.cssText = "margin-top:0;padding-top:14px;padding-bottom:14px;border-top:1px solid #9aa0a6;";
 
   // Row 1: bill name full width
   const row1 = document.createElement("div");
