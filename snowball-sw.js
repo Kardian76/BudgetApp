@@ -2,11 +2,11 @@
 const CACHE_NAME = 'debt-snowball-v1';
 const urlsToCache = [
   '/',
-  '/index.html',
-  '/app.js',
-  '/manifest.json',
-  '/icon-128.png',
-  '/icon-512.png',
+  '/snowball.html',
+  '/snowball-app.js',
+  '/snowball-manifest.json',
+  '/snowball-icon-128.png',
+  '/snowball-icon-512.png',
   'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600&display=swap'
 ];
 
