@@ -7,12 +7,12 @@ self.addEventListener('fetch', event => {
 const VERSION = 'v8'; // Bump this on every deploy
 const STATIC_CACHE = `static-${VERSION}`;
 const APP_SHELL = [
-  '/',
-  '/snowball.html',
-  '/snowball-app.js',
-  '/snowball-manifest.json',
-  '/snowball-icon-128.png',
-  '/snowball-icon-512.png'
+  '/BudgetApp/',
+  '/BudgetApp/snowball.html',
+  '/BudgetApp/snowball-app.js',
+  '/BudgetApp/snowball-manifest.json',
+  '/BudgetApp/snowball-icon-128.png',
+  '/BudgetApp/snowball-icon-512.png'
 ];
 
 // ===== INSTALL =====
@@ -59,7 +59,7 @@ async function networkFirst(request) {
     if (cached) return cached;
 
     if (request.mode === 'navigate') {
-      return caches.match('/snowball.html');
+      return caches.match('/BudgetApp/snowball.html');
     }
 
     return new Response('Offline', { status: 503 });
