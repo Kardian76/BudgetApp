@@ -48,14 +48,31 @@ button {
   color: white;
   border: none;
   cursor: pointer;
+  border-radius: 4px;
+}
+
+button:hover {
+  background: #1d4ed8;
 }
 
 button.danger {
   background: #dc2626;
 }
 
+button.danger:hover {
+  background: #b91c1c;
+}
+
 .offline {
   background: #fbbf24;
+  padding: 0.5rem;
+  text-align: center;
+  display: none;
+}
+
+.status {
+  background: #10b981;
+  color: white;
   padding: 0.5rem;
   text-align: center;
   display: none;
@@ -70,78 +87,115 @@ button.danger {
 </header>
 
 <div class="offline" id="offlineBanner">
-  Offline Mode – Changes will sync when reconnected
+  ⚠️ Offline Mode – Changes will sync when reconnected
 </div>
+
+<div class="status" id="statusBanner"></div>
 
 <div class="container">
 
   <div class="card">
     <h2>Add Debt</h2>
-    <input id="name" placeholder="Debt Name">
-    <input id="originalBalance" type="number" placeholder="Original Balance">
-    <input id="currentBalance" type="number" placeholder="Current Balance">
-    <input id="interestRate" type="number" placeholder="Interest Rate (%)">
-    <input id="minimumPayment" type="number" placeholder="Minimum Payment">
+    <input id="name" placeholder="Debt Name" required>
+    <input id="originalBalance" type="number" placeholder="Original Balance" step="0.01" required>
+    <input id="currentBalance" type="number" placeholder="Current Balance" step="0.01" required>
+    <input id="interestRate" type="number" placeholder="Interest Rate (%)" step="0.01" required>
+    <input id="minimumPayment" type="number" placeholder="Minimum Payment" step="0.01" required>
     <button onclick="addDebt()">Add Debt</button>
   </div>
 
   <div class="card">
     <h2>Your Debts</h2>
-    <div id="debtList"></div>
+    <div id="debtList">Loading...</div>
   </div>
 
 </div>
 
 <script>
 // =============================
-// CONFIG
+// CONFIG - CHANGE THIS URL!
 // =============================
-const API_BASE = '/api';
-const AUTH_TOKEN = localStorage.getItem('snowball_token') || '';
+const WORKER_URL = 'https://purrfect-snowball.kardian.workers.dev';
+const API_BASE = `${WORKER_URL}/api`;
+
+// Get or prompt for token
+let AUTH_TOKEN = localStorage.getItem('snowball_token');
 
 if (!AUTH_TOKEN) {
-  const token = prompt("Enter Shared Access Token:");
+  const token = prompt("Enter Shared Access Token (leave blank if none set):");
   if (token) {
     localStorage.setItem('snowball_token', token);
-    location.reload();
+    AUTH_TOKEN = token;
   }
 }
 
 // =============================
-// NETWORK STATUS
+// STATUS HELPERS
 // =============================
-function updateOnlineStatus() {
-  document.getElementById('offlineBanner').style.display =
-    navigator.onLine ? 'none' : 'block';
+function showStatus(message, isError = false) {
+  const banner = document.getElementById('statusBanner');
+  banner.textContent = message;
+  banner.style.display = 'block';
+  banner.style.background = isError ? '#ef4444' : '#10b981';
+  
+  setTimeout(() => {
+    banner.style.display = 'none';
+  }, 3000);
 }
+
+function updateOnlineStatus() {
+  const isOnline = navigator.onLine;
+  document.getElementById('offlineBanner').style.display =
+    isOnline ? 'none' : 'block';
+}
+
 window.addEventListener('online', updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
 updateOnlineStatus();
 
 // =============================
-// API HELPER (Network First)
+// API HELPER
 // =============================
 async function apiRequest(endpoint, options = {}) {
   const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${localStorage.getItem('snowball_token')}`
+    'Content-Type': 'application/json'
   };
+  
+  if (AUTH_TOKEN) {
+    headers['Authorization'] = `Bearer ${AUTH_TOKEN}`;
+  }
 
   try {
+    console.log(`Fetching: ${API_BASE}${endpoint}`);
+    
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
-      headers
+      headers: { ...headers, ...options.headers }
     });
 
+    console.log(`Response status: ${response.status}`);
+
     if (!response.ok) {
-      throw new Error(await response.text());
+      const errorText = await response.text();
+      throw new Error(errorText || `HTTP ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    return data;
 
   } catch (err) {
     console.error('API Error:', err);
-    alert("Network error. If offline, changes cannot be saved.");
+    
+    if (!navigator.onLine) {
+      showStatus("You're offline. Changes cannot be saved.", true);
+    } else if (err.message.includes('Authentication') || err.message.includes('Invalid')) {
+      showStatus("Authentication failed. Check your token.", true);
+      localStorage.removeItem('snowball_token');
+      setTimeout(() => location.reload(), 2000);
+    } else {
+      showStatus(`Error: ${err.message}`, true);
+    }
+    
     throw err;
   }
 }
@@ -151,10 +205,17 @@ async function apiRequest(endpoint, options = {}) {
 // =============================
 async function loadDebts() {
   try {
+    console.log('Loading debts...');
     const debts = await apiRequest('/debts', { method: 'GET' });
-    renderDebts(debts);
-  } catch {
-    console.warn("Offline or API unavailable.");
+    console.log('Debts loaded:', debts);
+    
+    renderDebts(debts || []);
+    document.getElementById('offlineBanner').style.display = 'none';
+    
+  } catch (err) {
+    console.error("Failed to load debts:", err);
+    document.getElementById('debtList').innerHTML = 
+      '<p style="color: #dc2626;">Failed to load debts. Check console for errors.</p>';
   }
 }
 
@@ -163,75 +224,110 @@ async function loadDebts() {
 // =============================
 function renderDebts(debts) {
   const container = document.getElementById('debtList');
+  
+  if (!debts || debts.length === 0) {
+    container.innerHTML = '<p style="color: #6b7280;">No debts yet. Add one above!</p>';
+    return;
+  }
+  
   container.innerHTML = '';
 
   debts.forEach(debt => {
     const div = document.createElement('div');
-    div.className = 'card';
+    div.style.cssText = 'border-top: 1px solid #e5e7eb; padding-top: 1rem; margin-top: 1rem;';
     div.innerHTML = `
-      <strong>${debt.name}</strong><br>
-      Balance: $${debt.current_balance}<br>
-      Interest: ${debt.interest_rate}%<br>
-      Minimum: $${debt.minimum_payment}<br>
-      <button onclick="deleteDebt('${debt.id}')" class="danger">Delete</button>
+      <strong style="font-size: 1.1rem;">${escapeHtml(debt.name)}</strong><br>
+      <div style="margin: 0.5rem 0; color: #4b5563;">
+        Original: <strong>$${Number(debt.original_balance || 0).toFixed(2)}</strong><br>
+        Balance: <strong>$${Number(debt.current_balance || 0).toFixed(2)}</strong><br>
+        Interest: <strong>${Number(debt.interest_rate || 0).toFixed(2)}%</strong><br>
+        Minimum: <strong>$${Number(debt.minimum_payment || 0).toFixed(2)}</strong>
+      </div>
+      <button onclick="deleteDebt('${debt.id}')" class="danger" style="width: auto; padding: 0.5rem 1rem;">Delete</button>
     `;
     container.appendChild(div);
   });
 }
 
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 // =============================
-// ADD
+// ADD DEBT
 // =============================
 async function addDebt() {
+  const name = document.getElementById('name').value.trim();
+  const originalBalance = parseFloat(document.getElementById('originalBalance').value);
+  const currentBalance = parseFloat(document.getElementById('currentBalance').value);
+  const interestRate = parseFloat(document.getElementById('interestRate').value);
+  const minimumPayment = parseFloat(document.getElementById('minimumPayment').value);
+
+  if (!name) {
+    showStatus('Please enter a debt name', true);
+    return;
+  }
+  
+  if (isNaN(originalBalance) || isNaN(currentBalance) || 
+      isNaN(interestRate) || isNaN(minimumPayment)) {
+    showStatus('Please fill in all numeric fields', true);
+    return;
+  }
+
   const debt = {
     id: crypto.randomUUID(),
-    name: document.getElementById('name').value,
-    originalBalance: parseFloat(document.getElementById('originalBalance').value),
-    currentBalance: parseFloat(document.getElementById('currentBalance').value),
-    interestRate: parseFloat(document.getElementById('interestRate').value),
-    minimumPayment: parseFloat(document.getElementById('minimumPayment').value),
+    name,
+    originalBalance,
+    currentBalance,
+    interestRate,
+    minimumPayment,
     customOrder: 999
   };
 
-  await apiRequest('/debts', {
-    method: 'POST',
-    body: JSON.stringify(debt)
-  });
+  try {
+    await apiRequest('/debts', {
+      method: 'POST',
+      body: JSON.stringify(debt)
+    });
 
-  loadDebts();
+    // Clear form
+    document.getElementById('name').value = '';
+    document.getElementById('originalBalance').value = '';
+    document.getElementById('currentBalance').value = '';
+    document.getElementById('interestRate').value = '';
+    document.getElementById('minimumPayment').value = '';
+
+    showStatus('Debt added successfully!');
+    await loadDebts();
+    
+  } catch (err) {
+    console.error('Failed to add debt:', err);
+  }
 }
 
 // =============================
-// DELETE
+// DELETE DEBT
 // =============================
 async function deleteDebt(id) {
-  await apiRequest(`/debts?id=${id}`, {
-    method: 'DELETE'
-  });
+  if (!confirm('Delete this debt?')) return;
 
-  loadDebts();
+  try {
+    await apiRequest(`/debts?id=${id}`, {
+      method: 'DELETE'
+    });
+
+    showStatus('Debt deleted');
+    await loadDebts();
+    
+  } catch (err) {
+    console.error('Failed to delete debt:', err);
+  }
 }
 
 // =============================
-// SERVICE WORKER
-// =============================
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    const reg = await navigator.serviceWorker.register('/snowball-sw.js');
-    reg.update();
-
-    reg.onupdatefound = () => {
-      const newWorker = reg.installing;
-      newWorker.onstatechange = () => {
-        if (newWorker.state === 'installed' &&
-            navigator.serviceWorker.controller) {
-          location.reload();
-        }
-      };
-    };
-  });
-}
-
+// INITIAL LOAD
 // =============================
 loadDebts();
 </script>
