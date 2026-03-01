@@ -194,6 +194,7 @@ td.center, th.center{text-align:center}
             <thead>
               <tr>
                 <th>Category</th>
+                <th class="center">Budget</th>
                 <th class="center">Spent</th>
                 <th class="center">Remaining</th>
               </tr>
@@ -318,21 +319,24 @@ td.center, th.center{text-align:center}
           <div id="settingsEditBudgetsStatus" class="status"></div>
         </div>
 
-        <button id="settingsOpenAddCatsBtn" class="secondary" type="button">Add Categories</button>
+        <button id="settingsOpenAddCatsBtn" class="secondary" type="button">Add/Remove Budget Categories</button>
 
         <div id="settingsAddCatsPanel" class="subcard hidden">
           <div class="status" style="margin-top:0;">
-            Add one or more categories with their starting budget amounts.
+            Remove existing categories or add new ones with starting budget amounts.
           </div>
 
+          <div id="settingsExistingCatsList"></div>
+
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-top:16px;margin-bottom:2px;">Add new categories</div>
           <div id="settingsAddCatsList"></div>
 
-          <div class="row">
+          <div class="row" style="margin-top:10px;">
             <button id="settingsAddCatsRowBtn" class="secondary" type="button">Add Row</button>
           </div>
 
           <div class="row">
-            <button id="settingsSaveCatsBtn" type="button">Save Categories</button>
+            <button id="settingsSaveCatsBtn" type="button">Save Changes</button>
             <button id="settingsCancelCatsBtn" class="secondary" type="button">Cancel</button>
           </div>
 
@@ -1114,12 +1118,23 @@ saveTokenBtn.addEventListener("click", async () => {
 /* ================= CATEGORY ORDERING (UI ONLY) ================= */
 function normalizeCategories(state){
   const cats = Array.isArray(state?.categories) ? state.categories : [];
-  return cats.map(c => ({
-    category_id: Number(c.category_id),
-    name: String(c.name || ""),
-    spent_cents: Number(c.spent_cents) || 0,
-    remaining_cents: Number(c.remaining_cents) || 0
-  })).filter(c => Number.isFinite(c.category_id) && c.category_id > 0 && c.name);
+  // Build a lookup of default (next-period) budgets by category_id
+  const nextItems = Array.isArray(state?.next_budget_settings?.items)
+    ? state.next_budget_settings.items : [];
+  const defaultBudgetMap = new Map(nextItems.map(i => [Number(i.category_id), Number(i.budget_cents) || 0]));
+  return cats.map(c => {
+    const category_id = Number(c.category_id);
+    return {
+      category_id,
+      name: String(c.name || ""),
+      spent_cents: Number(c.spent_cents) || 0,
+      remaining_cents: Number(c.remaining_cents) || 0,
+      // Default budget = the amount set by the user, unaffected by rollovers/overruns
+      default_budget_cents: defaultBudgetMap.has(category_id)
+        ? defaultBudgetMap.get(category_id)
+        : Number(c.budget_cents) || 0,
+    };
+  }).filter(c => Number.isFinite(c.category_id) && c.category_id > 0 && c.name);
 }
 
 async function applyUiOrder(cats){
@@ -1184,6 +1199,10 @@ async function renderDashboard(state){
     const tdName = document.createElement("td");
     tdName.textContent = c.name;
 
+    const tdBudget = document.createElement("td");
+    tdBudget.className = "center";
+    tdBudget.textContent = fmtCents(c.default_budget_cents);
+
     const tdSpent = document.createElement("td");
     tdSpent.className = "center";
     tdSpent.textContent = fmtCents(c.spent_cents);
@@ -1194,6 +1213,7 @@ async function renderDashboard(state){
     if (c.remaining_cents < 0) tdRemaining.style.color = "var(--danger)";
 
     tr.appendChild(tdName);
+    tr.appendChild(tdBudget);
     tr.appendChild(tdSpent);
     tr.appendChild(tdRemaining);
     catTableBody.appendChild(tr);
@@ -2194,7 +2214,7 @@ function renderEditBudgetsList(cats){
   settingsEditBudgetsList.innerHTML = "";
 
   for (const c of cats){
-    const currentBudget = (c.spent_cents + c.remaining_cents) / 100;
+    const currentBudget = (c.default_budget_cents ?? (c.spent_cents + c.remaining_cents)) / 100;
 
     const wrap = document.createElement("div");
     wrap.className = "row";
@@ -2273,7 +2293,7 @@ async function saveEditBudgets(){
   const changed = edits.filter(edit => {
     const cat = cats.find(c => c.category_id === edit.categoryId);
     if (!cat) return false;
-    const currentBudget = cat.spent_cents + cat.remaining_cents;
+    const currentBudget = cat.default_budget_cents ?? (cat.spent_cents + cat.remaining_cents);
     return edit.cents !== currentBudget;
   });
 
@@ -2295,6 +2315,8 @@ async function saveEditBudgets(){
     for (const edit of changed) {
       const cat = cats.find(c => c.category_id === edit.categoryId);
       if (!cat) continue;
+      // Use actual current period budget (spent+remaining) for delta so
+      // the transaction correctly adjusts what's available right now.
       const currentBudget = cat.spent_cents + cat.remaining_cents;
       const delta = edit.cents - currentBudget;
       if (delta === 0) continue;
@@ -2402,7 +2424,7 @@ async function applyPendingBudgetChanges(state){
   }
 }
 
-/* ================= SETTINGS MODAL - ADD CATEGORIES FUNCTIONS ================= */
+/* ================= SETTINGS MODAL - ADD/REMOVE CATEGORIES FUNCTIONS ================= */
 function openAddCatsPanel(){
   // Toggle: if already visible, close it
   if (!settingsAddCatsPanel.classList.contains("hidden")) {
@@ -2420,32 +2442,105 @@ function openAddCatsPanel(){
 
   show(settingsAddCatsPanel);
   setStatus(settingsAddCatsStatus, "");
+
+  // Render existing categories with Remove buttons
+  renderExistingCatsList();
+
+  // Start with one blank new-category row
   settingsAddCatsList.innerHTML = "";
   addSettingsCatRow("", "");
 }
 
+function renderExistingCatsList(){
+  const list = $("settingsExistingCatsList");
+  if (!list) return;
+  list.innerHTML = "";
+
+  if (!CURRENT_STATE) return;
+  const cats = normalizeCategories(CURRENT_STATE);
+  if (!cats.length) {
+    list.innerHTML = `<div class="small" style="color:var(--muted);margin-top:6px;">No existing categories.</div>`;
+    return;
+  }
+
+  cats.forEach((c, idx) => {
+    const wrap = document.createElement("div");
+    wrap.dataset.removeCatId = String(c.category_id);
+    wrap.style.cssText = "padding-top:14px;padding-bottom:14px;border-top:1px solid #9aa0a6;";
+    if (idx === 0) { wrap.style.borderTop = "none"; wrap.style.paddingTop = "0"; }
+
+    // Row 1: category name full width
+    const row1 = document.createElement("div");
+    row1.style.cssText = "font-weight:600;font-size:14px;margin-bottom:8px;";
+    row1.textContent = c.name;
+
+    // Row 2: default budget amount + Remove button
+    const row2 = document.createElement("div");
+    row2.style.cssText = "display:flex;gap:10px;align-items:center;";
+
+    const budgetLabel = document.createElement("span");
+    budgetLabel.className = "small";
+    budgetLabel.style.flex = "1";
+    budgetLabel.textContent = "Default budget: " + fmtCents(c.default_budget_cents);
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "secondary";
+    removeBtn.style.cssText = "flex-shrink:0;background:rgba(220,53,69,0.08);color:var(--danger);border-color:rgba(220,53,69,0.3);";
+    removeBtn.textContent = "Remove";
+    removeBtn.addEventListener("click", () => {
+      wrap.style.opacity = "0.4";
+      wrap.dataset.markedForRemoval = "1";
+      removeBtn.textContent = "Undo";
+      removeBtn.style.cssText = "flex-shrink:0;";
+      removeBtn.addEventListener("click", () => {
+        wrap.style.opacity = "1";
+        delete wrap.dataset.markedForRemoval;
+        removeBtn.textContent = "Remove";
+        removeBtn.style.cssText = "flex-shrink:0;background:rgba(220,53,69,0.08);color:var(--danger);border-color:rgba(220,53,69,0.3);";
+      }, { once: true });
+    }, { once: true });
+
+    row2.appendChild(budgetLabel);
+    row2.appendChild(removeBtn);
+    wrap.appendChild(row1);
+    wrap.appendChild(row2);
+    list.appendChild(wrap);
+  });
+}
+
 function addSettingsCatRow(name = "", budget = ""){
   const wrap = document.createElement("div");
-  wrap.className = "row";
-  wrap.style.marginTop = "10px";
-  wrap.innerHTML = `
-    <input class="settingsCatName" placeholder="Category name" value="${String(name).replaceAll('"','&quot;')}" />
-    <input class="settingsCatBudget" placeholder="$0.00" value="${String(budget).replaceAll('"','&quot;')}" inputmode="decimal" />
-    <button type="button" class="secondary settingsRemoveCatBtn">Remove</button>
+  wrap.className = "newCatRow";
+  wrap.style.cssText = "margin-top:10px;";
+
+  // Row 1: category name full width
+  const row1 = document.createElement("div");
+  row1.style.cssText = "display:flex;gap:10px;margin-bottom:8px;";
+  row1.innerHTML = `<input class="settingsCatName" placeholder="Category name" value="${String(name).replaceAll('"','&quot;')}" style="flex:1;" />`;
+
+  // Row 2: amount + Remove button
+  const row2 = document.createElement("div");
+  row2.style.cssText = "display:flex;gap:10px;align-items:center;";
+  row2.innerHTML = `
+    <input class="settingsCatBudget" placeholder="$0.00" value="${String(budget).replaceAll('"','&quot;')}" inputmode="decimal" style="flex:1;" />
+    <button type="button" class="secondary settingsRemoveCatBtn" style="flex-shrink:0;">Remove</button>
   `;
-  
-  const budgetInput = wrap.querySelector(".settingsCatBudget");
-  budgetInput.addEventListener("blur", () => { 
+
+  const budgetInput = row2.querySelector(".settingsCatBudget");
+  budgetInput.addEventListener("blur", () => {
     budgetInput.value = validateAndFixCommas(budgetInput.value);
-    budgetInput.value = normalizeMoneyDisplay(budgetInput.value); 
+    budgetInput.value = normalizeMoneyDisplay(budgetInput.value);
   });
-  
-  wrap.querySelector(".settingsRemoveCatBtn").addEventListener("click", () => wrap.remove());
+
+  row2.querySelector(".settingsRemoveCatBtn").addEventListener("click", () => wrap.remove());
+  wrap.appendChild(row1);
+  wrap.appendChild(row2);
   settingsAddCatsList.appendChild(wrap);
 }
 
 function readSettingsAddCats(){
-  const rows = Array.from(settingsAddCatsList.querySelectorAll(".row"));
+  const rows = Array.from(settingsAddCatsList.querySelectorAll(".newCatRow"));
   return rows.map(r => {
     const name = (r.querySelector(".settingsCatName")?.value || "").trim();
     const money = (r.querySelector(".settingsCatBudget")?.value || "").trim();
@@ -2510,19 +2605,28 @@ async function saveAddedCategories(){
   const token = await idbGet(KEY_TOKEN);
   if (!token) return showAuth("Missing token. Please re-enter.", true);
 
-  const rows = readSettingsAddCats()
-    .filter(x => x.name || x.cents !== null);
+  // Collect category IDs marked for removal
+  const removeIds = Array.from(
+    ($("settingsExistingCatsList") || { querySelectorAll: () => [] })
+      .querySelectorAll("[data-marked-for-removal]")
+  ).map(el => Number(el.dataset.removeCatId)).filter(id => Number.isFinite(id) && id > 0);
 
-  if (!rows.length) return setStatus(settingsAddCatsStatus, "Add at least one category.", "error");
+  // Collect new categories (skip blank rows)
+  const rows = readSettingsAddCats().filter(x => x.name || x.cents !== null);
 
+  // Validate new rows
   for (const r of rows){
-    if (!r.name) return setStatus(settingsAddCatsStatus, "Each row needs a category name.", "error");
+    if (!r.name) return setStatus(settingsAddCatsStatus, "Each new category needs a name.", "error");
     if (r.cents === null) return setStatus(settingsAddCatsStatus, `Enter a valid budget for: ${r.name}`, "error");
   }
 
+  if (!rows.length && !removeIds.length) {
+    return setStatus(settingsAddCatsStatus, "No changes to save.", "ok");
+  }
+
   const payload = {
-    add: rows.map((r) => ({ name: r.name, budget_cents: r.cents })),
-    remove: []
+    add: rows.map(r => ({ name: r.name, budget_cents: r.cents })),
+    remove: removeIds,
   };
 
   setStatus(settingsAddCatsStatus, "Saving…");
@@ -2534,10 +2638,12 @@ async function saveAddedCategories(){
       return showAuth("Token invalid/expired. Please re-enter.", true);
     }
 
-    // budgets/categories changed => ensure UI order includes new IDs
     CURRENT_STATE = res.result || {};
     await renderDashboard(CURRENT_STATE);
     setStatus(settingsAddCatsStatus, "Saved.", "ok");
+
+    // Refresh the existing list and reset new-row inputs
+    renderExistingCatsList();
     settingsAddCatsList.innerHTML = "";
     addSettingsCatRow("", "");
   } catch (e) {
