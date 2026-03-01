@@ -4,7 +4,7 @@ self.addEventListener('fetch', event => {
 });
 
 // ===== VERSIONING =====
-const VERSION = 'v9'; // Bump this on every deploy
+const VERSION = 'v10'; // Bump this on every deploy
 const STATIC_CACHE = `static-${VERSION}`;
 const APP_SHELL = [
   '/BudgetApp/',
