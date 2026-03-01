@@ -1,757 +1,240 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0f172a">
-    <meta name="description" content="Debt Snowball Tracker - Pay down your debts systematically">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Debt Snowball">
-    
-    <title>Debt Snowball Tracker</title>
-    
-    <link rel="manifest" href="snowball-manifest.json">
-    <link rel="icon" type="image/png" sizes="128x128" href="icon-128.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
-    <link rel="apple-touch-icon" href="icon-512.png">
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-tertiary: #334155;
-            --accent-primary: #10b981;
-            --accent-secondary: #3b82f6;
-            --accent-danger: #ef4444;
-            --text-primary: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --text-muted: #64748b;
-            --border: #475569;
-            --shadow: rgba(0, 0, 0, 0.3);
-        }
-
-        body {
-            font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            -webkit-font-smoothing: antialiased;
-            overflow-x: hidden;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 0 16px 100px;
-        }
-
-        header {
-            position: sticky;
-            top: 0;
-            background: var(--bg-primary);
-            border-bottom: 2px solid var(--accent-primary);
-            padding: 20px 16px;
-            z-index: 100;
-            backdrop-filter: blur(10px);
-        }
-
-        .header-content {
-            max-width: 800px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        h1 {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 2rem;
-            letter-spacing: 2px;
-            color: var(--accent-primary);
-            text-transform: uppercase;
-        }
-
-        .settings-btn {
-            background: transparent;
-            border: 2px solid var(--accent-primary);
-            color: var(--accent-primary);
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: 'Bebas Neue', sans-serif;
-            letter-spacing: 1px;
-            font-size: 1rem;
-        }
-
-        .settings-btn:hover {
-            background: var(--accent-primary);
-            color: var(--bg-primary);
-            transform: translateY(-2px);
-        }
-
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 16px;
-            margin: 24px 0;
-        }
-
-        .summary-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px;
-            text-align: center;
-            transition: transform 0.2s;
-        }
-
-        .summary-card:hover {
-            transform: translateY(-2px);
-        }
-
-        .summary-label {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-            margin-bottom: 8px;
-            font-weight: 600;
-        }
-
-        .summary-value {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 1.75rem;
-            color: var(--accent-primary);
-            letter-spacing: 1px;
-        }
-
-        .priority-selector {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 24px;
-        }
-
-        .priority-label {
-            font-size: 0.875rem;
-            font-weight: 600;
-            margin-bottom: 12px;
-            color: var(--text-secondary);
-        }
-
-        .priority-buttons {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .priority-btn {
-            flex: 1;
-            min-width: 80px;
-            padding: 10px 16px;
-            background: var(--bg-tertiary);
-            border: 2px solid transparent;
-            color: var(--text-secondary);
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-        }
-
-        .priority-btn.active {
-            background: var(--accent-primary);
-            color: var(--bg-primary);
-            border-color: var(--accent-primary);
-        }
-
-        .extra-payment-section {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 24px;
-        }
-
-        .extra-payment-input {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 12px;
-        }
-
-        .input-group {
-            flex: 1;
-        }
-
-        .input-group label {
-            display: block;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-            margin-bottom: 6px;
-            font-weight: 600;
-        }
-
-        .input-group input,
-        .input-group select {
-            width: 100%;
-            padding: 12px;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            color: var(--text-primary);
-            font-size: 1rem;
-            font-family: inherit;
-        }
-
-        .input-group input:focus,
-        .input-group select:focus {
-            outline: none;
-            border-color: var(--accent-primary);
-        }
-
-        .apply-payment-btn {
-            background: var(--accent-primary);
-            color: var(--bg-primary);
-            border: none;
-            padding: 12px 24px;
-            border-radius: 4px;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: 'Bebas Neue', sans-serif;
-            letter-spacing: 1px;
-            font-size: 1.1rem;
-            transition: all 0.2s;
-            width: 100%;
-        }
-
-        .apply-payment-btn:hover {
-            background: #059669;
-            transform: translateY(-2px);
-        }
-
-        .debt-list {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .debt-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-left: 4px solid var(--accent-secondary);
-            border-radius: 8px;
-            padding: 20px;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .debt-card.priority-1 {
-            border-left-color: var(--accent-primary);
-            border-left-width: 6px;
-        }
-
-        .debt-card:hover {
-            transform: translateX(4px);
-            box-shadow: 0 4px 12px var(--shadow);
-        }
-
-        .debt-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 16px;
-        }
-
-        .debt-name {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 1.5rem;
-            letter-spacing: 1px;
-            color: var(--text-primary);
-        }
-
-        .debt-priority {
-            background: var(--accent-primary);
-            color: var(--bg-primary);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            letter-spacing: 1px;
-        }
-
-        .debt-card.priority-1 .debt-priority {
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        .debt-stats {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .debt-stat {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .debt-stat-label {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-            margin-bottom: 4px;
-        }
-
-        .debt-stat-value {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--text-secondary);
-        }
-
-        .debt-progress {
-            margin-top: 12px;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: var(--bg-tertiary);
-            border-radius: 4px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
-            border-radius: 4px;
-            transition: width 0.5s ease;
-        }
-
-        .progress-text {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            margin-top: 6px;
-            text-align: right;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-        }
-
-        .empty-state-icon {
-            font-size: 4rem;
-            margin-bottom: 16px;
-            opacity: 0.3;
-        }
-
-        .empty-state-text {
-            color: var(--text-muted);
-            font-size: 1.1rem;
-        }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
-            animation: fadeIn 0.2s;
-        }
-
-        .modal.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .modal-content {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            width: 90%;
-            max-width: 600px;
-            max-height: 90vh;
-            overflow-y: auto;
-            animation: slideUp 0.3s;
-        }
-
-        @keyframes slideUp {
-            from { transform: translateY(50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        .modal-header {
-            padding: 24px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            background: var(--bg-secondary);
-            z-index: 10;
-        }
-
-        .modal-title {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 1.75rem;
-            letter-spacing: 2px;
-            color: var(--accent-primary);
-        }
-
-        .close-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 4px 8px;
-            transition: color 0.2s;
-        }
-
-        .close-btn:hover {
-            color: var(--text-primary);
-        }
-
-        .modal-body {
-            padding: 24px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: var(--text-secondary);
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            color: var(--text-primary);
-            font-size: 1rem;
-            font-family: inherit;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: var(--accent-primary);
-        }
-
-        .btn-primary {
-            background: var(--accent-primary);
-            color: var(--bg-primary);
-            border: none;
-            padding: 14px 28px;
-            border-radius: 4px;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: 'Bebas Neue', sans-serif;
-            letter-spacing: 1px;
-            font-size: 1.1rem;
-            width: 100%;
-            transition: all 0.2s;
-        }
-
-        .btn-primary:hover {
-            background: #059669;
-            transform: translateY(-2px);
-        }
-
-        .debt-item {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .debt-item-info {
-            flex: 1;
-        }
-
-        .debt-item-name {
-            font-weight: 600;
-            font-size: 1.1rem;
-            margin-bottom: 4px;
-        }
-
-        .debt-item-details {
-            font-size: 0.875rem;
-            color: var(--text-muted);
-        }
-
-        .btn-danger {
-            background: var(--accent-danger);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.2s;
-        }
-
-        .btn-danger:hover {
-            background: #dc2626;
-        }
-
-        .add-debt-btn {
-            background: transparent;
-            border: 2px dashed var(--border);
-            color: var(--text-muted);
-            padding: 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            width: 100%;
-            font-size: 1rem;
-            transition: all 0.2s;
-        }
-
-        .add-debt-btn:hover {
-            border-color: var(--accent-primary);
-            color: var(--accent-primary);
-        }
-
-        /* Toast Notification */
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--accent-primary);
-            color: var(--bg-primary);
-            padding: 16px 24px;
-            border-radius: 8px;
-            font-weight: 600;
-            box-shadow: 0 4px 12px var(--shadow);
-            z-index: 2000;
-            animation: slideUpToast 0.3s;
-            display: none;
-        }
-
-        .toast.active {
-            display: block;
-        }
-
-        @keyframes slideUpToast {
-            from { transform: translate(-50%, 50px); opacity: 0; }
-            to { transform: translate(-50%, 0); opacity: 1; }
-        }
-
-        /* Custom Order Drag Styles */
-        .debt-item.dragging {
-            opacity: 0.5;
-        }
-
-        .debt-item.drag-over {
-            border-color: var(--accent-primary);
-        }
-
-        @media (max-width: 640px) {
-            h1 {
-                font-size: 1.5rem;
-            }
-
-            .summary-cards {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .debt-stats {
-                grid-template-columns: 1fr;
-            }
-
-            .extra-payment-input {
-                flex-direction: column;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Debt Snowball Tracker</title>
+
+<link rel="manifest" href="/snowball-manifest.json">
+<meta name="theme-color" content="#111827">
+
+<style>
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  margin: 0;
+  background: #f3f4f6;
+}
+
+header {
+  background: #111827;
+  color: white;
+  padding: 1rem;
+  text-align: center;
+}
+
+.container {
+  max-width: 700px;
+  margin: auto;
+  padding: 1rem;
+}
+
+.card {
+  background: white;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+input, button {
+  padding: 0.5rem;
+  margin: 0.25rem 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+button {
+  background: #2563eb;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button.danger {
+  background: #dc2626;
+}
+
+.offline {
+  background: #fbbf24;
+  padding: 0.5rem;
+  text-align: center;
+  display: none;
+}
+</style>
 </head>
+
 <body>
-    <header>
-        <div class="header-content">
-            <h1>Debt Snowball</h1>
-            <button class="settings-btn" onclick="openSettings()">Settings</button>
-        </div>
-    </header>
 
-    <div class="container">
-        <!-- Summary Cards -->
-        <div class="summary-cards">
-            <div class="summary-card">
-                <div class="summary-label">Total Debt</div>
-                <div class="summary-value" id="totalDebt">$0</div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-label">Total Paid</div>
-                <div class="summary-value" id="totalPaid">$0</div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-label">Debts Remaining</div>
-                <div class="summary-value" id="debtsRemaining">0</div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-label">Debt Free Date</div>
-                <div class="summary-value" id="debtFreeDate">--</div>
-            </div>
-        </div>
+<header>
+  <h1>Debt Snowball Tracker</h1>
+</header>
 
-        <!-- Priority Selector -->
-        <div class="priority-selector">
-            <div class="priority-label">Sort Debts By</div>
-            <div class="priority-buttons">
-                <button class="priority-btn active" data-priority="balance" onclick="changePriority('balance')">
-                    Lowest Balance
-                </button>
-                <button class="priority-btn" data-priority="interest" onclick="changePriority('interest')">
-                    Highest Interest
-                </button>
-                <button class="priority-btn" data-priority="custom" onclick="changePriority('custom')">
-                    Custom Order
-                </button>
-            </div>
-        </div>
+<div class="offline" id="offlineBanner">
+  Offline Mode – Changes will sync when reconnected
+</div>
 
-        <!-- Extra Payment Section -->
-        <div class="extra-payment-section">
-            <div class="extra-payment-input">
-                <div class="input-group">
-                    <label for="extraAmount">Extra Payment Amount</label>
-                    <input type="number" id="extraAmount" placeholder="0.00" min="0" step="0.01">
-                </div>
-                <div class="input-group">
-                    <label for="targetDebt">Target Debt</label>
-                    <select id="targetDebt">
-                        <option value="priority">Priority #1 (Default)</option>
-                    </select>
-                </div>
-            </div>
-            <button class="apply-payment-btn" onclick="applyExtraPayment()">Apply Payment</button>
-        </div>
+<div class="container">
 
-        <!-- Debt List -->
-        <div class="debt-list" id="debtList">
-            <div class="empty-state">
-                <div class="empty-state-icon">📊</div>
-                <div class="empty-state-text">
-                    No debts added yet.<br>
-                    Click Settings to get started.
-                </div>
-            </div>
-        </div>
-    </div>
+  <div class="card">
+    <h2>Add Debt</h2>
+    <input id="name" placeholder="Debt Name">
+    <input id="originalBalance" type="number" placeholder="Original Balance">
+    <input id="currentBalance" type="number" placeholder="Current Balance">
+    <input id="interestRate" type="number" placeholder="Interest Rate (%)">
+    <input id="minimumPayment" type="number" placeholder="Minimum Payment">
+    <button onclick="addDebt()">Add Debt</button>
+  </div>
 
-    <!-- Settings Modal -->
-    <div class="modal" id="settingsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Manage Debts</h2>
-                <button class="close-btn" onclick="closeSettings()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="debtListSettings"></div>
-                <button class="add-debt-btn" onclick="openAddDebtForm()">+ Add New Debt</button>
-            </div>
-        </div>
-    </div>
+  <div class="card">
+    <h2>Your Debts</h2>
+    <div id="debtList"></div>
+  </div>
 
-    <!-- Add/Edit Debt Modal -->
-    <div class="modal" id="debtFormModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title" id="formModalTitle">Add Debt</h2>
-                <button class="close-btn" onclick="closeDebtForm()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="debtForm" onsubmit="saveDebt(event)">
-                    <input type="hidden" id="debtId">
-                    
-                    <div class="form-group">
-                        <label for="debtName">Debt Name *</label>
-                        <input type="text" id="debtName" required placeholder="e.g., Credit Card">
-                    </div>
+</div>
 
-                    <div class="form-group">
-                        <label for="originalBalance">Original Balance *</label>
-                        <input type="number" id="originalBalance" required min="0" step="0.01" placeholder="0.00">
-                    </div>
+<script>
+// =============================
+// CONFIG
+// =============================
+const API_BASE = '/api';
+const AUTH_TOKEN = localStorage.getItem('snowball_token') || '';
 
-                    <div class="form-group">
-                        <label for="currentBalance">Current Balance *</label>
-                        <input type="number" id="currentBalance" required min="0" step="0.01" placeholder="0.00">
-                    </div>
+if (!AUTH_TOKEN) {
+  const token = prompt("Enter Shared Access Token:");
+  if (token) {
+    localStorage.setItem('snowball_token', token);
+    location.reload();
+  }
+}
 
-                    <div class="form-group">
-                        <label for="interestRate">Interest Rate (%) *</label>
-                        <input type="number" id="interestRate" required min="0" max="100" step="0.01" placeholder="0.00">
-                    </div>
+// =============================
+// NETWORK STATUS
+// =============================
+function updateOnlineStatus() {
+  document.getElementById('offlineBanner').style.display =
+    navigator.onLine ? 'none' : 'block';
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
 
-                    <div class="form-group">
-                        <label for="minimumPayment">Minimum Monthly Payment *</label>
-                        <input type="number" id="minimumPayment" required min="0" step="0.01" placeholder="0.00">
-                    </div>
+// =============================
+// API HELPER (Network First)
+// =============================
+async function apiRequest(endpoint, options = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('snowball_token')}`
+  };
 
-                    <button type="submit" class="btn-primary">Save Debt</button>
-                </form>
-            </div>
-        </div>
-    </div>
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers
+    });
 
-    <!-- Toast Notification -->
-    <div class="toast" id="toast"></div>
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
 
-    <script src="snowball-app.js"></script>
-    <script>
-        // Register service worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('snowball-sw.js')
-                    .then(reg => console.log('Service Worker registered'))
-                    .catch(err => console.log('Service Worker registration failed'));
-            });
+    return await response.json();
+
+  } catch (err) {
+    console.error('API Error:', err);
+    alert("Network error. If offline, changes cannot be saved.");
+    throw err;
+  }
+}
+
+// =============================
+// LOAD DEBTS
+// =============================
+async function loadDebts() {
+  try {
+    const debts = await apiRequest('/debts', { method: 'GET' });
+    renderDebts(debts);
+  } catch {
+    console.warn("Offline or API unavailable.");
+  }
+}
+
+// =============================
+// RENDER
+// =============================
+function renderDebts(debts) {
+  const container = document.getElementById('debtList');
+  container.innerHTML = '';
+
+  debts.forEach(debt => {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = `
+      <strong>${debt.name}</strong><br>
+      Balance: $${debt.current_balance}<br>
+      Interest: ${debt.interest_rate}%<br>
+      Minimum: $${debt.minimum_payment}<br>
+      <button onclick="deleteDebt('${debt.id}')" class="danger">Delete</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+// =============================
+// ADD
+// =============================
+async function addDebt() {
+  const debt = {
+    id: crypto.randomUUID(),
+    name: document.getElementById('name').value,
+    originalBalance: parseFloat(document.getElementById('originalBalance').value),
+    currentBalance: parseFloat(document.getElementById('currentBalance').value),
+    interestRate: parseFloat(document.getElementById('interestRate').value),
+    minimumPayment: parseFloat(document.getElementById('minimumPayment').value),
+    customOrder: 999
+  };
+
+  await apiRequest('/debts', {
+    method: 'POST',
+    body: JSON.stringify(debt)
+  });
+
+  loadDebts();
+}
+
+// =============================
+// DELETE
+// =============================
+async function deleteDebt(id) {
+  await apiRequest(`/debts?id=${id}`, {
+    method: 'DELETE'
+  });
+
+  loadDebts();
+}
+
+// =============================
+// SERVICE WORKER
+// =============================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    const reg = await navigator.serviceWorker.register('/service-worker.js');
+    reg.update();
+
+    reg.onupdatefound = () => {
+      const newWorker = reg.installing;
+      newWorker.onstatechange = () => {
+        if (newWorker.state === 'installed' &&
+            navigator.serviceWorker.controller) {
+          location.reload();
         }
-    </script>
+      };
+    };
+  });
+}
+
+// =============================
+loadDebts();
+</script>
+
 </body>
 </html>
