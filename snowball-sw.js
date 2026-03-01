@@ -1,5 +1,5 @@
 // ===== VERSIONING =====
-const VERSION = 'v3'; // Bump this on every deploy
+const VERSION = 'v4'; // Bump this on every deploy
 const STATIC_CACHE = `static-${VERSION}`;
 const APP_SHELL = [
   '/',
