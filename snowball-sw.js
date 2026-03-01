@@ -1,3 +1,8 @@
+self.addEventListener('fetch', event => {
+  console.log('SW Fetch:', event.request.url);
+  event.respondWith(networkFirst(event.request));
+});
+
 // ===== VERSIONING =====
 const VERSION = 'v8'; // Bump this on every deploy
 const STATIC_CACHE = `static-${VERSION}`;
