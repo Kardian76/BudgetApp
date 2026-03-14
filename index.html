@@ -404,9 +404,10 @@ td.center, th.center{text-align:center}
 
     <div class="divider"></div>
 
-    <div class="row" style="margin-top:0;">
-      <button id="historyCurrentBtn" class="secondary" type="button">Current Period</button>
-      <button id="historyPriorBtn" class="secondary" type="button">Prior Period</button>
+    <div style="display:flex;justify-content:center;gap:10px;margin-top:0;">
+      <button id="historyCurrentBtn" class="secondary" type="button" style="flex:1;">Current Period</button>
+      <button id="historyPriorBtn" class="secondary" type="button" style="flex:1;">Prior Period</button>
+      <button id="historyExportBtn" class="secondary" type="button" style="flex:1;">Export CSV</button>
     </div>
     <div class="small" style="margin-top:6px;color:var(--muted);">Tip: Scroll table left/right to see all columns</div>
 
@@ -1508,6 +1509,103 @@ historyCloseBtn.addEventListener("click", closeHistory);
 historyOverlay.addEventListener("click", (e) => { if (e.target === historyOverlay) closeHistory(); });
 historyCurrentBtn.addEventListener("click", () => openHistory("current"));
 historyPriorBtn.addEventListener("click", () => openHistory("prior"));
+$("historyExportBtn").addEventListener("click", exportHistoryCsv);
+
+/* ---- CSV Export ---- */
+async function exportHistoryCsv(){
+  const btn = $("historyExportBtn");
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return setStatus(historyStatus, "Not authenticated.", "error");
+  if (!CURRENT_STATE) return setStatus(historyStatus, "No budget loaded yet.", "error");
+
+  btn.disabled = true;
+  btn.textContent = "Exporting…";
+  setStatus(historyStatus, "");
+
+  try {
+    const cur   = CURRENT_STATE?.period;
+    const prior = CURRENT_STATE?.prior_period;
+
+    // Fetch current period
+    const curRes = await fetchTransactions(token, { limit: 500 });
+    if (curRes.authFailed) throw new Error("Authentication failed.");
+    const curItems = normalizeLedgerItems((curRes.result?.items) || []);
+
+    // Fetch prior period if available
+    let priorItems = [];
+    if (prior?.period_key) {
+      const url = new URL(API.base + API.tx);
+      url.searchParams.set("period_key", prior.period_key);
+      url.searchParams.set("limit", "500");
+      const resp = await fetchWithTimeout(url.toString(), { method: "GET", headers: authHeaders(token) });
+      if (resp.ok) {
+        const payload = await resp.json().catch(() => ({}));
+        priorItems = normalizeLedgerItems(payload.items || []);
+      }
+    }
+
+    // Merge, deduplicate by id, sort by date descending
+    const seen = new Set();
+    const all = [...curItems, ...priorItems].filter(it => {
+      if (seen.has(it.id)) return false;
+      seen.add(it.id);
+      return true;
+    }).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+
+    if (all.length === 0) {
+      setStatus(historyStatus, "No transactions to export.", "error");
+      return;
+    }
+
+    // Build CSV — quote fields that may contain commas or quotes
+    function csvField(v){
+      const s = String(v == null ? "" : v);
+      if (s.includes(",") || s.includes('"') || s.includes("
+")) {
+        return '"' + s.split('"').join('""') + '"';
+      }
+      return s;
+    }
+
+    const rows = [
+      ["Date", "Period", "Who", "Category", "Type", "Amount", "Note"].join(",")
+    ];
+
+    for (const it of all) {
+      const amt = signedAmountCents(it);
+      const amtDollars = (amt < 0 ? "-" : "") + (Math.abs(amt) / 100).toFixed(2);
+      rows.push([
+        csvField(fmtHistoryDate(it.created_at)),
+        csvField(it.period_key),
+        csvField(it.created_by_label || ""),
+        csvField(labelForCategoryId(it.category_id)),
+        csvField(labelForType(it)),
+        csvField(amtDollars),
+        csvField(it.note || ""),
+      ].join(","));
+    }
+
+    const csv = rows.join("
+");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `budget-history-${dateStr}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    setStatus(historyStatus, `Exported ${all.length} transaction${all.length !== 1 ? "s" : ""}.`, "ok");
+  } catch (e) {
+    setStatus(historyStatus, e?.message || String(e), "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Export CSV";
+  }
+}
 
 /* Column header sort clicks */
 document.getElementById("historyHeaderRow").addEventListener("click", (e) => {
