@@ -1,5 +1,5 @@
 /* Service Worker for Purrfect Budget PWA */
-const CACHE_NAME = 'purrfect-budget-v17';
+const CACHE_NAME = 'purrfect-budget-v18';
 const OFFLINE_URL = 'index.html';
 
 // Files to cache for offline use
