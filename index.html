@@ -1509,7 +1509,8 @@ historyCloseBtn.addEventListener("click", closeHistory);
 historyOverlay.addEventListener("click", (e) => { if (e.target === historyOverlay) closeHistory(); });
 historyCurrentBtn.addEventListener("click", () => openHistory("current"));
 historyPriorBtn.addEventListener("click", () => openHistory("prior"));
-$("historyExportBtn").addEventListener("click", exportHistoryCsv);
+const historyExportBtn = $("historyExportBtn");
+if (historyExportBtn) historyExportBtn.addEventListener("click", exportHistoryCsv);
 
 /* ---- CSV Export ---- */
 async function exportHistoryCsv(){
@@ -1608,7 +1609,8 @@ async function exportHistoryCsv(){
 }
 
 /* Column header sort clicks */
-document.getElementById("historyHeaderRow").addEventListener("click", (e) => {
+const historyHeaderRowEl = document.getElementById("historyHeaderRow");
+if (historyHeaderRowEl) historyHeaderRowEl.addEventListener("click", (e) => {
   const th = e.target.closest("th[data-col]");
   if (!th) return;
   const col = th.dataset.col;
@@ -1622,6 +1624,7 @@ document.getElementById("historyHeaderRow").addEventListener("click", (e) => {
   }
   renderHistoryTable(sortHistoryItems(HISTORY_ITEMS));
 });
+}
 </script>
 <script>
 /* ================= FIXED EXPENSES ================= */
