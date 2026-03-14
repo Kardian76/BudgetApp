@@ -415,12 +415,12 @@ td.center, th.center{text-align:center}
     <div class="tableScroll" style="margin-top:10px;">
       <table>
         <thead>
-          <tr>
-            <th>Date</th>
-            <th>Who</th>
-            <th>Category</th>
-            <th class="right">Amount</th>
-            <th>Note</th>
+          <tr id="historyHeaderRow">
+            <th data-col="date" style="cursor:pointer;white-space:nowrap;user-select:none;">Date <span class="sortArrow"></span></th>
+            <th data-col="who" style="cursor:pointer;white-space:nowrap;user-select:none;">Who <span class="sortArrow"></span></th>
+            <th data-col="category" style="cursor:pointer;white-space:nowrap;user-select:none;">Category <span class="sortArrow"></span></th>
+            <th data-col="amount" class="right" style="cursor:pointer;white-space:nowrap;user-select:none;">Amount <span class="sortArrow"></span></th>
+            <th data-col="note" style="cursor:pointer;white-space:nowrap;user-select:none;">Note <span class="sortArrow"></span></th>
           </tr>
         </thead>
         <tbody id="historyBody"></tbody>
@@ -1309,12 +1309,22 @@ function normalizeLedgerItems(items){
   })).filter(x => x.id && x.period_key && Number.isFinite(x.category_id));
 }
 
+// Sort state for the history table
+let HISTORY_ITEMS = [];       // raw items from last load, unsorted
+let HISTORY_SORT_COL = "date"; // active sort column key
+let HISTORY_SORT_DIR = "desc"; // "asc" or "desc"
+
 function openHistory(mode = "current"){
   HISTORY_MODE = mode === "prior" ? "prior" : "current";
   show(historyOverlay);
   historyOverlay.setAttribute("aria-hidden","false");
   setStatus(historyStatus, "");
   historyBody.innerHTML = "";
+
+  // Reset to default sort (newest first) when switching periods
+  HISTORY_SORT_COL = "date";
+  HISTORY_SORT_DIR = "desc";
+  updateHistorySortHeaders();
 
   historyCurrentBtn.disabled = HISTORY_MODE === "current";
   historyPriorBtn.disabled = HISTORY_MODE === "prior";
@@ -1384,7 +1394,8 @@ async function loadAndRenderHistory(){
       setStatus(historyStatus, "");
     }
     
-    renderHistoryTable(items);
+    HISTORY_ITEMS = items;
+    renderHistoryTable(sortHistoryItems(items));
     return;
   }
 
@@ -1406,7 +1417,54 @@ async function loadAndRenderHistory(){
   const payload = res.result || {};
   const items = normalizeLedgerItems(payload.items || []);
   setStatus(historyStatus, items.length ? "" : "No transactions found for this period.");
-  renderHistoryTable(items);
+  HISTORY_ITEMS = items;
+  renderHistoryTable(sortHistoryItems(items));
+}
+
+/* Sort a copy of items by the current HISTORY_SORT_COL / HISTORY_SORT_DIR */
+function sortHistoryItems(items){
+  const dir = HISTORY_SORT_DIR === "asc" ? 1 : -1;
+  return [...items].sort((a, b) => {
+    switch (HISTORY_SORT_COL) {
+      case "date":
+        return dir * (String(a.created_at) < String(b.created_at) ? -1 : String(a.created_at) > String(b.created_at) ? 1 : 0);
+      case "who": {
+        const wa = (a.created_by_label || "").toLowerCase();
+        const wb = (b.created_by_label || "").toLowerCase();
+        return dir * (wa < wb ? -1 : wa > wb ? 1 : 0);
+      }
+      case "category": {
+        const ca = labelForCategoryId(a.category_id).toLowerCase();
+        const cb = labelForCategoryId(b.category_id).toLowerCase();
+        return dir * (ca < cb ? -1 : ca > cb ? 1 : 0);
+      }
+      case "amount":
+        return dir * (signedAmountCents(a) - signedAmountCents(b));
+      case "note": {
+        const na = (a.note || "").toLowerCase();
+        const nb = (b.note || "").toLowerCase();
+        return dir * (na < nb ? -1 : na > nb ? 1 : 0);
+      }
+      default: return 0;
+    }
+  });
+}
+
+/* Update header arrow indicators to reflect current sort state */
+function updateHistorySortHeaders(){
+  const headerRow = document.getElementById("historyHeaderRow");
+  if (!headerRow) return;
+  headerRow.querySelectorAll("th[data-col]").forEach(th => {
+    const arrow = th.querySelector(".sortArrow");
+    if (!arrow) return;
+    if (th.dataset.col === HISTORY_SORT_COL) {
+      arrow.textContent = HISTORY_SORT_DIR === "asc" ? " ▲" : " ▼";
+      th.style.color = "var(--text)";
+    } else {
+      arrow.textContent = " ⇅";
+      th.style.color = "var(--muted)";
+    }
+  });
 }
 
 function renderHistoryTable(items){
@@ -1441,6 +1499,7 @@ function renderHistoryTable(items){
     tr.appendChild(tdNote);
     historyBody.appendChild(tr);
   }
+  updateHistorySortHeaders();
 }
 
 /* History events */
@@ -1449,6 +1508,22 @@ historyCloseBtn.addEventListener("click", closeHistory);
 historyOverlay.addEventListener("click", (e) => { if (e.target === historyOverlay) closeHistory(); });
 historyCurrentBtn.addEventListener("click", () => openHistory("current"));
 historyPriorBtn.addEventListener("click", () => openHistory("prior"));
+
+/* Column header sort clicks */
+document.getElementById("historyHeaderRow").addEventListener("click", (e) => {
+  const th = e.target.closest("th[data-col]");
+  if (!th) return;
+  const col = th.dataset.col;
+  if (HISTORY_SORT_COL === col) {
+    // Same column — flip direction
+    HISTORY_SORT_DIR = HISTORY_SORT_DIR === "asc" ? "desc" : "asc";
+  } else {
+    // New column — default direction: desc for date/amount, asc for text columns
+    HISTORY_SORT_COL = col;
+    HISTORY_SORT_DIR = (col === "date" || col === "amount") ? "desc" : "asc";
+  }
+  renderHistoryTable(sortHistoryItems(HISTORY_ITEMS));
+});
 </script>
 <script>
 /* ================= FIXED EXPENSES ================= */
