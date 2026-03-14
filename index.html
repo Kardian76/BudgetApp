@@ -1520,11 +1520,10 @@ async function exportHistoryCsv(){
   if (!CURRENT_STATE) return setStatus(historyStatus, "No budget loaded yet.", "error");
 
   btn.disabled = true;
-  btn.textContent = "Exporting…";
+  btn.textContent = "Exporting\u2026";
   setStatus(historyStatus, "");
 
   try {
-    const cur   = CURRENT_STATE?.period;
     const prior = CURRENT_STATE?.prior_period;
 
     // Fetch current period
@@ -1535,17 +1534,17 @@ async function exportHistoryCsv(){
     // Fetch prior period if available
     let priorItems = [];
     if (prior?.period_key) {
-      const url = new URL(API.base + API.tx);
-      url.searchParams.set("period_key", prior.period_key);
-      url.searchParams.set("limit", "500");
-      const resp = await fetchWithTimeout(url.toString(), { method: "GET", headers: authHeaders(token) });
-      if (resp.ok) {
-        const payload = await resp.json().catch(() => ({}));
-        priorItems = normalizeLedgerItems(payload.items || []);
+      const priorUrl = new URL(API.base + API.tx);
+      priorUrl.searchParams.set("period_key", prior.period_key);
+      priorUrl.searchParams.set("limit", "500");
+      const priorResp = await fetchWithTimeout(priorUrl.toString(), { method: "GET", headers: authHeaders(token) });
+      if (priorResp.ok) {
+        const priorPayload = await priorResp.json().catch(() => ({}));
+        priorItems = normalizeLedgerItems(priorPayload.items || []);
       }
     }
 
-    // Merge, deduplicate by id, sort by date descending
+    // Merge, deduplicate by id, sort newest first
     const seen = new Set();
     const all = [...curItems, ...priorItems].filter(it => {
       if (seen.has(it.id)) return false;
@@ -1558,16 +1557,16 @@ async function exportHistoryCsv(){
       return;
     }
 
-    // Build CSV — quote fields that may contain commas or quotes
+    // Quote a CSV field: wrap in double-quotes if it contains comma, quote, or newline
     function csvField(v){
       const s = String(v == null ? "" : v);
-      if (s.includes(",") || s.includes('"') || s.includes("
-")) {
+      if (s.indexOf(",") !== -1 || s.indexOf('"') !== -1 || s.indexOf("\n") !== -1 || s.indexOf("\r") !== -1) {
         return '"' + s.split('"').join('""') + '"';
       }
       return s;
     }
 
+    const CRLF = "\r\n";
     const rows = [
       ["Date", "Period", "Who", "Category", "Type", "Amount", "Note"].join(",")
     ];
@@ -1586,20 +1585,19 @@ async function exportHistoryCsv(){
       ].join(","));
     }
 
-    const csv = rows.join("
-");
+    const csv  = rows.join(CRLF);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
     const dateStr = new Date().toISOString().slice(0, 10);
-    a.href = url;
-    a.download = `budget-history-${dateStr}.csv`;
+    a.href = blobUrl;
+    a.download = "budget-history-" + dateStr + ".csv";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(blobUrl);
 
-    setStatus(historyStatus, `Exported ${all.length} transaction${all.length !== 1 ? "s" : ""}.`, "ok");
+    setStatus(historyStatus, "Exported " + all.length + " transaction" + (all.length !== 1 ? "s" : "") + ".", "ok");
   } catch (e) {
     setStatus(historyStatus, e?.message || String(e), "error");
   } finally {
