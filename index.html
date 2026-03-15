@@ -32,7 +32,7 @@ body{
   color:var(--text);
   background:linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%) fixed;
 }
-.wrap{max-width:1100px;margin:0 auto;padding:18px;padding-bottom:calc(32px + env(safe-area-inset-bottom))}
+.wrap{max-width:1100px;margin:0 auto;padding:18px;padding-top:calc(60px + env(safe-area-inset-top));padding-bottom:calc(32px + env(safe-area-inset-bottom))}
 h1{font-size:18px;margin:0 0 10px}
 .card{
   background:#ffffff;
@@ -74,20 +74,38 @@ td.right{text-align:right}
 td.center, th.center{text-align:center}
 .tableScroll{max-height:360px;overflow:auto}
 
-.fabWrap{
+.stickyHeader{
+  position:fixed;
+  top:0;left:0;right:0;
+  z-index:90;
   display:flex;
-  justify-content:center;
-  gap:10px;
-  margin-top:14px;
-  max-width:600px;
-  margin-left:auto;
-  margin-right:auto;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 16px;
+  padding-top:calc(10px + env(safe-area-inset-top));
+  background:rgba(195,207,226,0.92);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(0,0,0,0.08);
+}
+.stickyHeaderTitle{
+  font-size:17px;
+  font-weight:800;
+  color:#2d3748;
+  letter-spacing:-0.3px;
+  white-space:nowrap;
+}
+.stickyHeaderBtns{
+  display:flex;
+  gap:8px;
 }
 .historyBtn, .settingsBtn{
   background:rgba(255,255,255,0.6);
   color:#495057;
   border:1px solid rgba(0,0,0,0.1);
   backdrop-filter:blur(4px);
+  padding:8px 14px;
+  font-size:13px;
 }
 .historyBtn:hover, .settingsBtn:hover{
   background:rgba(255,255,255,0.85);
@@ -114,6 +132,13 @@ td.center, th.center{text-align:center}
 </head>
 
 <body>
+<header class="stickyHeader" id="stickyHeader">
+  <span class="stickyHeaderTitle">🐱 Purrfect Budget</span>
+  <div class="stickyHeaderBtns" id="headerBtns" style="display:none;">
+    <button id="openHistoryBtn" type="button" class="historyBtn">History</button>
+    <button id="openSettingsBtn" type="button" class="settingsBtn">Settings</button>
+  </div>
+</header>
 <div class="wrap">
 
   <!-- AUTH -->
@@ -265,11 +290,7 @@ td.center, th.center{text-align:center}
         </div>
       </div>
 
-      <!-- Floating buttons -->
-      <div class="fabWrap">
-        <button id="openHistoryBtn" type="button" class="historyBtn">History</button>
-        <button id="openSettingsBtn" type="button" class="settingsBtn">Settings</button>
-      </div>
+      <!-- History/Settings buttons moved to sticky header -->
 
     </div>
   </div>
@@ -1087,6 +1108,7 @@ function showAuth(message = "", isError = false){
   setStatus(authStatus, message, isError ? "error" : "");
   setStatus(globalStatus, "");
   userNameInput?.focus();
+  const hb = $("headerBtns"); if (hb) hb.style.display = "none";
 }
 
 function showWizard(){
@@ -1095,6 +1117,7 @@ function showWizard(){
   show(noCategoriesView);
   hide(dashboardView);
   initWizard();
+  const hb = $("headerBtns"); if (hb) hb.style.display = "none";
 }
 
 function showApp(){
@@ -1102,6 +1125,7 @@ function showApp(){
   hide(noCategoriesView);
   show(appView);
   show(dashboardView);
+  const hb = $("headerBtns"); if (hb) hb.style.display = "flex";
 }
 
 /* Token show/hide */
