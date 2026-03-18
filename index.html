@@ -430,19 +430,16 @@ td.center, th.center{text-align:center}
       <button id="historyPriorBtn" class="secondary" type="button" style="flex:1;">Prior Period</button>
       <button id="historyExportBtn" class="secondary" type="button" style="flex:1;">Export</button>
     </div>
-    <div class="small" style="margin-top:6px;color:var(--muted);">Tip: Scroll table left/right to see all columns</div>
-
     <div id="historyStatus" class="status"></div>
 
-    <div class="tableScroll" style="margin-top:10px;max-height:calc(100vh - 200px);">
-      <table>
+    <div style="overflow-x:auto;margin-top:10px;max-height:calc(100vh - 200px);overflow-y:auto;">
+      <table style="width:100%;border-collapse:collapse;">
         <thead>
           <tr id="historyHeaderRow">
-            <th data-col="date" style="cursor:pointer;white-space:nowrap;user-select:none;">Date <span class="sortArrow"></span></th>
-            <th data-col="who" style="cursor:pointer;white-space:nowrap;user-select:none;">Who <span class="sortArrow"></span></th>
-            <th data-col="category" style="cursor:pointer;white-space:nowrap;user-select:none;">Category <span class="sortArrow"></span></th>
-            <th data-col="amount" class="right" style="cursor:pointer;white-space:nowrap;user-select:none;">Amount <span class="sortArrow"></span></th>
-            <th data-col="note" style="cursor:pointer;white-space:nowrap;user-select:none;">Note <span class="sortArrow"></span></th>
+            <th data-col="date"     style="cursor:pointer;user-select:none;white-space:nowrap;">Date <span class="sortArrow"></span></th>
+            <th data-col="category" style="cursor:pointer;user-select:none;white-space:nowrap;">Category <span class="sortArrow"></span></th>
+            <th data-col="amount"   style="cursor:pointer;user-select:none;white-space:nowrap;text-align:right;">Amount <span class="sortArrow"></span></th>
+            <th data-col="note"     style="cursor:pointer;user-select:none;">Note <span class="sortArrow"></span></th>
           </tr>
         </thead>
         <tbody id="historyBody"></tbody>
@@ -1475,7 +1472,7 @@ function sortHistoryItems(items){
   });
 }
 
-/* Update header arrow indicators to reflect current sort state */
+/* Update table header sort arrows */
 function updateHistorySortHeaders(){
   const headerRow = document.getElementById("historyHeaderRow");
   if (!headerRow) return;
@@ -1492,39 +1489,94 @@ function updateHistorySortHeaders(){
   });
 }
 
+const NOTE_TRUNCATE = 28; // characters before truncation
+
 function renderHistoryTable(items){
   historyBody.innerHTML = "";
+
   for (const it of items){
+    const amt     = signedAmountCents(it);
+    const amtText = (amt < 0 ? "-" : "") + fmtCents(Math.abs(amt));
+    const color   = it.is_credit ? "var(--ok)" : "var(--danger)";
+    const note    = it.note || "";
+    const truncated = note.length > NOTE_TRUNCATE;
+    const noteShort = truncated ? note.slice(0, NOTE_TRUNCATE) + "…" : note;
+
+    // Main data row
     const tr = document.createElement("tr");
+    tr.style.color = color;
+    tr.style.cursor = "pointer";
 
-    const tdWhen = document.createElement("td");
-    tdWhen.textContent = fmtHistoryDate(it.created_at);
-
-    const tdWho = document.createElement("td");
-    tdWho.textContent = it.created_by_label || "—";
+    const tdDate = document.createElement("td");
+    tdDate.textContent = fmtHistoryDate(it.created_at);
+    tdDate.style.whiteSpace = "nowrap";
 
     const tdCat = document.createElement("td");
     tdCat.textContent = labelForCategoryId(it.category_id);
+    tdCat.style.whiteSpace = "nowrap";
 
     const tdAmt = document.createElement("td");
-    tdAmt.className = "right";
-    const amt = signedAmountCents(it);
-    tdAmt.textContent = (amt < 0 ? "-" : "") + fmtCents(Math.abs(amt));
+    tdAmt.textContent = amtText;
+    tdAmt.style.cssText = "text-align:right;white-space:nowrap;font-weight:700;";
 
     const tdNote = document.createElement("td");
-    tdNote.innerHTML = it.note ? escapeHtml(it.note) : "";
+    tdNote.textContent = noteShort;
+    tdNote.style.cssText = "color:var(--muted);font-size:12px;max-width:120px;";
 
-    // Color entire row: green for credits, red for expenses
-    tr.style.color = it.is_credit ? "var(--ok)" : "var(--danger)";
-
-    tr.appendChild(tdWhen);
-    tr.appendChild(tdWho);
+    tr.appendChild(tdDate);
     tr.appendChild(tdCat);
     tr.appendChild(tdAmt);
     tr.appendChild(tdNote);
     historyBody.appendChild(tr);
+
+    // Expand row (hidden until tap) — shows Who, full note, type
+    const trExpand = document.createElement("tr");
+    trExpand.style.display = "none";
+    const tdExpand = document.createElement("td");
+    tdExpand.colSpan = 4;
+    tdExpand.style.cssText = "padding:6px 10px 10px;background:rgba(255,255,255,0.35);border-radius:0 0 8px 8px;";
+
+    const who  = it.created_by_label || "—";
+    const type = labelForType(it);
+    const typeColor = it.is_credit ? "var(--ok)" : "var(--danger)";
+    const typeBg    = it.is_credit ? "rgba(40,167,69,0.1)" : "rgba(220,53,69,0.08)";
+
+    tdExpand.innerHTML =
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+        '<span style="font-size:12px;color:var(--muted);">By: <strong style="color:var(--text);">' + escapeHtml(who) + '</strong></span>' +
+        '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:' + typeBg + ';color:' + typeColor + ';">' + escapeHtml(type) + '</span>' +
+        (note ? '<span style="font-size:13px;color:var(--text);word-break:break-word;flex:1;">' + escapeHtml(note) + '</span>' : '') +
+      '</div>';
+
+    trExpand.appendChild(tdExpand);
+    historyBody.appendChild(trExpand);
+
+    // Toggle expand on tap
+    tr.addEventListener("click", () => {
+      const open = trExpand.style.display !== "none";
+      trExpand.style.display = open ? "none" : "table-row";
+      tr.style.background = open ? "" : "rgba(255,255,255,0.25)";
+    });
   }
+
   updateHistorySortHeaders();
+
+  // Re-attach header click handler each render
+  const headerRow = document.getElementById("historyHeaderRow");
+  if (headerRow) headerRow.addEventListener("click", onHistoryHeaderClick);
+}
+
+function onHistoryHeaderClick(e){
+  const th = e.target.closest("th[data-col]");
+  if (!th) return;
+  const col = th.dataset.col;
+  if (HISTORY_SORT_COL === col) {
+    HISTORY_SORT_DIR = HISTORY_SORT_DIR === "asc" ? "desc" : "asc";
+  } else {
+    HISTORY_SORT_COL = col;
+    HISTORY_SORT_DIR = (col === "date" || col === "amount") ? "desc" : "asc";
+  }
+  renderHistoryTable(sortHistoryItems(HISTORY_ITEMS));
 }
 
 /* History events */
@@ -1644,22 +1696,7 @@ async function exportHistoryCsv(){
   }
 }
 
-/* Column header sort clicks */
-const historyHeaderRowEl = document.getElementById("historyHeaderRow");
-if (historyHeaderRowEl) historyHeaderRowEl.addEventListener("click", (e) => {
-  const th = e.target.closest("th[data-col]");
-  if (!th) return;
-  const col = th.dataset.col;
-  if (HISTORY_SORT_COL === col) {
-    // Same column — flip direction
-    HISTORY_SORT_DIR = HISTORY_SORT_DIR === "asc" ? "desc" : "asc";
-  } else {
-    // New column — default direction: desc for date/amount, asc for text columns
-    HISTORY_SORT_COL = col;
-    HISTORY_SORT_DIR = (col === "date" || col === "amount") ? "desc" : "asc";
-  }
-  renderHistoryTable(sortHistoryItems(HISTORY_ITEMS));
-});
+/* Column header sort clicks handled inside renderHistoryTable via onHistoryHeaderClick */
 </script>
 <script>
 /* ================= FIXED EXPENSES ================= */
