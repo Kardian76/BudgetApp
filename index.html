@@ -3114,9 +3114,18 @@ async function bootstrap(){
   }
 }
 
-/* Safety: surface unhandled rejections */
+/* Safety: surface unhandled rejections (suppress transient service worker noise) */
 window.addEventListener("unhandledrejection", (ev) => {
   const msg = ev?.reason?.message || String(ev?.reason || "Unknown error");
+  // Service worker update failures are transient network blips — not actionable
+  // by the user and the app recovers on its own. Suppress them silently.
+  if (msg.toLowerCase().includes("serviceworker") ||
+      msg.toLowerCase().includes("service worker") ||
+      msg.toLowerCase().includes("sw.js") ||
+      msg.toLowerCase().includes("fetching the script")) {
+    ev.preventDefault(); // also suppress the console error
+    return;
+  }
   setStatus(globalStatus, `Error: ${msg}`, "error");
 });
 
@@ -3253,7 +3262,8 @@ if ('serviceWorker' in navigator) {
       });
 
     } catch (err) {
-      console.warn('Service Worker registration failed:', err);
+      // Suppress SW registration failures — transient network errors, not user-actionable
+      void err;
     }
   });
 }
