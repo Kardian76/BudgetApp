@@ -99,6 +99,15 @@ td.center, th.center{text-align:center}
   display:flex;
   gap:8px;
 }
+.helpBtn{
+  width:26px;height:26px;border-radius:50%;padding:0;
+  font-size:13px;font-weight:800;line-height:1;
+  background:rgba(255,255,255,0.55);
+  color:var(--muted);
+  border:1.5px solid rgba(0,0,0,0.12);
+  cursor:pointer;flex-shrink:0;
+}
+.helpBtn:hover{background:rgba(255,255,255,0.9);color:var(--text);}
 .historyBtn, .settingsBtn{
   background:rgba(255,255,255,0.6);
   color:#495057;
@@ -133,7 +142,7 @@ td.center, th.center{text-align:center}
 
 <body>
 <header class="stickyHeader" id="stickyHeader">
-  <span class="stickyHeaderTitle">🐱 Purrfect Budget</span>
+  <img src="logo.png" alt="Purrfect Budget" class="stickyHeaderLogo" style="height:36px;width:auto;object-fit:contain;">
   <div class="stickyHeaderBtns" id="headerBtns" style="display:none;">
     <button id="openHistoryBtn" type="button" class="historyBtn">History</button>
     <button id="openSettingsBtn" type="button" class="settingsBtn">Settings</button>
@@ -211,7 +220,10 @@ td.center, th.center{text-align:center}
 
       <!-- Budget Summary (Spent 2nd col, Remaining 3rd; both centered) -->
       <div class="card">
-        <h1>Budget Summary</h1>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h1 style="margin:0;">Budget Summary</h1>
+          <button type="button" class="helpBtn" onclick="showHelp('budget-summary')" aria-label="Help">?</button>
+        </div>
         <div class="status">Period: <strong id="periodLabel">—</strong></div>
 
         <div class="tableScroll">
@@ -235,7 +247,10 @@ td.center, th.center{text-align:center}
       </div>
 
       <div class="card subcard">
-        <h1>Add Transaction</h1>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h1 style="margin:0;">Add Transaction</h1>
+          <button type="button" class="helpBtn" onclick="showHelp('add-transaction')" aria-label="Help">?</button>
+        </div>
 
         <label>Type</label>
         <select id="txType">
@@ -279,11 +294,11 @@ td.center, th.center{text-align:center}
 
       <!-- Fixed Expenses Card -->
       <div class="card subcard" id="fixedExpensesCard">
-        <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" id="fixedExpensesToggle">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
           <h1 style="margin:0;">Fixed Expenses</h1>
-          <span id="fixedExpensesChevron" style="font-size:18px;color:var(--muted);user-select:none;">&#9654;</span>
+          <button type="button" class="helpBtn" onclick="showHelp('fixed-expenses')" aria-label="Help">?</button>
         </div>
-        <div id="fixedExpensesPanel" class="hidden">
+        <div id="fixedExpensesPanel">
           <div class="small" style="margin-top:6px;color:var(--muted);">Fixed bills due within this budget period. Check them off once paid.</div>
           <div id="fixedExpensesList" style="margin-top:10px;"></div>
           <div id="fixedExpensesStatus" class="status"></div>
@@ -1285,6 +1300,9 @@ async function renderDashboard(state){
 
   // Keep in Bank
   await renderKeepInBank(state);
+
+  // Fixed Expenses (always visible — no collapse)
+  await renderFixedExpensesMainCard();
 }
 </script>
 
@@ -1913,22 +1931,7 @@ async function renderKeepInBank(state){
   }
 }
 
-/* --- Fixed Expenses collapsible card on main screen --- */
-let fixedExpensesPanelOpen = false;
-
-$("fixedExpensesToggle").addEventListener("click", async () => {
-  fixedExpensesPanelOpen = !fixedExpensesPanelOpen;
-  const panel = $("fixedExpensesPanel");
-  const chevron = $("fixedExpensesChevron");
-  if (fixedExpensesPanelOpen) {
-    panel.classList.remove("hidden");
-    chevron.textContent = "▼";
-    await renderFixedExpensesMainCard();
-  } else {
-    panel.classList.add("hidden");
-    chevron.textContent = "▶";
-  }
-});
+/* --- Fixed Expenses card — always visible, render on dashboard load --- */
 
 async function renderFixedExpensesMainCard(){
   const list = $("fixedExpensesList");
@@ -2149,7 +2152,7 @@ async function saveSettingsFixedExpenses(){
   setStatus(settingsFixedExpensesStatus, "Saved.", "ok");
   // Refresh Keep in Bank and main card
   if (CURRENT_STATE) await renderKeepInBank(CURRENT_STATE);
-  if (fixedExpensesPanelOpen) await renderFixedExpensesMainCard();
+  await renderFixedExpensesMainCard();
   setTimeout(() => {
     settingsFixedExpensesPanel.classList.add("hidden");
     setStatus(settingsFixedExpensesStatus, "");
@@ -3153,6 +3156,59 @@ bootstrap();
 
 <script>
 /* ================= SERVICE WORKER REGISTRATION + AUTO-UPDATE ================= */
+/* ================= HELP MODAL ================= */
+const HELP_CONTENT = {
+  "budget-summary": {
+    title: "Budget Summary",
+    body: `<p>The <strong>Budget Summary</strong> shows how your money is tracking across all categories for the current budget period.</p>
+<ul style="padding-left:18px;margin:8px 0;line-height:1.8;">
+  <li><strong>Budget</strong> — your default amount set for each category.</li>
+  <li><strong>Spent</strong> — total expenses logged so far this period.</li>
+  <li><strong>Remaining</strong> — how much is left. Red means you have gone over budget.</li>
+  <li><strong>Keep in Bank</strong> — the total you should leave in your account to cover remaining variable budget plus any unpaid fixed bills due this period.</li>
+</ul>
+<p>The period dates are shown at the top. Tap <strong>History</strong> to view individual transactions.</p>`
+  },
+  "add-transaction": {
+    title: "Add Transaction",
+    body: `<p>Use this form to log money in or out of a budget category.</p>
+<ul style="padding-left:18px;margin:8px 0;line-height:1.8;">
+  <li><strong>Expense</strong> — money spent, subtracted from the category's remaining balance.</li>
+  <li><strong>Credit</strong> — money returned or refunded, added back to the category's remaining balance.</li>
+  <li><strong>Transfer</strong> — moves budget from one category to another without affecting your total spend.</li>
+</ul>
+<p>Select the <strong>Category</strong>, enter the <strong>Amount</strong>, and optionally add a <strong>Note</strong> for reference. Tap <strong>Save</strong> to record it.</p>`
+  },
+  "fixed-expenses": {
+    title: "Fixed Expenses",
+    body: `<p><strong>Fixed Expenses</strong> are recurring bills you pay on a set day each month — like rent, subscriptions, or loan payments.</p>
+<p>Bills due within the current budget period appear here with a checkbox. Check a bill off once you have paid it. Unpaid bills from the prior period are highlighted in red as carry-overs.</p>
+<p>The <strong>Keep in Bank</strong> amount includes all unchecked fixed bills due this period, so you always know exactly how much to leave in your account.</p>
+<p style="margin-top:10px;font-weight:600;">Managing your fixed expenses:</p>
+<ul style="padding-left:18px;margin:8px 0;line-height:1.8;">
+  <li><strong>Add</strong> — open <em>Settings → Manage Fixed Expenses</em>, fill in the bill name, amount, and day of month, then tap Save.</li>
+  <li><strong>Edit</strong> — open <em>Settings → Manage Fixed Expenses</em>, update any field directly, then tap Save.</li>
+  <li><strong>Remove</strong> — open <em>Settings → Manage Fixed Expenses</em> and tap the Remove button next to the bill you want to delete, then tap Save.</li>
+</ul>`
+  }
+};
+
+function showHelp(key){
+  const entry = HELP_CONTENT[key];
+  if (!entry) return;
+  $("helpTitle").textContent = entry.title;
+  $("helpBody").innerHTML = entry.body;
+  const overlay = $("helpOverlay");
+  overlay.classList.remove("hidden");
+  overlay.setAttribute("aria-hidden","false");
+}
+
+function closeHelp(){
+  const overlay = $("helpOverlay");
+  overlay.classList.add("hidden");
+  overlay.setAttribute("aria-hidden","true");
+}
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
@@ -3202,6 +3258,17 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+
+<div id="helpOverlay" class="modalOverlay hidden" aria-hidden="true" style="z-index:200;" onclick="if(event.target===this)closeHelp();">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:460px;">
+    <div class="modalHeader">
+      <h1 id="helpTitle" style="margin:0;font-size:17px;"></h1>
+      <button type="button" class="secondary" onclick="closeHelp()">Close</button>
+    </div>
+    <div class="divider"></div>
+    <div id="helpBody" style="font-size:14px;line-height:1.6;color:var(--text);"></div>
+  </div>
+</div>
 
 </body>
 </html>
