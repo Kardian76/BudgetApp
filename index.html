@@ -1870,6 +1870,33 @@ function dueDaysInPeriod(startYmd, endYmd){
   return days;
 }
 
+/* Derive next period start/end YYYY-MM-DD strings from current state.
+   Uses next_effective_period_key when available (already computed server-side),
+   otherwise falls back to p.end_ts as next start and adds a semi-monthly step. */
+function getNextPeriodYmds(state){
+  // next_effective_period_key is formatted "YYYY-MM-DD__YYYY-MM-DD"
+  const nk = state?.next_budget_settings?.next_effective_period_key;
+  if (nk && /^\d{4}-\d{2}-\d{2}__\d{4}-\d{2}-\d{2}$/.test(nk)) {
+    const [ns, ne] = nk.split("__");
+    return { nextStart: ns, nextEnd: ne };
+  }
+  // Fallback: current period's end_ts is next period's start.
+  // Compute next end by replicating the same duration as current period.
+  const p = state?.period;
+  if (!p?.start_ts || !p?.end_ts) return null;
+  const curStart = p.start_ts.slice(0,10);
+  const curEnd   = p.end_ts.slice(0,10);
+  const nextStart = curEnd; // exclusive boundary = next start
+
+  // Duration of current period in days
+  const msPerDay = 86400000;
+  const durMs = new Date(curEnd).getTime() - new Date(curStart).getTime();
+  const durDays = Math.round(durMs / msPerDay);
+  const nextEndDt = new Date(new Date(nextStart).getTime() + durDays * msPerDay);
+  const nextEnd = nextEndDt.toISOString().slice(0,10);
+  return { nextStart, nextEnd };
+}
+
 /* Return IDs of fixed expenses that were due in the prior period but never marked paid.
    These carry forward into the current period regardless of their due_day. */
 async function getCarriedOverIds(state, paid){
@@ -1985,11 +2012,19 @@ async function renderFixedExpensesMainCard(){
   // Three buckets:
   //   duePeriod   — bill is due this period (accounting for short months)
   //   carriedOver — not due this period but unpaid from prior period
-  //   notDue      — not due this period and not a carryover
+  //   dueNext     — due in the next budget period (replaces "not due this period")
   const isDue = fx => startYmd && endYmd ? isDueInPeriod(fx.due_day, startYmd, endYmd, fx.active_months) : true;
   const duePeriod   = allFixed.filter(fx =>  isDue(fx)).sort((a,b) => a.due_day - b.due_day);
-  const carriedOver = allFixed.filter(fx => !isDue(fx) &&  carriedIds.has(fx.id)).sort((a,b) => a.due_day - b.due_day);
-  const notDue      = allFixed.filter(fx => !isDue(fx) && !carriedIds.has(fx.id)).sort((a,b) => a.due_day - b.due_day);
+  const carriedOver = allFixed.filter(fx => !isDue(fx) && carriedIds.has(fx.id)).sort((a,b) => a.due_day - b.due_day);
+
+  // Compute next period window for the "due next period" bucket
+  const nextYmds   = getNextPeriodYmds(CURRENT_STATE);
+  const isNextDue  = fx => nextYmds
+    ? isDueInPeriod(fx.due_day, nextYmds.nextStart, nextYmds.nextEnd, fx.active_months)
+    : false;
+  const dueNext = allFixed
+    .filter(fx => !isDue(fx) && !carriedIds.has(fx.id) && isNextDue(fx))
+    .sort((a,b) => a.due_day - b.due_day);
 
   list.innerHTML = "";
 
@@ -2034,7 +2069,7 @@ async function renderFixedExpensesMainCard(){
     const amtStr = fmtCents(fx.amount_cents);
     detailSpan.textContent = amtStr + " · " + fxScheduleStr(fx);
     if (isCarryover) detailSpan.textContent += " · carried over (unpaid last period)";
-    else if (!isDue)  detailSpan.textContent += " · not due this period";
+    else if (!isDue)  detailSpan.textContent += " · due next period";
     info.appendChild(nameSpan);
     info.appendChild(detailSpan);
 
@@ -2067,13 +2102,13 @@ async function renderFixedExpensesMainCard(){
     carriedOver.forEach(fx => list.appendChild(makeRow(fx, true, true)));
   }
 
-  if (notDue.length > 0) {
+  if (dueNext.length > 0) {
     const hdr2 = document.createElement("div");
     hdr2.className = "small";
     hdr2.style.cssText = "font-weight:700;color:var(--muted);margin-top:12px;margin-bottom:4px;";
-    hdr2.textContent = "Not due this period";
+    hdr2.textContent = "Due next period";
     list.appendChild(hdr2);
-    notDue.forEach(fx => list.appendChild(makeRow(fx, false, false)));
+    dueNext.forEach(fx => list.appendChild(makeRow(fx, false, false)));
   }
 
   setStatus(statusEl, "");
@@ -2118,8 +2153,11 @@ function addSettingsFixedRow(id, name = "", amount = "", due_day = "", active_mo
   wrap.dataset.fixedId = String(id || genFixedId());
   wrap.style.cssText = "margin-top:0;padding-top:14px;padding-bottom:14px;border-top:1px solid #9aa0a6;";
 
-  // Which months are currently active (default: all)
-  const activeSet = parseActiveMonths(active_months);
+  // Which months are active. null/undefined = new row (none selected by default).
+  // Existing rows pass their stored active_months string.
+  const activeSet = (active_months === null || active_months === undefined)
+    ? new Set()  // new row: no months pre-selected — user must pick
+    : parseActiveMonths(active_months);
 
   // Row 1: bill name full width
   const row1 = document.createElement("div");
