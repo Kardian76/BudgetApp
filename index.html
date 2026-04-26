@@ -142,7 +142,7 @@ td.center, th.center{text-align:center}
 
 <body>
 <header class="stickyHeader" id="stickyHeader">
-  <img src="logo.png" alt="Purrfect Budget" class="stickyHeaderLogo" style="height:36px;width:auto;object-fit:contain;">
+  <img src="logo.png" alt="Purrfect Budget" class="stickyHeaderLogo" style="height:48px;width:auto;object-fit:contain;border-radius:8px;">
   <div class="stickyHeaderBtns" id="headerBtns" style="display:none;">
     <button id="openHistoryBtn" type="button" class="historyBtn">History</button>
     <button id="openSettingsBtn" type="button" class="settingsBtn">Settings</button>
@@ -1795,34 +1795,62 @@ function effectiveDueDate(year, month, due_day){
   return new Date(year, month - 1, actual);
 }
 
-/* Return true if a bill with the given due_day is due within the period
-   defined by startYmd / endYmd (endYmd is the EXCLUSIVE boundary).
-   Accounts for months shorter than the due_day. */
-function isDueInPeriod(due_day, startYmd, endYmd){
+/* Return true if a bill is due within the period defined by startYmd/endYmd.
+   active_months: comma-separated string of active month numbers e.g. "5,11"
+   (defaults to all months if null/undefined/empty).
+   Accounts for months shorter than due_day. */
+function isDueInPeriod(due_day, startYmd, endYmd, active_months){
   if (!startYmd || !endYmd) return true;
+
+  // Build the set of active month numbers (1-12)
+  const activeSet = parseActiveMonths(active_months);
+
   const [sy, sm, sd] = startYmd.split("-").map(Number);
   const [ey, em, ed] = endYmd.split("-").map(Number);
   const startDate = new Date(sy, sm - 1, sd);
   const endDate   = new Date(ey, em - 1, ed); // exclusive
-
-  // Walk each calendar month that overlaps the period and check whether the
-  // effective due date for that month falls inside the window.
-  // We iterate by month from the month containing startDate to the month
-  // containing the last inclusive day (endDate - 1 day).
   const lastInclusive = new Date(endDate);
   lastInclusive.setDate(lastInclusive.getDate() - 1);
 
   let y = sy, m = sm;
   while (true) {
-    const candidate = effectiveDueDate(y, m, due_day);
-    if (candidate >= startDate && candidate < endDate) return true;
-    // Advance to next month
+    // Only check this month if it is in the active set
+    if (activeSet.has(m)) {
+      const candidate = effectiveDueDate(y, m, due_day);
+      if (candidate >= startDate && candidate < endDate) return true;
+    }
     if (y > lastInclusive.getFullYear() ||
        (y === lastInclusive.getFullYear() && m >= lastInclusive.getMonth() + 1)) break;
     m++;
     if (m > 12) { m = 1; y++; }
   }
   return false;
+}
+
+/* Parse active_months string into a Set of month numbers.
+   Returns a full Set(1..12) if the value is falsy or "all months". */
+function parseActiveMonths(active_months){
+  if (!active_months) return new Set([1,2,3,4,5,6,7,8,9,10,11,12]);
+  const nums = String(active_months).split(",")
+    .map(s => parseInt(s.trim(), 10))
+    .filter(n => Number.isInteger(n) && n >= 1 && n <= 12);
+  if (nums.length === 0) return new Set([1,2,3,4,5,6,7,8,9,10,11,12]);
+  return new Set(nums);
+}
+
+/* Human-readable schedule string for display e.g. "Monthly · 15th"
+   or "May & Nov · 5th" or "Annual (Jun) · 15th" */
+function fxScheduleStr(fx){
+  const ordinal = dayOrdinal(fx.due_day);
+  const active  = parseActiveMonths(fx.active_months);
+  const MONTHS  = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  if (active.size === 12) return "Monthly · " + ordinal;
+  if (active.size === 1) {
+    const mo = MONTHS[[...active][0] - 1];
+    return "Annual (" + mo + ") · " + ordinal;
+  }
+  const names = [...active].sort((a,b)=>a-b).map(n => MONTHS[n-1]).join(" & ");
+  return names + " · " + ordinal;
 }
 
 /* Legacy helper retained for getCarriedOverIds — returns Set of actual day
@@ -1857,7 +1885,7 @@ async function getCarriedOverIds(state, paid){
   for (const fx of fixed){
     // Use isDueInPeriod so bills due on days that don't exist in the prior
     // month (e.g. 30th in February) are still correctly recognised as overdue.
-    if (isDueInPeriod(fx.due_day, priorStart, priorEnd) && !priorPaidSet.has(fx.id)){
+    if (isDueInPeriod(fx.due_day, priorStart, priorEnd, fx.active_months) && !priorPaidSet.has(fx.id)){
       carriedIds.add(fx.id);
     }
   }
@@ -1881,7 +1909,7 @@ async function getUnpaidFixedDuThisPeriod(state){
   const carriedIds  = await getCarriedOverIds(state, paid);
 
   return fixed.filter(fx =>
-    (isDueInPeriod(fx.due_day, startYmd, endYmd) || carriedIds.has(fx.id)) && !paidSet.has(fx.id)
+    (isDueInPeriod(fx.due_day, startYmd, endYmd, fx.active_months) || carriedIds.has(fx.id)) && !paidSet.has(fx.id)
   );
 }
 
@@ -1900,7 +1928,7 @@ async function getAllFixedDueThisPeriod(state){
   const paid       = await loadFixedPaid();
   const carriedIds = await getCarriedOverIds(state, paid);
 
-  return fixed.filter(fx => isDueInPeriod(fx.due_day, startYmd, endYmd) || carriedIds.has(fx.id));
+  return fixed.filter(fx => isDueInPeriod(fx.due_day, startYmd, endYmd, fx.active_months) || carriedIds.has(fx.id));
 }
 
 /* --- Keep in Bank calculation and rendering --- */
@@ -1958,7 +1986,7 @@ async function renderFixedExpensesMainCard(){
   //   duePeriod   — bill is due this period (accounting for short months)
   //   carriedOver — not due this period but unpaid from prior period
   //   notDue      — not due this period and not a carryover
-  const isDue = fx => startYmd && endYmd ? isDueInPeriod(fx.due_day, startYmd, endYmd) : true;
+  const isDue = fx => startYmd && endYmd ? isDueInPeriod(fx.due_day, startYmd, endYmd, fx.active_months) : true;
   const duePeriod   = allFixed.filter(fx =>  isDue(fx)).sort((a,b) => a.due_day - b.due_day);
   const carriedOver = allFixed.filter(fx => !isDue(fx) &&  carriedIds.has(fx.id)).sort((a,b) => a.due_day - b.due_day);
   const notDue      = allFixed.filter(fx => !isDue(fx) && !carriedIds.has(fx.id)).sort((a,b) => a.due_day - b.due_day);
@@ -2004,9 +2032,7 @@ async function renderFixedExpensesMainCard(){
     const detailSpan = document.createElement("div");
     detailSpan.className = "small";
     const amtStr = fmtCents(fx.amount_cents);
-    const ordinal = dayOrdinal(fx.due_day);
-    const dayStr = "Due: " + ordinal + " of month";
-    detailSpan.textContent = amtStr + " · " + dayStr;
+    detailSpan.textContent = amtStr + " · " + fxScheduleStr(fx);
     if (isCarryover) detailSpan.textContent += " · carried over (unpaid last period)";
     else if (!isDue)  detailSpan.textContent += " · not due this period";
     info.appendChild(nameSpan);
@@ -2077,7 +2103,7 @@ async function openFixedExpensesPanel(){
   settingsFixedExpensesList.innerHTML = "";
   if (existing.length > 0) {
     const sorted = [...existing].sort((a, b) => a.due_day - b.due_day);
-    sorted.forEach(fx => addSettingsFixedRow(fx.id, fx.name, (fx.amount_cents/100).toFixed(2), fx.due_day));
+    sorted.forEach(fx => addSettingsFixedRow(fx.id, fx.name, (fx.amount_cents/100).toFixed(2), fx.due_day, fx.active_months));
   } else {
     addSettingsFixedRow(genFixedId(), "", "", "");
   }
@@ -2085,42 +2111,112 @@ async function openFixedExpensesPanel(){
   setStatus(settingsFixedExpensesStatus, "");
 }
 
-function addSettingsFixedRow(id, name = "", amount = "", due_day = ""){
+const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function addSettingsFixedRow(id, name = "", amount = "", due_day = "", active_months = null){
   const wrap = document.createElement("div");
   wrap.dataset.fixedId = String(id || genFixedId());
   wrap.style.cssText = "margin-top:0;padding-top:14px;padding-bottom:14px;border-top:1px solid #9aa0a6;";
 
+  // Which months are currently active (default: all)
+  const activeSet = parseActiveMonths(active_months);
+
   // Row 1: bill name full width
   const row1 = document.createElement("div");
   row1.style.cssText = "display:flex;gap:10px;margin-bottom:8px;";
-  row1.innerHTML = `
-    <input class="fixedName" placeholder="Bill name"
-      value="${String(name).replaceAll('"','&quot;')}"
-      style="flex:1;" />
-  `;
+  const nameInput = document.createElement("input");
+  nameInput.className = "fixedName";
+  nameInput.placeholder = "Bill name";
+  nameInput.value = String(name);
+  nameInput.style.flex = "1";
+  row1.appendChild(nameInput);
 
-  // Row 2: amount + day + remove button
+  // Row 2: amount + day of month + remove button
   const row2 = document.createElement("div");
-  row2.style.cssText = "display:flex;gap:10px;align-items:flex-end;";
-  row2.innerHTML = `
-    <input class="fixedAmt" placeholder="$0.00"
-      value="${String(amount).replaceAll('"','&quot;')}"
-      inputmode="decimal" style="flex:1;" />
-    <input class="fixedDay" placeholder="Day (1-31)"
-      value="${String(due_day).replaceAll('"','&quot;')}"
-      inputmode="numeric" style="flex:1;" />
-    <button type="button" class="secondary fixedRemoveBtn" style="flex-shrink:0;">Remove</button>
-  `;
+  row2.style.cssText = "display:flex;gap:10px;align-items:flex-end;margin-bottom:8px;";
 
-  const amtInput = row2.querySelector(".fixedAmt");
+  const amtInput = document.createElement("input");
+  amtInput.className = "fixedAmt";
+  amtInput.placeholder = "$0.00";
+  amtInput.value = String(amount);
+  amtInput.inputMode = "decimal";
+  amtInput.style.flex = "1";
   amtInput.addEventListener("blur", () => {
     amtInput.value = validateAndFixCommas(amtInput.value);
     amtInput.value = normalizeMoneyDisplay(amtInput.value);
   });
-  row2.querySelector(".fixedRemoveBtn").addEventListener("click", () => wrap.remove());
+
+  const dayInput = document.createElement("input");
+  dayInput.className = "fixedDay";
+  dayInput.placeholder = "Day (1-31)";
+  dayInput.value = String(due_day);
+  dayInput.inputMode = "numeric";
+  dayInput.style.flex = "1";
+
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "secondary fixedRemoveBtn";
+  removeBtn.style.flexShrink = "0";
+  removeBtn.textContent = "Remove";
+  removeBtn.addEventListener("click", () => wrap.remove());
+
+  row2.appendChild(amtInput);
+  row2.appendChild(dayInput);
+  row2.appendChild(removeBtn);
+
+  // Row 3: month checkboxes
+  const row3 = document.createElement("div");
+  row3.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
+
+  // "All" toggle shortcut
+  const allBtn = document.createElement("button");
+  allBtn.type = "button";
+  allBtn.textContent = "All";
+  allBtn.style.cssText = "font-size:11px;padding:3px 8px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.5);cursor:pointer;color:var(--text);";
+  allBtn.addEventListener("click", () => {
+    row3.querySelectorAll(".fixedMonthCb").forEach(cb => cb.checked = true);
+    updateMonthBtnStyles();
+  });
+  row3.appendChild(allBtn);
+
+  const monthCbs = [];
+  for (let mo = 1; mo <= 12; mo++) {
+    const lbl = document.createElement("label");
+    lbl.style.cssText = "display:flex;align-items:center;gap:2px;font-size:11px;padding:3px 7px;border-radius:12px;border:1px solid var(--border);cursor:pointer;user-select:none;";
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.className = "fixedMonthCb";
+    cb.dataset.month = String(mo);
+    cb.checked = activeSet.has(mo);
+    cb.style.cssText = "width:11px;height:11px;margin:0;cursor:pointer;";
+    cb.addEventListener("change", updateMonthBtnStyles);
+
+    const span = document.createElement("span");
+    span.textContent = MONTH_ABBR[mo - 1];
+    lbl.appendChild(cb);
+    lbl.appendChild(span);
+    row3.appendChild(lbl);
+    monthCbs.push(cb);
+  }
+
+  function updateMonthBtnStyles() {
+    const allChecked = monthCbs.every(cb => cb.checked);
+    monthCbs.forEach((cb, i) => {
+      const lbl = cb.parentElement;
+      lbl.style.background = cb.checked ? "rgba(102,126,234,0.18)" : "rgba(255,255,255,0.4)";
+      lbl.style.borderColor = cb.checked ? "#667eea" : "var(--border)";
+      lbl.style.color       = cb.checked ? "#4a5bd4" : "var(--muted)";
+    });
+    allBtn.style.background = allChecked ? "rgba(102,126,234,0.18)" : "rgba(255,255,255,0.5)";
+    allBtn.style.borderColor = allChecked ? "#667eea" : "var(--border)";
+    allBtn.style.color = allChecked ? "#4a5bd4" : "var(--text)";
+  }
+  updateMonthBtnStyles();
 
   wrap.appendChild(row1);
   wrap.appendChild(row2);
+  wrap.appendChild(row3);
   settingsFixedExpensesList.appendChild(wrap);
   // No top border on the very first entry
   if (settingsFixedExpensesList.children.length === 1) {
@@ -2141,7 +2237,16 @@ async function saveSettingsFixedExpenses(){
     if (!name) return setStatus(settingsFixedExpensesStatus, "Each row needs a name.", "error");
     if (amt === null) return setStatus(settingsFixedExpensesStatus, `Enter a valid amount for: ${name}`, "error");
     if (!Number.isFinite(day) || day < 1 || day > 31) return setStatus(settingsFixedExpensesStatus, `Enter a due day (1–31) for: ${name}`, "error");
-    result.push({ id, name, amount_cents: amt, due_day: day });
+
+    // Collect checked months
+    const checkedMonths = Array.from(r.querySelectorAll(".fixedMonthCb"))
+      .filter(cb => cb.checked)
+      .map(cb => Number(cb.dataset.month));
+    if (checkedMonths.length === 0)
+      return setStatus(settingsFixedExpensesStatus, `Select at least one month for: ${name}`, "error");
+    const active_months = checkedMonths.sort((a,b) => a-b).join(",");
+
+    result.push({ id, name, amount_cents: amt, due_day: day, active_months });
   }
   setStatus(settingsFixedExpensesStatus, "Saving…");
   try {
