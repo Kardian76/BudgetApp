@@ -1178,16 +1178,21 @@ function normalizeCategories(state){
     ? state.next_budget_settings.items : [];
   const defaultBudgetMap = new Map(nextItems.map(i => [Number(i.category_id), Number(i.budget_cents) || 0]));
   return cats.map(c => {
-    const category_id = Number(c.category_id);
+    const category_id     = Number(c.category_id);
+    const budget_cents    = Number(c.budget_cents)   || 0;
+    const rollover_cents  = Number(c.rollover_cents) || 0;
     return {
       category_id,
       name: String(c.name || ""),
-      spent_cents: Number(c.spent_cents) || 0,
+      spent_cents:   Number(c.spent_cents)    || 0,
       remaining_cents: Number(c.remaining_cents) || 0,
-      // Default budget = the amount set by the user, unaffected by rollovers/overruns
+      // effective_budget = base budget for this period + rollover from prior period
+      // This reflects what the user actually has available, including over/underspend carryover.
+      effective_budget_cents: budget_cents + rollover_cents,
+      // default_budget = the user-set default amount, unaffected by rollovers
       default_budget_cents: defaultBudgetMap.has(category_id)
         ? defaultBudgetMap.get(category_id)
-        : Number(c.budget_cents) || 0,
+        : budget_cents,
     };
   }).filter(c => Number.isFinite(c.category_id) && c.category_id > 0 && c.name);
 }
@@ -1249,14 +1254,21 @@ async function renderDashboard(state){
   // Budget summary table
   catTableBody.innerHTML = "";
   for (const c of cats){
+    // Main data row
     const tr = document.createElement("tr");
+    tr.style.cursor = "pointer";
 
     const tdName = document.createElement("td");
     tdName.textContent = c.name;
 
     const tdBudget = document.createElement("td");
     tdBudget.className = "center";
-    tdBudget.textContent = fmtCents(c.default_budget_cents);
+    tdBudget.textContent = fmtCents(c.effective_budget_cents);
+    // Color the budget cell if rollover changed it from the default
+    if (c.effective_budget_cents !== c.default_budget_cents) {
+      tdBudget.style.color = c.effective_budget_cents > c.default_budget_cents
+        ? "var(--ok)" : "var(--danger)";
+    }
 
     const tdSpent = document.createElement("td");
     tdSpent.className = "center";
@@ -1272,6 +1284,29 @@ async function renderDashboard(state){
     tr.appendChild(tdSpent);
     tr.appendChild(tdRemaining);
     catTableBody.appendChild(tr);
+
+    // Expand row: shown on tap, reveals the default budget amount
+    const trExp = document.createElement("tr");
+    trExp.style.display = "none";
+    const tdExp = document.createElement("td");
+    tdExp.colSpan = 4;
+    tdExp.style.cssText = "padding:4px 8px 8px;font-size:12px;color:var(--muted);background:rgba(255,255,255,0.3);";
+
+    const rollover = c.effective_budget_cents - c.default_budget_cents;
+    let expandText = "Default budget: " + fmtCents(c.default_budget_cents);
+    if (rollover !== 0) {
+      const sign = rollover > 0 ? "+" : "";
+      expandText += "  ·  Rollover: " + sign + fmtCents(rollover);
+    }
+    tdExp.textContent = expandText;
+    trExp.appendChild(tdExp);
+    catTableBody.appendChild(trExp);
+
+    tr.addEventListener("click", () => {
+      const open = trExp.style.display !== "none";
+      trExp.style.display = open ? "none" : "table-row";
+      tr.style.background  = open ? "" : "rgba(255,255,255,0.2)";
+    });
   }
 
   // Dropdowns
@@ -2206,7 +2241,7 @@ function addSettingsFixedRow(id, name = "", amount = "", due_day = "", active_mo
   const row3 = document.createElement("div");
   row3.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
 
-  // "All" toggle shortcut
+  // "All" / "None" shortcut buttons
   const allBtn = document.createElement("button");
   allBtn.type = "button";
   allBtn.textContent = "All";
@@ -2216,6 +2251,16 @@ function addSettingsFixedRow(id, name = "", amount = "", due_day = "", active_mo
     updateMonthBtnStyles();
   });
   row3.appendChild(allBtn);
+
+  const noneBtn = document.createElement("button");
+  noneBtn.type = "button";
+  noneBtn.textContent = "None";
+  noneBtn.style.cssText = "font-size:11px;padding:3px 8px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.5);cursor:pointer;color:var(--text);";
+  noneBtn.addEventListener("click", () => {
+    row3.querySelectorAll(".fixedMonthCb").forEach(cb => cb.checked = false);
+    updateMonthBtnStyles();
+  });
+  row3.appendChild(noneBtn);
 
   const monthCbs = [];
   for (let mo = 1; mo <= 12; mo++) {
@@ -2239,16 +2284,20 @@ function addSettingsFixedRow(id, name = "", amount = "", due_day = "", active_mo
   }
 
   function updateMonthBtnStyles() {
-    const allChecked = monthCbs.every(cb => cb.checked);
-    monthCbs.forEach((cb, i) => {
+    const allChecked  = monthCbs.every(cb => cb.checked);
+    const noneChecked = monthCbs.every(cb => !cb.checked);
+    monthCbs.forEach(cb => {
       const lbl = cb.parentElement;
       lbl.style.background = cb.checked ? "rgba(102,126,234,0.18)" : "rgba(255,255,255,0.4)";
       lbl.style.borderColor = cb.checked ? "#667eea" : "var(--border)";
       lbl.style.color       = cb.checked ? "#4a5bd4" : "var(--muted)";
     });
-    allBtn.style.background = allChecked ? "rgba(102,126,234,0.18)" : "rgba(255,255,255,0.5)";
-    allBtn.style.borderColor = allChecked ? "#667eea" : "var(--border)";
-    allBtn.style.color = allChecked ? "#4a5bd4" : "var(--text)";
+    allBtn.style.background  = allChecked  ? "rgba(102,126,234,0.18)" : "rgba(255,255,255,0.5)";
+    allBtn.style.borderColor = allChecked  ? "#667eea" : "var(--border)";
+    allBtn.style.color       = allChecked  ? "#4a5bd4" : "var(--text)";
+    noneBtn.style.background  = noneChecked ? "rgba(102,126,234,0.18)" : "rgba(255,255,255,0.5)";
+    noneBtn.style.borderColor = noneChecked ? "#667eea" : "var(--border)";
+    noneBtn.style.color       = noneChecked ? "#4a5bd4" : "var(--text)";
   }
   updateMonthBtnStyles();
 
