@@ -87,12 +87,11 @@ td.center, th.center{text-align:center}
   display:flex;
   align-items:center;
   justify-content:center;
-  gap:14px;
-  padding:10px 16px;
-  padding-top:calc(10px + env(safe-area-inset-top));
+  gap:10px;
+  padding:6px 12px;
+  padding-top:calc(6px + env(safe-area-inset-top));
   box-sizing:border-box;
   width:100%;
-  flex-wrap:wrap;
 }
 .stickyHeaderLogo{
   flex-shrink:0;
@@ -122,8 +121,9 @@ td.center, th.center{text-align:center}
   color:#495057;
   border:1px solid rgba(0,0,0,0.1);
   backdrop-filter:blur(4px);
-  padding:8px 14px;
-  font-size:13px;
+  padding:5px 10px;
+  font-size:12px;
+  white-space:nowrap;
 }
 .historyBtn:hover, .settingsBtn:hover{
   background:rgba(255,255,255,0.85);
@@ -152,7 +152,7 @@ td.center, th.center{text-align:center}
 <body>
 <header class="stickyHeader" id="stickyHeader">
   <div class="stickyHeaderInner">
-    <img src="logo.png" alt="Purrfect Budget" class="stickyHeaderLogo" style="height:48px;width:auto;object-fit:contain;border-radius:8px;">
+    <img src="logo.png" alt="Purrfect Budget" class="stickyHeaderLogo" style="height:36px;width:auto;object-fit:contain;border-radius:6px;">
     <div class="stickyHeaderBtns" id="headerBtns" style="display:none;">
       <button id="openHistoryBtn" type="button" class="historyBtn">History</button>
       <button id="openSettingsBtn" type="button" class="settingsBtn">Settings</button>
