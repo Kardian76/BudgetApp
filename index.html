@@ -393,9 +393,7 @@ td.center, th.center{text-align:center}
         <button id="settingsOpenFixedExpensesBtn" class="secondary" type="button">Manage Fixed Expenses</button>
 
         <div id="settingsFixedExpensesPanel" class="subcard hidden">
-          <div class="status" style="margin-top:0;">
-            Fixed bills charged on a specific day each month (e.g. Netflix on the 8th). Only bills whose due date falls within the current budget period count toward Keep in Bank.
-          </div>
+          <div class="status" style="margin-top:0;text-indent:0;">Fixed bills charged on a specific day each month (e.g. Netflix on the 8th). Only bills whose due date falls within the current budget period count toward Keep in Bank.</div>
           <div class="row" style="margin-top:8px;">
             <button id="settingsAddFixedExpenseRowBtn" class="secondary" type="button">Add Fixed Expense</button>
           </div>
@@ -404,6 +402,7 @@ td.center, th.center{text-align:center}
             <button id="settingsCancelFixedExpensesBtn" class="secondary" type="button">Cancel</button>
           </div>
           <div id="settingsFixedExpensesStatus" class="status"></div>
+          <div style="border-top:1px solid #9aa0a6;margin-top:14px;"></div>
           <div id="settingsFixedExpensesList"></div>
         </div>
 
@@ -2022,7 +2021,7 @@ async function renderKeepInBank(state){
   // Breakdown text with dollar amounts
   keepInBankBreakdown.textContent =
     `Variable remaining (${fmtCents(variableRemaining)}) + ` +
-    `${unpaid.length} unpaid fixed expense${unpaid.length !== 1 ? "s" : ""}` +
+    `${unpaid.length} unpaid fixed` +
     (unpaid.length > 0 ? ` (${fmtCents(fixedUnpaidTotal)})` : "");
 }
 
