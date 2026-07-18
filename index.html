@@ -396,8 +396,7 @@ td.center, th.center{text-align:center}
           <div class="status" style="margin-top:0;">
             Fixed bills charged on a specific day each month (e.g. Netflix on the 8th). Only bills whose due date falls within the current budget period count toward Keep in Bank.
           </div>
-          <div id="settingsFixedExpensesList"></div>
-          <div class="row">
+          <div class="row" style="margin-top:8px;">
             <button id="settingsAddFixedExpenseRowBtn" class="secondary" type="button">Add Fixed Expense</button>
           </div>
           <div class="row">
@@ -405,6 +404,7 @@ td.center, th.center{text-align:center}
             <button id="settingsCancelFixedExpensesBtn" class="secondary" type="button">Cancel</button>
           </div>
           <div id="settingsFixedExpensesStatus" class="status"></div>
+          <div id="settingsFixedExpensesList"></div>
         </div>
 
         <button id="settingsOpenReorderBtn" class="secondary" type="button">Reorder Categories</button>
@@ -446,15 +446,18 @@ td.center, th.center{text-align:center}
         <h1 style="margin:0;">History</h1>
         <div id="historyPeriod" class="small" style="margin-top:4px;font-weight:600;"></div>
       </div>
-      <button id="historyCloseBtn" class="secondary" type="button">Close</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button type="button" class="helpBtn" onclick="showHelp('history')" aria-label="Help">?</button>
+        <button id="historyCloseBtn" class="secondary" type="button">Close</button>
+      </div>
     </div>
 
     <div class="divider"></div>
 
-    <div style="display:flex;justify-content:center;gap:10px;margin-top:0;">
-      <button id="historyCurrentBtn" class="secondary" type="button" style="flex:1;">Current Period</button>
-      <button id="historyPriorBtn" class="secondary" type="button" style="flex:1;">Prior Period</button>
-      <button id="historyExportBtn" class="secondary" type="button" style="flex:1;">Export</button>
+    <div style="display:flex;justify-content:center;gap:8px;margin-top:0;">
+      <button id="historyCurrentBtn" class="secondary" type="button" style="flex:1;white-space:nowrap;padding-left:8px;padding-right:8px;font-size:13px;">Current Period</button>
+      <button id="historyPriorBtn" class="secondary" type="button" style="flex:1;white-space:nowrap;padding-left:8px;padding-right:8px;font-size:13px;">Prior Period</button>
+      <button id="historyExportBtn" class="secondary" type="button" style="flex:1;white-space:nowrap;padding-left:8px;padding-right:8px;font-size:13px;">Export (2 periods)</button>
     </div>
     <div id="historyStatus" class="status"></div>
 
@@ -2016,15 +2019,11 @@ async function renderKeepInBank(state){
   keepInBankAmt.textContent = fmtCents(total);
   keepInBankAmt.style.color = total < 0 ? "var(--danger)" : "#3a5bc7";
 
-  // Breakdown text
-  const allDue = await getAllFixedDueThisPeriod(state);
-  const paidCount = allDue.length - unpaid.length;
-  if (allDue.length > 0) {
-    keepInBankBreakdown.textContent =
-      `Variable remaining + ${unpaid.length} unpaid fixed expense${unpaid.length !== 1 ? "s" : ""}`;
-  } else {
-    keepInBankBreakdown.textContent = "Variable remaining + 0 unpaid fixed expenses";
-  }
+  // Breakdown text with dollar amounts
+  keepInBankBreakdown.textContent =
+    `Variable remaining (${fmtCents(variableRemaining)}) + ` +
+    `${unpaid.length} unpaid fixed expense${unpaid.length !== 1 ? "s" : ""}` +
+    (unpaid.length > 0 ? ` (${fmtCents(fixedUnpaidTotal)})` : "");
 }
 
 /* --- Fixed Expenses card — always visible, render on dashboard load --- */
@@ -3402,14 +3401,14 @@ bootstrap();
 const HELP_CONTENT = {
   "budget-summary": {
     title: "Budget Summary",
-    body: `<p>The <strong>Budget Summary</strong> shows how your money is tracking across all categories for the current budget period.</p>
+    body: `<p>The <strong>Budget Summary</strong> shows how your money is tracking across all variable spending categories for the current budget period.</p>
 <ul style="padding-left:18px;margin:8px 0;line-height:1.8;">
-  <li><strong>Budget</strong> — your default amount set for each category.</li>
+  <li><strong>Budget</strong> — the effective budget for this period, which includes your default amount plus any rollover from the prior period. Green means a prior surplus rolled over; red means prior overspending reduced this period's budget. Tap any row to see the default amount and rollover breakdown.</li>
   <li><strong>Spent</strong> — total expenses logged so far this period.</li>
-  <li><strong>Remaining</strong> — how much is left. Red means you have gone over budget.</li>
-  <li><strong>Keep in Bank</strong> — the total you should leave in your account to cover remaining variable budget plus any unpaid fixed bills due this period.</li>
+  <li><strong>Remaining</strong> — how much is left. Red means you are over budget.</li>
+  <li><strong>Keep in Bank</strong> — the minimum you should leave in your account: variable remaining plus all unchecked fixed bills due this period.</li>
 </ul>
-<p>The period dates are shown at the top. Tap <strong>History</strong> to view individual transactions.</p>`
+<p>The current period dates are shown at the top. Tap <strong>History</strong> in the header to view individual transactions.</p>`
   },
   "add-transaction": {
     title: "Add Transaction",
@@ -3417,21 +3416,37 @@ const HELP_CONTENT = {
 <ul style="padding-left:18px;margin:8px 0;line-height:1.8;">
   <li><strong>Expense</strong> — money spent, subtracted from the category's remaining balance.</li>
   <li><strong>Credit</strong> — money returned or refunded, added back to the category's remaining balance.</li>
-  <li><strong>Transfer</strong> — moves budget from one category to another without affecting your total spend.</li>
+  <li><strong>Transfer</strong> — moves budget from one category to another without affecting your total spending.</li>
 </ul>
-<p>Select the <strong>Category</strong>, enter the <strong>Amount</strong>, and optionally add a <strong>Note</strong> for reference. Tap <strong>Save</strong> to record it.</p>`
+<p>Select the <strong>Category</strong>, enter the <strong>Amount</strong>, and optionally add a <strong>Note</strong> for reference. Tap <strong>Save</strong> to record it immediately.</p>
+<p style="margin-top:8px;">Transactions are reflected instantly in the Budget Summary and Keep in Bank totals.</p>`
   },
   "fixed-expenses": {
     title: "Fixed Expenses",
-    body: `<p><strong>Fixed Expenses</strong> are recurring bills you pay on a set day each month — like rent, subscriptions, or loan payments.</p>
-<p>Bills due within the current budget period appear here with a checkbox. Check a bill off once you have paid it. Unpaid bills from the prior period are highlighted in red as carry-overs.</p>
-<p>The <strong>Keep in Bank</strong> amount includes all unchecked fixed bills due this period, so you always know exactly how much to leave in your account.</p>
+    body: `<p><strong>Fixed Expenses</strong> are recurring bills — like rent, subscriptions, insurance, or loan payments — that are due on a specific day of the month.</p>
+<p><strong>Due this period</strong> — bills whose due date falls in the current budget period. Check each one off once paid. The checkbox is saved and shared across all your devices.</p>
+<p><strong>Carried over</strong> — bills that were due last period but were never checked off. These appear in red and still count toward your Keep in Bank total until paid.</p>
+<p><strong>Due next period</strong> — a preview of bills coming up next period. Non-monthly bills (e.g. semi-annual car insurance) are flagged with a badge count so you can plan ahead.</p>
+<p>Fixed expenses are not tied to your variable spending categories — they are tracked separately and only affect the Keep in Bank calculation.</p>
 <p style="margin-top:10px;font-weight:600;">Managing your fixed expenses:</p>
 <ul style="padding-left:18px;margin:8px 0;line-height:1.8;">
-  <li><strong>Add</strong> — open <em>Settings → Manage Fixed Expenses</em>, fill in the bill name, amount, and day of month, then tap Save.</li>
+  <li><strong>Add</strong> — open <em>Settings → Manage Fixed Expenses</em>, enter the bill name, amount, due day of month, and which months it applies to, then tap Save.</li>
   <li><strong>Edit</strong> — open <em>Settings → Manage Fixed Expenses</em>, update any field directly, then tap Save.</li>
-  <li><strong>Remove</strong> — open <em>Settings → Manage Fixed Expenses</em> and tap the Remove button next to the bill you want to delete, then tap Save.</li>
+  <li><strong>Remove</strong> — open <em>Settings → Manage Fixed Expenses</em>, tap Remove next to the bill, then tap Save.</li>
+  <li><strong>Non-monthly bills</strong> — use the month checkboxes (Jan–Dec) to select only the months the bill is due. Tap <em>All</em> for monthly, or pick individual months for quarterly, semi-annual, or annual bills.</li>
 </ul>`
+  },
+  "history": {
+    title: "Transaction History",
+    body: `<p>The <strong>History</strong> view shows all transactions recorded for the selected budget period.</p>
+<ul style="padding-left:18px;margin:8px 0;line-height:1.8;">
+  <li><strong>Current Period</strong> — transactions from the active budget period.</li>
+  <li><strong>Prior Period</strong> — transactions from the previous budget period. Only the two most recent periods are stored.</li>
+  <li><strong>Export (2 periods)</strong> — downloads all available transactions (current and prior period) as an Excel .xlsx file, named with today's date.</li>
+</ul>
+<p>Tap any column header to sort by that field. Tap the same header again to reverse the sort direction. The active sort column is highlighted with an arrow.</p>
+<p>Tap any transaction row to expand it and see who entered it, the transaction type, and the full note.</p>
+<p>Expenses appear in red, credits in green. Transfers show as a matched pair — a credit out of one category and an expense into another.</p>`
   }
 };
 
