@@ -232,7 +232,7 @@ td.center, th.center{text-align:center}
       <!-- Budget Summary (Spent 2nd col, Remaining 3rd; both centered) -->
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <h1 style="margin:0;">Budget Summary</h1>
+          <h1 style="margin:0;">Budgets</h1>
           <button type="button" class="helpBtn" onclick="showHelp('budget-summary')" aria-label="Help">?</button>
         </div>
         <div class="status">Period: <strong id="periodLabel">—</strong></div>
@@ -334,7 +334,7 @@ td.center, th.center{text-align:center}
     <div class="divider"></div>
 
     <div class="card">
-      <h1 style="text-align:center;">Budget</h1>
+      <h1 style="text-align:center;">Budget Settings</h1>
       
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
         <button id="settingsOpenEditBudgetsBtn" class="secondary" type="button">Edit Budget Amounts</button>
@@ -390,6 +390,20 @@ td.center, th.center{text-align:center}
           <div id="settingsAddCatsStatus" class="status"></div>
         </div>
 
+        <button id="settingsOpenReorderBtn" class="secondary" type="button">Reorder Budget Categories</button>
+
+        <div id="settingsReorderPanel" class="subcard hidden">
+          <div class="status" style="margin-top:0;">
+            Move categories up/down. This affects how categories are shown in the app on this device.
+          </div>
+          <div id="settingsReorderList"></div>
+          <div class="row">
+            <button id="settingsSaveOrderBtn" type="button">Save Order</button>
+            <button id="settingsCancelOrderBtn" class="secondary" type="button">Cancel</button>
+          </div>
+          <div id="settingsReorderStatus" class="status"></div>
+        </div>
+
         <button id="settingsOpenFixedExpensesBtn" class="secondary" type="button">Manage Fixed Expenses</button>
 
         <div id="settingsFixedExpensesPanel" class="subcard hidden">
@@ -406,24 +420,11 @@ td.center, th.center{text-align:center}
           <div id="settingsFixedExpensesList"></div>
         </div>
 
-        <button id="settingsOpenReorderBtn" class="secondary" type="button">Reorder Categories</button>
-
-        <div id="settingsReorderPanel" class="subcard hidden">
-          <div class="status" style="margin-top:0;">
-            Move categories up/down. This affects how categories are shown in the app on this device.
-          </div>
-          <div id="settingsReorderList"></div>
-          <div class="row">
-            <button id="settingsSaveOrderBtn" type="button">Save Order</button>
-            <button id="settingsCancelOrderBtn" class="secondary" type="button">Cancel</button>
-          </div>
-          <div id="settingsReorderStatus" class="status"></div>
-        </div>
       </div>
     </div>
 
     <div class="card subcard">
-      <h1 style="text-align:center;">Account</h1>
+      <h1 style="text-align:center;">Account Settings</h1>
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
         <button id="settingsChangeNameBtn" class="secondary" type="button">Change Name</button>
         <button id="settingsLogoutBtn" class="secondary" type="button">Log Out</button>
@@ -2020,8 +2021,8 @@ async function renderKeepInBank(state){
 
   // Breakdown text with dollar amounts
   keepInBankBreakdown.textContent =
-    `Variable remaining (${fmtCents(variableRemaining)}) + ` +
-    `${unpaid.length} unpaid fixed` +
+    `Budget (${fmtCents(variableRemaining)}) + ` +
+    `${unpaid.length} unpaid fixed expenses` +
     (unpaid.length > 0 ? ` (${fmtCents(fixedUnpaidTotal)})` : "");
 }
 
@@ -3415,8 +3416,8 @@ bootstrap();
 /* ================= HELP MODAL ================= */
 const HELP_CONTENT = {
   "budget-summary": {
-    title: "Budget Summary",
-    body: `<p>The <strong>Budget Summary</strong> shows how your money is tracking across all variable spending categories for the current budget period.</p>
+    title: "Budgets",
+    body: `<p>The <strong>Budgets</strong> card shows how your money is tracking across all variable spending categories for the current budget period.</p>
 <ul style="padding-left:18px;margin:8px 0;line-height:1.8;">
   <li><strong>Budget</strong> — the effective budget for this period, which includes your default amount plus any rollover from the prior period. Green means a prior surplus rolled over; red means prior overspending reduced this period's budget. Tap any row to see the default amount and rollover breakdown.</li>
   <li><strong>Spent</strong> — total expenses logged so far this period.</li>
@@ -3434,7 +3435,7 @@ const HELP_CONTENT = {
   <li><strong>Transfer</strong> — moves budget from one category to another without affecting your total spending.</li>
 </ul>
 <p>Select the <strong>Category</strong>, enter the <strong>Amount</strong>, and optionally add a <strong>Note</strong> for reference. Tap <strong>Save</strong> to record it immediately.</p>
-<p style="margin-top:8px;">Transactions are reflected instantly in the Budget Summary and Keep in Bank totals.</p>`
+<p style="margin-top:8px;">Transactions are reflected instantly in the Budgets and Keep in Bank totals.</p>`
   },
   "fixed-expenses": {
     title: "Fixed Expenses",
