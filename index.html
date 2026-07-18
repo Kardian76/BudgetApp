@@ -402,7 +402,7 @@ td.center, th.center{text-align:center}
             <button id="settingsCancelFixedExpensesBtn" class="secondary" type="button">Cancel</button>
           </div>
           <div id="settingsFixedExpensesStatus" class="status"></div>
-          <div style="border-top:1px solid #9aa0a6;margin-top:14px;"></div>
+          <div style="border-top:1px solid #9aa0a6;margin-top:14px;padding-top:14px;"></div>
           <div id="settingsFixedExpensesList"></div>
         </div>
 
@@ -2344,11 +2344,16 @@ function addSettingsFixedRow(id, name = "", amount = "", due_day = "", active_mo
   wrap.appendChild(row2);
   wrap.appendChild(row3);
   settingsFixedExpensesList.appendChild(wrap);
-  // No top border on the very first entry
-  if (settingsFixedExpensesList.children.length === 1) {
-    wrap.style.borderTop = "none";
-    wrap.style.paddingTop = "0";
-  }
+  // Recalculate borders: only the first child gets no top border
+  Array.from(settingsFixedExpensesList.children).forEach((child, idx) => {
+    if (idx === 0) {
+      child.style.borderTop = "none";
+      child.style.paddingTop = "0";
+    } else {
+      child.style.borderTop = "1px solid #9aa0a6";
+      child.style.paddingTop = "14px";
+    }
+  });
 }
 
 async function saveSettingsFixedExpenses(){
@@ -2391,7 +2396,18 @@ async function saveSettingsFixedExpenses(){
 }
 
 settingsOpenFixedExpensesBtn.addEventListener("click", openFixedExpensesPanel);
-settingsAddFixedExpenseRowBtn.addEventListener("click", () => addSettingsFixedRow(genFixedId(), "", "", ""));
+settingsAddFixedExpenseRowBtn.addEventListener("click", () => {
+  // Build the new row via the normal function (it appends temporarily)
+  addSettingsFixedRow(genFixedId(), "", "", "");
+  // Move it to the top of the list so it appears directly under the buttons
+  const last = settingsFixedExpensesList.lastElementChild;
+  if (last) settingsFixedExpensesList.prepend(last);
+  // Recalculate borders after reorder
+  Array.from(settingsFixedExpensesList.children).forEach((child, idx) => {
+    child.style.borderTop = idx === 0 ? "none" : "1px solid #9aa0a6";
+    child.style.paddingTop = idx === 0 ? "0" : "14px";
+  });
+});
 settingsSaveFixedExpensesBtn.addEventListener("click", saveSettingsFixedExpenses);
 settingsCancelFixedExpensesBtn.addEventListener("click", () => {
   settingsFixedExpensesPanel.classList.add("hidden");
