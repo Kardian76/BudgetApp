@@ -334,7 +334,7 @@ td.center, th.center{text-align:center}
     <div class="divider"></div>
 
     <div class="card">
-      <h1 style="text-align:center;">Budget Settings</h1>
+      <h1 style="text-align:center;">Variable Budget Settings</h1>
       
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
         <button id="settingsOpenEditBudgetsBtn" class="secondary" type="button">Edit Budget Amounts</button>
@@ -366,7 +366,7 @@ td.center, th.center{text-align:center}
           <div id="settingsEditBudgetsStatus" class="status"></div>
         </div>
 
-        <button id="settingsOpenAddCatsBtn" class="secondary" type="button">Add/Remove Budget Categories</button>
+        <button id="settingsOpenAddCatsBtn" class="secondary" type="button">Add/Remove Categories</button>
 
         <div id="settingsAddCatsPanel" class="subcard hidden">
           <div class="status" style="margin-top:0;">
@@ -390,7 +390,7 @@ td.center, th.center{text-align:center}
           <div id="settingsAddCatsStatus" class="status"></div>
         </div>
 
-        <button id="settingsOpenReorderBtn" class="secondary" type="button">Reorder Budget Categories</button>
+        <button id="settingsOpenReorderBtn" class="secondary" type="button">Reorder Categories</button>
 
         <div id="settingsReorderPanel" class="subcard hidden">
           <div class="status" style="margin-top:0;">
@@ -404,12 +404,33 @@ td.center, th.center{text-align:center}
           <div id="settingsReorderStatus" class="status"></div>
         </div>
 
-        <button id="settingsOpenFixedExpensesBtn" class="secondary" type="button">Manage Fixed Expenses</button>
+      </div>
+    </div>
+
+    <div class="card subcard">
+      <h1 style="text-align:center;">Fixed Budget Settings</h1>
+
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+        <button id="settingsOpenAddFixedBtn" class="secondary" type="button">Add Fixed Expense</button>
+
+        <div id="settingsAddFixedPanel" class="subcard hidden">
+          <div class="status" style="margin-top:0;text-indent:0;">Enter the bill details and choose the month(s) it is due. Tap All for a bill that is due every month.</div>
+          <div id="settingsAddFixedFormHost" style="margin-top:10px;"></div>
+          <div class="row">
+            <button id="settingsSaveNewFixedBtn" type="button">Save Fixed Expense</button>
+            <button id="settingsCancelNewFixedBtn" class="secondary" type="button">Cancel</button>
+          </div>
+          <div id="settingsAddFixedStatus" class="status"></div>
+        </div>
+
+        <button id="settingsOpenFixedExpensesBtn" class="secondary" type="button">Edit/Remove Expenses</button>
 
         <div id="settingsFixedExpensesPanel" class="subcard hidden">
-          <div class="status" style="margin-top:0;text-indent:0;">Fixed bills charged on a specific day each month (e.g. Netflix on the 8th). Only bills whose due date falls within the current budget period count toward Keep in Bank.</div>
-          <div class="row" style="margin-top:8px;">
-            <button id="settingsAddFixedExpenseRowBtn" class="secondary" type="button">Add Fixed Expense</button>
+          <div class="status" style="margin-top:0;text-indent:0;">Edit or remove your fixed bills, then tap Save. Only bills due within the current budget period count toward Keep in Bank.</div>
+          <div id="fixedSortBar" style="display:flex;align-items:center;gap:6px;margin-top:10px;">
+            <span class="small" style="font-weight:700;">Sort by:</span>
+            <button type="button" data-sort="name">Name</button>
+            <button type="button" data-sort="date">Date</button>
           </div>
           <div class="row">
             <button id="settingsSaveFixedExpensesBtn" type="button">Save Fixed Expenses</button>
@@ -417,9 +438,9 @@ td.center, th.center{text-align:center}
           </div>
           <div id="settingsFixedExpensesStatus" class="status"></div>
           <div style="border-top:1px solid #9aa0a6;margin-top:14px;padding-top:14px;"></div>
+          <div id="settingsFixedEmptyMsg" class="small hidden" style="padding:4px 0 8px;">No fixed expenses yet. Use Add Fixed Expense above to create one.</div>
           <div id="settingsFixedExpensesList"></div>
         </div>
-
       </div>
     </div>
 
@@ -2189,52 +2210,118 @@ async function renderFixedExpensesMainCard(){
   setStatus(statusEl, "");
 }
 
-/* --- Settings: Manage Fixed Expenses panel --- */
-const settingsOpenFixedExpensesBtn = $("settingsOpenFixedExpensesBtn");
-const settingsFixedExpensesPanel = $("settingsFixedExpensesPanel");
-const settingsFixedExpensesList = $("settingsFixedExpensesList");
-const settingsAddFixedExpenseRowBtn = $("settingsAddFixedExpenseRowBtn");
-const settingsSaveFixedExpensesBtn = $("settingsSaveFixedExpensesBtn");
+/* --- Settings: Fixed Budget Settings (Add Fixed Expense + Edit/Remove Expenses) --- */
+const settingsOpenFixedExpensesBtn   = $("settingsOpenFixedExpensesBtn");
+const settingsFixedExpensesPanel     = $("settingsFixedExpensesPanel");
+const settingsFixedExpensesList      = $("settingsFixedExpensesList");
+const settingsSaveFixedExpensesBtn   = $("settingsSaveFixedExpensesBtn");
 const settingsCancelFixedExpensesBtn = $("settingsCancelFixedExpensesBtn");
-const settingsFixedExpensesStatus = $("settingsFixedExpensesStatus");
+const settingsFixedExpensesStatus    = $("settingsFixedExpensesStatus");
 
-async function openFixedExpensesPanel(){
-  if (!settingsFixedExpensesPanel.classList.contains("hidden")) {
-    settingsFixedExpensesPanel.classList.add("hidden");
-    setStatus(settingsFixedExpensesStatus, "");
-    return;
-  }
-  // Close other panels
-  $("settingsEditBudgetsPanel").classList.add("hidden");
-  $("settingsAddCatsPanel").classList.add("hidden");
-  $("settingsReorderPanel").classList.add("hidden");
+const settingsOpenAddFixedBtn  = $("settingsOpenAddFixedBtn");
+const settingsAddFixedPanel    = $("settingsAddFixedPanel");
+const settingsAddFixedFormHost = $("settingsAddFixedFormHost");
+const settingsSaveNewFixedBtn  = $("settingsSaveNewFixedBtn");
+const settingsCancelNewFixedBtn = $("settingsCancelNewFixedBtn");
+const settingsAddFixedStatus   = $("settingsAddFixedStatus");
 
-  const existing = await loadFixedExpenses();
-  settingsFixedExpensesList.innerHTML = "";
-  if (existing.length > 0) {
-    const sorted = [...existing].sort((a, b) => a.due_day - b.due_day);
-    sorted.forEach(fx => addSettingsFixedRow(fx.id, fx.name, (fx.amount_cents/100).toFixed(2), fx.due_day, fx.active_months));
-  } else {
-    addSettingsFixedRow(genFixedId(), "", "", "");
-  }
-  settingsFixedExpensesPanel.classList.remove("hidden");
-  setStatus(settingsFixedExpensesStatus, "");
-}
+let FIXED_SORT_MODE = "date"; // "date" (day of month) | "name"
 
 const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-function addSettingsFixedRow(id, name = "", amount = "", due_day = "", active_months = null){
+/* Close every settings sub-panel except the one named (by element id) */
+function closeOtherSettingsPanels(exceptId){
+  ["settingsEditBudgetsPanel","settingsAddCatsPanel","settingsReorderPanel",
+   "settingsFixedExpensesPanel","settingsAddFixedPanel"].forEach(id => {
+    if (id !== exceptId) $(id)?.classList.add("hidden");
+  });
+}
+
+/* Only the first row in the edit list has no top separator */
+function recalcFixedBorders(){
+  Array.from(settingsFixedExpensesList.children).forEach((child, idx) => {
+    child.style.borderTop  = idx === 0 ? "none" : "1px solid #9aa0a6";
+    child.style.paddingTop = idx === 0 ? "0" : "14px";
+  });
+}
+
+function updateFixedEmptyMsg(){
+  const msg = $("settingsFixedEmptyMsg");
+  if (!msg) return;
+  const hasRows = settingsFixedExpensesList.querySelector("[data-fixed-id]") !== null;
+  msg.classList.toggle("hidden", hasRows);
+}
+
+/* Re-order the rows in place (keeps any unsaved edits typed into the fields) */
+function sortFixedRows(){
+  const rows = Array.from(settingsFixedExpensesList.querySelectorAll(":scope > [data-fixed-id]"));
+  const keyName = r => (r.querySelector(".fixedName")?.value || "").trim().toLowerCase();
+  const keyDay  = r => {
+    const d = parseInt(r.querySelector(".fixedDay")?.value || "", 10);
+    return Number.isFinite(d) ? d : 99; // blank/invalid days sort last
+  };
+  rows.sort((a, b) => {
+    if (FIXED_SORT_MODE === "name") {
+      const cmp = keyName(a).localeCompare(keyName(b));
+      return cmp !== 0 ? cmp : keyDay(a) - keyDay(b);
+    }
+    const cmp = keyDay(a) - keyDay(b);
+    return cmp !== 0 ? cmp : keyName(a).localeCompare(keyName(b));
+  });
+  rows.forEach(r => settingsFixedExpensesList.appendChild(r));
+  recalcFixedBorders();
+}
+
+function updateFixedSortBar(){
+  const bar = $("fixedSortBar");
+  if (!bar) return;
+  bar.querySelectorAll("button[data-sort]").forEach(btn => {
+    const active = btn.dataset.sort === FIXED_SORT_MODE;
+    btn.style.cssText = active
+      ? "padding:5px 14px;font-size:12px;border-radius:20px;border:0;cursor:pointer;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-weight:700;"
+      : "padding:5px 14px;font-size:12px;border-radius:20px;border:1px solid var(--border);cursor:pointer;background:rgba(255,255,255,0.5);color:var(--muted);font-weight:500;";
+  });
+}
+
+$("fixedSortBar").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-sort]");
+  if (!btn) return;
+  FIXED_SORT_MODE = btn.dataset.sort;
+  updateFixedSortBar();
+  sortFixedRows();
+});
+
+/* Builds one fixed-expense editor row and returns it (the caller places it).
+   opts.showRemove — include the Remove button (edit list)
+   opts.labels     — show captions above each field (Add form) */
+function buildFixedRowEl(id, name = "", amount = "", due_day = "", active_months = null, opts = {}){
+  const showRemove = opts.showRemove !== false && !opts.labels;
   const wrap = document.createElement("div");
   wrap.dataset.fixedId = String(id || genFixedId());
-  wrap.style.cssText = "margin-top:0;padding-top:14px;padding-bottom:14px;border-top:1px solid #9aa0a6;";
+  wrap.style.cssText = opts.labels
+    ? "margin:0;padding:0;"
+    : "margin-top:0;padding-top:14px;padding-bottom:14px;border-top:1px solid #9aa0a6;";
 
-  // Which months are active. null/undefined = new row (none selected by default).
-  // Existing rows pass their stored active_months string.
+  // null/undefined = brand-new row: no months pre-selected
   const activeSet = (active_months === null || active_months === undefined)
-    ? new Set()  // new row: no months pre-selected — user must pick
+    ? new Set()
     : parseActiveMonths(active_months);
 
-  // Row 1: bill name full width
+  const mkField = (labelText, input) => {
+    if (!opts.labels) return input;
+    const f = document.createElement("div");
+    f.style.cssText = "flex:1;min-width:0;";
+    const l = document.createElement("div");
+    l.className = "small";
+    l.style.cssText = "margin-bottom:4px;font-weight:600;";
+    l.textContent = labelText;
+    input.style.width = "100%";
+    f.appendChild(l);
+    f.appendChild(input);
+    return f;
+  };
+
+  // Row 1: bill name
   const row1 = document.createElement("div");
   row1.style.cssText = "display:flex;gap:10px;margin-bottom:8px;";
   const nameInput = document.createElement("input");
@@ -2242,9 +2329,9 @@ function addSettingsFixedRow(id, name = "", amount = "", due_day = "", active_mo
   nameInput.placeholder = "Bill name";
   nameInput.value = String(name);
   nameInput.style.flex = "1";
-  row1.appendChild(nameInput);
+  row1.appendChild(mkField("Bill name", nameInput));
 
-  // Row 2: amount + day of month + remove button
+  // Row 2: amount + day of month (+ Remove in the edit list)
   const row2 = document.createElement("div");
   row2.style.cssText = "display:flex;gap:10px;align-items:flex-end;margin-bottom:8px;";
 
@@ -2266,41 +2353,41 @@ function addSettingsFixedRow(id, name = "", amount = "", due_day = "", active_mo
   dayInput.inputMode = "numeric";
   dayInput.style.flex = "1";
 
-  const removeBtn = document.createElement("button");
-  removeBtn.type = "button";
-  removeBtn.className = "secondary fixedRemoveBtn";
-  removeBtn.style.flexShrink = "0";
-  removeBtn.textContent = "Remove";
-  removeBtn.addEventListener("click", () => wrap.remove());
+  row2.appendChild(mkField("Amount", amtInput));
+  row2.appendChild(mkField("Due day of month", dayInput));
 
-  row2.appendChild(amtInput);
-  row2.appendChild(dayInput);
-  row2.appendChild(removeBtn);
+  if (showRemove) {
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "secondary fixedRemoveBtn";
+    removeBtn.style.flexShrink = "0";
+    removeBtn.textContent = "Remove";
+    removeBtn.addEventListener("click", () => {
+      wrap.remove();
+      recalcFixedBorders();
+      updateFixedEmptyMsg();
+    });
+    row2.appendChild(removeBtn);
+  }
 
-  // Row 3: month checkboxes
+  // Row 3: month pills with All / None shortcuts
   const row3 = document.createElement("div");
   row3.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
 
-  // "All" / "None" shortcut buttons
-  const allBtn = document.createElement("button");
-  allBtn.type = "button";
-  allBtn.textContent = "All";
-  allBtn.style.cssText = "font-size:11px;padding:3px 8px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.5);cursor:pointer;color:var(--text);";
-  allBtn.addEventListener("click", () => {
-    row3.querySelectorAll(".fixedMonthCb").forEach(cb => cb.checked = true);
-    updateMonthBtnStyles();
-  });
-  row3.appendChild(allBtn);
-
-  const noneBtn = document.createElement("button");
-  noneBtn.type = "button";
-  noneBtn.textContent = "None";
-  noneBtn.style.cssText = "font-size:11px;padding:3px 8px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.5);cursor:pointer;color:var(--text);";
-  noneBtn.addEventListener("click", () => {
-    row3.querySelectorAll(".fixedMonthCb").forEach(cb => cb.checked = false);
-    updateMonthBtnStyles();
-  });
-  row3.appendChild(noneBtn);
+  const mkShortcut = (text, setTo) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = text;
+    b.style.cssText = "font-size:11px;padding:3px 8px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.5);cursor:pointer;color:var(--text);";
+    b.addEventListener("click", () => {
+      row3.querySelectorAll(".fixedMonthCb").forEach(cb => cb.checked = setTo);
+      updateMonthBtnStyles();
+    });
+    row3.appendChild(b);
+    return b;
+  };
+  const allBtn  = mkShortcut("All", true);
+  const noneBtn = mkShortcut("None", false);
 
   const monthCbs = [];
   for (let mo = 1; mo <= 12; mo++) {
@@ -2328,13 +2415,13 @@ function addSettingsFixedRow(id, name = "", amount = "", due_day = "", active_mo
     const noneChecked = monthCbs.every(cb => !cb.checked);
     monthCbs.forEach(cb => {
       const lbl = cb.parentElement;
-      lbl.style.background = cb.checked ? "rgba(102,126,234,0.18)" : "rgba(255,255,255,0.4)";
+      lbl.style.background  = cb.checked ? "rgba(102,126,234,0.18)" : "rgba(255,255,255,0.4)";
       lbl.style.borderColor = cb.checked ? "#667eea" : "var(--border)";
       lbl.style.color       = cb.checked ? "#4a5bd4" : "var(--muted)";
     });
-    allBtn.style.background  = allChecked  ? "rgba(102,126,234,0.18)" : "rgba(255,255,255,0.5)";
-    allBtn.style.borderColor = allChecked  ? "#667eea" : "var(--border)";
-    allBtn.style.color       = allChecked  ? "#4a5bd4" : "var(--text)";
+    allBtn.style.background   = allChecked  ? "rgba(102,126,234,0.18)" : "rgba(255,255,255,0.5)";
+    allBtn.style.borderColor  = allChecked  ? "#667eea" : "var(--border)";
+    allBtn.style.color        = allChecked  ? "#4a5bd4" : "var(--text)";
     noneBtn.style.background  = noneChecked ? "rgba(102,126,234,0.18)" : "rgba(255,255,255,0.5)";
     noneBtn.style.borderColor = noneChecked ? "#667eea" : "var(--border)";
     noneBtn.style.color       = noneChecked ? "#4a5bd4" : "var(--text)";
@@ -2343,42 +2430,70 @@ function addSettingsFixedRow(id, name = "", amount = "", due_day = "", active_mo
 
   wrap.appendChild(row1);
   wrap.appendChild(row2);
+  if (opts.labels) {
+    const cap = document.createElement("div");
+    cap.className = "small";
+    cap.style.cssText = "margin-bottom:4px;font-weight:600;";
+    cap.textContent = "Months due";
+    wrap.appendChild(cap);
+  }
   wrap.appendChild(row3);
-  settingsFixedExpensesList.appendChild(wrap);
-  // Recalculate borders: only the first child gets no top border
-  Array.from(settingsFixedExpensesList.children).forEach((child, idx) => {
-    if (idx === 0) {
-      child.style.borderTop = "none";
-      child.style.paddingTop = "0";
-    } else {
-      child.style.borderTop = "1px solid #9aa0a6";
-      child.style.paddingTop = "14px";
-    }
-  });
+  return wrap;
+}
+
+/* Reads + validates one editor row.
+   Returns { skip:true } for a blank row, { error } if invalid, or { item }. */
+function readFixedRowEl(r){
+  const id     = r.dataset.fixedId || genFixedId();
+  const name   = (r.querySelector(".fixedName")?.value || "").trim();
+  const amtRaw = r.querySelector(".fixedAmt")?.value || "";
+  const amt    = dollarsToCentsFromInput(amtRaw);
+  const day    = parseInt(r.querySelector(".fixedDay")?.value || "", 10);
+
+  if (!name && !amtRaw.trim()) return { skip: true };
+  if (!name) return { error: "Each row needs a name." };
+  if (amt === null) return { error: `Enter a valid amount for: ${name}` };
+  if (amt <= 0) return { error: `Amount must be greater than $0.00 for: ${name}` };
+  if (!Number.isFinite(day) || day < 1 || day > 31) return { error: `Enter a due day (1–31) for: ${name}` };
+
+  const months = Array.from(r.querySelectorAll(".fixedMonthCb"))
+    .filter(cb => cb.checked)
+    .map(cb => Number(cb.dataset.month));
+  if (months.length === 0) return { error: `Select at least one month for: ${name}` };
+
+  return { item: { id, name, amount_cents: amt, due_day: day,
+                   active_months: months.sort((a, b) => a - b).join(",") } };
+}
+
+/* ---- Edit/Remove Expenses panel ---- */
+async function openFixedExpensesPanel(){
+  if (!settingsFixedExpensesPanel.classList.contains("hidden")) {
+    settingsFixedExpensesPanel.classList.add("hidden");
+    setStatus(settingsFixedExpensesStatus, "");
+    return;
+  }
+  closeOtherSettingsPanels("settingsFixedExpensesPanel");
+
+  const existing = await loadFixedExpenses();
+  settingsFixedExpensesList.innerHTML = "";
+  existing.forEach(fx => settingsFixedExpensesList.appendChild(
+    buildFixedRowEl(fx.id, fx.name, (fx.amount_cents / 100).toFixed(2), fx.due_day, fx.active_months, { showRemove: true })
+  ));
+  updateFixedSortBar();
+  sortFixedRows();
+  updateFixedEmptyMsg();
+  settingsFixedExpensesPanel.classList.remove("hidden");
+  setStatus(settingsFixedExpensesStatus, "");
 }
 
 async function saveSettingsFixedExpenses(){
-  const rows = Array.from(settingsFixedExpensesList.querySelectorAll("[data-fixed-id]"));
+  const rows = Array.from(settingsFixedExpensesList.querySelectorAll(":scope > [data-fixed-id]"));
   const result = [];
   for (const r of rows){
-    const id   = r.dataset.fixedId || genFixedId();
-    const name = (r.querySelector(".fixedName")?.value || "").trim();
-    const amt  = dollarsToCentsFromInput(r.querySelector(".fixedAmt")?.value || "");
-    const day  = parseInt(r.querySelector(".fixedDay")?.value || "", 10);
-    if (!name && !r.querySelector(".fixedAmt")?.value.trim()) continue; // skip blank rows
-    if (!name) return setStatus(settingsFixedExpensesStatus, "Each row needs a name.", "error");
-    if (amt === null) return setStatus(settingsFixedExpensesStatus, `Enter a valid amount for: ${name}`, "error");
-    if (!Number.isFinite(day) || day < 1 || day > 31) return setStatus(settingsFixedExpensesStatus, `Enter a due day (1–31) for: ${name}`, "error");
-
-    // Collect checked months
-    const checkedMonths = Array.from(r.querySelectorAll(".fixedMonthCb"))
-      .filter(cb => cb.checked)
-      .map(cb => Number(cb.dataset.month));
-    if (checkedMonths.length === 0)
-      return setStatus(settingsFixedExpensesStatus, `Select at least one month for: ${name}`, "error");
-    const active_months = checkedMonths.sort((a,b) => a-b).join(",");
-
-    result.push({ id, name, amount_cents: amt, due_day: day, active_months });
+    const out = readFixedRowEl(r);
+    if (out.skip) continue;
+    if (out.error) return setStatus(settingsFixedExpensesStatus, out.error, "error");
+    result.push(out.item);
   }
   setStatus(settingsFixedExpensesStatus, "Saving…");
   try {
@@ -2387,7 +2502,6 @@ async function saveSettingsFixedExpenses(){
     return setStatus(settingsFixedExpensesStatus, e?.message || String(e), "error");
   }
   setStatus(settingsFixedExpensesStatus, "Saved.", "ok");
-  // Refresh Keep in Bank and main card
   if (CURRENT_STATE) await renderKeepInBank(CURRENT_STATE);
   await renderFixedExpensesMainCard();
   setTimeout(() => {
@@ -2397,22 +2511,72 @@ async function saveSettingsFixedExpenses(){
 }
 
 settingsOpenFixedExpensesBtn.addEventListener("click", openFixedExpensesPanel);
-settingsAddFixedExpenseRowBtn.addEventListener("click", () => {
-  // Build the new row via the normal function (it appends temporarily)
-  addSettingsFixedRow(genFixedId(), "", "", "");
-  // Move it to the top of the list so it appears directly under the buttons
-  const last = settingsFixedExpensesList.lastElementChild;
-  if (last) settingsFixedExpensesList.prepend(last);
-  // Recalculate borders after reorder
-  Array.from(settingsFixedExpensesList.children).forEach((child, idx) => {
-    child.style.borderTop = idx === 0 ? "none" : "1px solid #9aa0a6";
-    child.style.paddingTop = idx === 0 ? "0" : "14px";
-  });
-});
 settingsSaveFixedExpensesBtn.addEventListener("click", saveSettingsFixedExpenses);
 settingsCancelFixedExpensesBtn.addEventListener("click", () => {
   settingsFixedExpensesPanel.classList.add("hidden");
   setStatus(settingsFixedExpensesStatus, "");
+});
+
+/* ---- Add Fixed Expense panel ---- */
+function resetAddFixedForm(){
+  settingsAddFixedFormHost.innerHTML = "";
+  settingsAddFixedFormHost.appendChild(
+    buildFixedRowEl(genFixedId(), "", "", "", null, { labels: true, showRemove: false })
+  );
+}
+
+function openAddFixedPanel(){
+  if (!settingsAddFixedPanel.classList.contains("hidden")) {
+    settingsAddFixedPanel.classList.add("hidden");
+    setStatus(settingsAddFixedStatus, "");
+    return;
+  }
+  closeOtherSettingsPanels("settingsAddFixedPanel");
+  resetAddFixedForm();
+  setStatus(settingsAddFixedStatus, "");
+  settingsAddFixedPanel.classList.remove("hidden");
+  settingsAddFixedFormHost.querySelector(".fixedName")?.focus();
+}
+
+async function saveNewFixedExpense(){
+  const row = settingsAddFixedFormHost.firstElementChild;
+  if (!row) return;
+  const out = readFixedRowEl(row);
+  if (out.skip)  return setStatus(settingsAddFixedStatus, "Enter a bill name and amount.", "error");
+  if (out.error) return setStatus(settingsAddFixedStatus, out.error, "error");
+
+  setStatus(settingsAddFixedStatus, "Saving…");
+  try {
+    const token = await idbGet(KEY_TOKEN);
+    if (!token) throw new Error("Not authenticated");
+    // Read the current list straight from the server (never the offline cache):
+    // the server replaces the whole list on save, so a stale read could drop bills.
+    const cur = await fetchFixedExpenses(token);
+    if (cur.authFailed) throw new Error("Authentication failed — please log in again.");
+    const items = Array.isArray(cur.result?.items) ? cur.result.items : [];
+    const list = items.map(fx => ({
+      id: fx.id, name: fx.name, amount_cents: fx.amount_cents,
+      due_day: fx.due_day, active_months: fx.active_months
+    })).concat([out.item]);
+    await saveFixedExpenses(list);
+  } catch(e) {
+    return setStatus(settingsAddFixedStatus, e?.message || String(e), "error");
+  }
+
+  setStatus(settingsAddFixedStatus, `Added: ${out.item.name}`, "ok");
+  if (CURRENT_STATE) await renderKeepInBank(CURRENT_STATE);
+  await renderFixedExpensesMainCard();
+  setTimeout(() => {
+    settingsAddFixedPanel.classList.add("hidden");
+    setStatus(settingsAddFixedStatus, "");
+  }, 1400);
+}
+
+settingsOpenAddFixedBtn.addEventListener("click", openAddFixedPanel);
+settingsSaveNewFixedBtn.addEventListener("click", saveNewFixedExpense);
+settingsCancelNewFixedBtn.addEventListener("click", () => {
+  settingsAddFixedPanel.classList.add("hidden");
+  setStatus(settingsAddFixedStatus, "");
 });
 
 /* --- Wizard Step 3: Fixed Expenses --- */
@@ -2601,6 +2765,7 @@ async function openReorderPanel(){
   hide(settingsEditBudgetsPanel);
   hide(settingsAddCatsPanel);
   hide($("settingsFixedExpensesPanel"));
+  hide($("settingsAddFixedPanel"));
   setStatus(settingsEditBudgetsStatus, "");
   setStatus(settingsAddCatsStatus, "");
 
@@ -2713,6 +2878,7 @@ async function openEditBudgetsPanel(){
   hide(settingsReorderPanel);
   hide(settingsAddCatsPanel);
   hide($("settingsFixedExpensesPanel"));
+  hide($("settingsAddFixedPanel"));
   setStatus(settingsReorderStatus, "");
   setStatus(settingsAddCatsStatus, "");
 
@@ -2947,6 +3113,7 @@ function openAddCatsPanel(){
   hide(settingsReorderPanel);
   hide(settingsEditBudgetsPanel);
   hide($("settingsFixedExpensesPanel"));
+  hide($("settingsAddFixedPanel"));
   setStatus(settingsReorderStatus, "");
   setStatus(settingsEditBudgetsStatus, "");
 
@@ -3077,6 +3244,7 @@ function openSettings(){
   hide(settingsEditBudgetsPanel);
   hide(settingsAddCatsPanel);
   hide($("settingsFixedExpensesPanel"));
+  hide($("settingsAddFixedPanel"));
 }
 
 function closeSettings(){
@@ -3446,9 +3614,10 @@ const HELP_CONTENT = {
 <p>Fixed expenses are not tied to your variable spending categories — they are tracked separately and only affect the Keep in Bank calculation.</p>
 <p style="margin-top:10px;font-weight:600;">Managing your fixed expenses:</p>
 <ul style="padding-left:18px;margin:8px 0;line-height:1.8;">
-  <li><strong>Add</strong> — open <em>Settings → Manage Fixed Expenses</em>, enter the bill name, amount, due day of month, and which months it applies to, then tap Save.</li>
-  <li><strong>Edit</strong> — open <em>Settings → Manage Fixed Expenses</em>, update any field directly, then tap Save.</li>
-  <li><strong>Remove</strong> — open <em>Settings → Manage Fixed Expenses</em>, tap Remove next to the bill, then tap Save.</li>
+  <li><strong>Add</strong> — open <em>Settings → Fixed Budget Settings → Add Fixed Expense</em>, enter the bill name, amount, due day of month, and which months it applies to, then tap Save Fixed Expense.</li>
+  <li><strong>Edit</strong> — open <em>Settings → Fixed Budget Settings → Edit/Remove Expenses</em>, update any field directly, then tap Save Fixed Expenses.</li>
+  <li><strong>Remove</strong> — open <em>Settings → Fixed Budget Settings → Edit/Remove Expenses</em>, tap Remove next to the bill, then tap Save Fixed Expenses.</li>
+  <li><strong>Sort</strong> — in Edit/Remove Expenses, use the Name or Date buttons to sort your bills alphabetically or by day of the month.</li>
   <li><strong>Non-monthly bills</strong> — use the month checkboxes (Jan–Dec) to select only the months the bill is due. Tap <em>All</em> for monthly, or pick individual months for quarterly, semi-annual, or annual bills.</li>
 </ul>`
   },
