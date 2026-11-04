@@ -429,8 +429,9 @@ td.center, th.center{text-align:center}
           <div class="status" style="margin-top:0;text-indent:0;">Edit or remove your fixed bills, then tap Save. Only bills due within the current budget period count toward Keep in Bank.</div>
           <div id="fixedSortBar" style="display:flex;align-items:center;gap:6px;margin-top:10px;">
             <span class="small" style="font-weight:700;">Sort by:</span>
+            <button type="button" data-sort="date">Due Date</button>
             <button type="button" data-sort="name">Name</button>
-            <button type="button" data-sort="date">Date</button>
+            <button type="button" data-sort="amount">Amount</button>
           </div>
           <div class="row">
             <button id="settingsSaveFixedExpensesBtn" type="button">Save Fixed Expenses</button>
@@ -2225,7 +2226,7 @@ const settingsSaveNewFixedBtn  = $("settingsSaveNewFixedBtn");
 const settingsCancelNewFixedBtn = $("settingsCancelNewFixedBtn");
 const settingsAddFixedStatus   = $("settingsAddFixedStatus");
 
-let FIXED_SORT_MODE = "date"; // "date" (day of month) | "name"
+let FIXED_SORT_MODE = "date"; // "date" (due day of month) | "name" | "amount"
 
 const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -2260,10 +2261,18 @@ function sortFixedRows(){
     const d = parseInt(r.querySelector(".fixedDay")?.value || "", 10);
     return Number.isFinite(d) ? d : 99; // blank/invalid days sort last
   };
+  const keyAmt = r => {
+    const cents = dollarsToCentsFromInput(r.querySelector(".fixedAmt")?.value || "");
+    return (cents === null || !Number.isFinite(cents)) ? -1 : cents; // blank/invalid sort last
+  };
   rows.sort((a, b) => {
     if (FIXED_SORT_MODE === "name") {
       const cmp = keyName(a).localeCompare(keyName(b));
       return cmp !== 0 ? cmp : keyDay(a) - keyDay(b);
+    }
+    if (FIXED_SORT_MODE === "amount") {
+      const cmp = keyAmt(b) - keyAmt(a); // largest first
+      return cmp !== 0 ? cmp : keyName(a).localeCompare(keyName(b));
     }
     const cmp = keyDay(a) - keyDay(b);
     return cmp !== 0 ? cmp : keyName(a).localeCompare(keyName(b));
@@ -3617,7 +3626,7 @@ const HELP_CONTENT = {
   <li><strong>Add</strong> — open <em>Settings → Fixed Budget Settings → Add Fixed Expense</em>, enter the bill name, amount, due day of month, and which months it applies to, then tap Save Fixed Expense.</li>
   <li><strong>Edit</strong> — open <em>Settings → Fixed Budget Settings → Edit/Remove Expenses</em>, update any field directly, then tap Save Fixed Expenses.</li>
   <li><strong>Remove</strong> — open <em>Settings → Fixed Budget Settings → Edit/Remove Expenses</em>, tap Remove next to the bill, then tap Save Fixed Expenses.</li>
-  <li><strong>Sort</strong> — in Edit/Remove Expenses, use the Name or Date buttons to sort your bills alphabetically or by day of the month.</li>
+  <li><strong>Sort</strong> — in Edit/Remove Expenses, use the Due Date, Name, or Amount buttons to sort your bills by day of the month, alphabetically, or by amount (largest first).</li>
   <li><strong>Non-monthly bills</strong> — use the month checkboxes (Jan–Dec) to select only the months the bill is due. Tap <em>All</em> for monthly, or pick individual months for quarterly, semi-annual, or annual bills.</li>
 </ul>`
   },
