@@ -865,7 +865,26 @@ async function fetchFixedPaid(token){
   return { authFailed:false, result: await resp.json().catch(()=> ({})) };
 }
 
+async function postFixedPaidOps(token, ops){
+  // ops: [{ period_key, expense_id, paid: true|false }]
+  // Changes only the rows named. Response is the full, authoritative paid map.
+  const url = join(API.fixedPaid);
+  const resp = await fetchWithTimeout(url, {
+    method:"POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ set: ops })
+  });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Fixed paid save failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
 async function postFixedPaid(token, paid){
+  // FULL REPLACE — only for Reset. Never use this for a normal checkbox change:
+  // it overwrites every period's paid state with whatever map is sent.
   // paid: { [period_key]: [id, id, ...] }
   const url = join(API.fixedPaid);
   const resp = await fetchWithTimeout(url, {
@@ -1840,14 +1859,18 @@ async function loadFixedPaid(){
   } catch { return {}; }
 }
 
-/* Save paid-state to server and update IDB cache */
-async function saveFixedPaid(paid){
+/* Mark ONE bill paid/unpaid for ONE period. The server changes just that row,
+   so this can never wipe other bills or other periods (the old approach sent the
+   whole map back, and any stale/partial copy overwrote everything). */
+async function setFixedPaid(periodKey, expenseId, isPaid){
   const token = await idbGet(KEY_TOKEN);
   if (!token) throw new Error("Not authenticated");
-  const res = await postFixedPaid(token, paid);
+  const res = await postFixedPaidOps(token, [{ period_key: periodKey, expense_id: expenseId, paid: !!isPaid }]);
   if (res.authFailed) throw new Error("Authentication failed — please log in again.");
-  // Update local cache
-  await idbSet(KEY_FP_CACHE, paid).catch(() => {});
+  // Refresh the local cache from the server's authoritative map
+  if (res.result?.paid && typeof res.result.paid === "object") {
+    await idbSet(KEY_FP_CACHE, res.result.paid).catch(() => {});
+  }
 }
 
 /* Return the actual calendar date (Date object) on which a bill with the given
@@ -1937,31 +1960,39 @@ function dueDaysInPeriod(startYmd, endYmd){
   return days;
 }
 
-/* Derive next period start/end YYYY-MM-DD strings from current state.
-   Uses next_effective_period_key when available (already computed server-side),
-   otherwise falls back to p.end_ts as next start and adds a semi-monthly step. */
+/* Next budget period's start/end (YYYY-MM-DD; end is exclusive).
+   1) state.next_period — computed by the server, exact for every period type.
+   2) next_effective_period_key — set when budgets were adjusted for next period.
+   3) Fallback for an older server: derive it from the current period's shape. */
 function getNextPeriodYmds(state){
-  // next_effective_period_key is formatted "YYYY-MM-DD__YYYY-MM-DD"
+  const np = state?.next_period;
+  if (np?.start_ts && np?.end_ts) {
+    return { nextStart: String(np.start_ts).slice(0,10), nextEnd: String(np.end_ts).slice(0,10) };
+  }
+
   const nk = state?.next_budget_settings?.next_effective_period_key;
   if (nk && /^\d{4}-\d{2}-\d{2}__\d{4}-\d{2}-\d{2}$/.test(nk)) {
     const [ns, ne] = nk.split("__");
     return { nextStart: ns, nextEnd: ne };
   }
-  // Fallback: current period's end_ts is next period's start.
-  // Compute next end by replicating the same duration as current period.
+
   const p = state?.period;
   if (!p?.start_ts || !p?.end_ts) return null;
-  const curStart = p.start_ts.slice(0,10);
-  const curEnd   = p.end_ts.slice(0,10);
-  const nextStart = curEnd; // exclusive boundary = next start
+  const curStart = String(p.start_ts).slice(0,10);
+  const curEnd   = String(p.end_ts).slice(0,10);
+  const [sy, sm, sd] = curStart.split("-").map(Number);
+  const [ey, em, ed] = curEnd.split("-").map(Number);
+  const ymd = (y, m, d) => new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10);
 
-  // Duration of current period in days
-  const msPerDay = 86400000;
-  const durMs = new Date(curEnd).getTime() - new Date(curStart).getTime();
-  const durDays = Math.round(durMs / msPerDay);
-  const nextEndDt = new Date(new Date(nextStart).getTime() + durDays * msPerDay);
-  const nextEnd = nextEndDt.toISOString().slice(0,10);
-  return { nextStart, nextEnd };
+  let nextEnd;
+  if (sd === 1 && ed === 15)      nextEnd = ymd(ey, em + 1, 1);   // 1st–15th  -> 15th–1st
+  else if (sd === 15 && ed === 1) nextEnd = ymd(ey, em, 15);      // 15th–1st  -> 1st–15th
+  else if (sd === 1 && ed === 1)  nextEnd = ymd(ey, em + ((ey - sy) * 12 + (em - sm)), 1); // monthly/quarterly
+  else {                                                          // daily/weekly/biweekly: fixed length
+    const days = Math.round((Date.UTC(ey, em - 1, ed) - Date.UTC(sy, sm - 1, sd)) / 86400000);
+    nextEnd = ymd(ey, em, ed + days);
+  }
+  return { nextStart: curEnd, nextEnd };
 }
 
 /* Return IDs of fixed expenses that were due in the prior period but never marked paid.
@@ -2084,14 +2115,18 @@ async function renderFixedExpensesMainCard(){
   const isNextDue  = fx => nextYmds
     ? isDueInPeriod(fx.due_day, nextYmds.nextStart, nextYmds.nextEnd, fx.active_months)
     : false;
+  // A bill can be carried over from last period AND due again next period; both
+  // are real, so a carried-over bill must not be hidden from the preview.
   const dueNext = allFixed
-    .filter(fx => !isDue(fx) && !carriedIds.has(fx.id) && isNextDue(fx))
+    .filter(fx => !isDue(fx) && isNextDue(fx))
     .sort((a,b) => a.due_day - b.due_day);
 
   list.innerHTML = "";
 
-  function makeRow(fx, isDue, isCarryover = false){
-    const isPaid = paidSet.has(fx.id);
+  function makeRow(fx, isDue, isCarryover = false, isPreview = false){
+    // Preview rows (Due Next Period) are upcoming instances, so they are never
+    // shown as paid — even if the same bill was just checked off as a carry-over.
+    const isPaid = !isPreview && paidSet.has(fx.id);
     const row = document.createElement("div");
     row.style.cssText = "display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border);";
 
@@ -2103,16 +2138,7 @@ async function renderFixedExpensesMainCard(){
     cb.addEventListener("change", async () => {
       const statusEl = $("fixedExpensesStatus");
       try {
-        const latestPaid = await loadFixedPaid();
-        const arr = Array.isArray(latestPaid[periodKey]) ? [...latestPaid[periodKey]] : [];
-        if (cb.checked) {
-          if (!arr.includes(fx.id)) arr.push(fx.id);
-        } else {
-          const idx = arr.indexOf(fx.id);
-          if (idx > -1) arr.splice(idx, 1);
-        }
-        latestPaid[periodKey] = arr;
-        await saveFixedPaid(latestPaid);
+        await setFixedPaid(periodKey, fx.id, cb.checked);
         await renderKeepInBank(CURRENT_STATE);
         await renderFixedExpensesMainCard();
       } catch(e) {
@@ -2205,7 +2231,7 @@ async function renderFixedExpensesMainCard(){
       hdr2.appendChild(hdr2Label);
     }
     list.appendChild(hdr2);
-    dueNext.forEach(fx => list.appendChild(makeRow(fx, false, false)));
+    dueNext.forEach(fx => list.appendChild(makeRow(fx, false, false, true)));
   }
 
   setStatus(statusEl, "");
