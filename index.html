@@ -236,6 +236,7 @@ td.center, th.center{text-align:center}
           <button type="button" class="helpBtn" onclick="showHelp('budget-summary')" aria-label="Help">?</button>
         </div>
         <div class="status">Period: <strong id="periodLabel">—</strong></div>
+        <div id="periodPendingNote" class="hidden" style="margin-top:4px;font-size:12px;font-weight:600;color:#8a6d00;"></div>
 
         <div class="tableScroll">
           <table>
@@ -404,6 +405,36 @@ td.center, th.center{text-align:center}
           <div id="settingsReorderStatus" class="status"></div>
         </div>
 
+        <button id="settingsOpenPeriodBtn" class="secondary" type="button">Change Budget Period</button>
+
+        <div id="settingsPeriodPanel" class="subcard hidden">
+          <div id="periodCurrentInfo" class="status" style="margin-top:0;text-indent:0;"></div>
+
+          <div id="periodPendingBox" class="hidden" style="margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(102,126,234,0.12);border:1px solid rgba(102,126,234,0.35);">
+            <div id="periodPendingText" style="font-size:13px;color:var(--text);white-space:pre-wrap;"></div>
+            <button id="periodCancelPendingBtn" class="secondary" type="button" style="margin-top:8px;">Cancel Scheduled Change</button>
+          </div>
+
+          <div id="periodWarning" style="margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(255,193,7,0.16);border:1px solid rgba(214,158,0,0.55);font-size:13px;line-height:1.45;color:var(--text);">
+            <strong>⚠ Review your budget amounts.</strong> Changing the period type changes how long each budget period is, but your category amounts do <strong>not</strong> change. A $500 budget stays $500 per period, so it will cover a different length of time. After scheduling the change, review your amounts in <em>Edit Budget Amounts</em> (choose <em>Next period</em>) so they fit the new period length.
+          </div>
+
+          <label style="margin-top:12px;">Change to</label>
+          <select id="periodNewType"></select>
+
+          <div id="periodStartWrap" class="hidden">
+            <label id="periodStartLabel"></label>
+            <input id="periodStartInput" placeholder="MM-DD-YYYY (optional)" inputmode="numeric" />
+          </div>
+
+          <div class="row">
+            <button id="periodSaveBtn" type="button">Schedule Change</button>
+            <button id="periodCloseBtn" class="secondary" type="button">Cancel</button>
+          </div>
+          <div id="periodStatus" class="status"></div>
+          <div id="periodReviewRow" class="hidden"><button id="periodReviewBtn" class="secondary" type="button" style="width:100%;">Review Budget Amounts</button></div>
+        </div>
+
       </div>
     </div>
 
@@ -509,10 +540,25 @@ const API = {
   tx: "/api/budget/transactions",
   categories: "/api/budget/categories",
   adjustNext: "/api/budget/adjust-next",
+  periodType: "/api/budget/period-type",
   reset: "/api/budget/reset",
   fixedExpenses: "/api/budget/fixed-expenses",
   fixedPaid:     "/api/budget/fixed-paid",
   timeoutMs: 12000
+};
+
+/* Budget period types: display names for the Settings screens */
+const PERIOD_LABELS = {
+  daily: "Daily", weekly: "Weekly", biweekly: "Every Two Weeks (Bi-weekly)",
+  semi_monthly: "Twice a Month (1st and 15th)", monthly: "Monthly", quarterly: "Quarterly"
+};
+const PERIOD_SHORT = {
+  daily: "Daily", weekly: "Weekly", biweekly: "Bi-weekly",
+  semi_monthly: "Twice-a-month", monthly: "Monthly", quarterly: "Quarterly"
+};
+const PERIOD_UNIT = {   // "a $500 budget is now $500 per ___"
+  daily: "day", weekly: "week", biweekly: "two weeks",
+  semi_monthly: "half-month", monthly: "month", quarterly: "quarter"
 };
 
 /* ================= DOM ================= */
@@ -793,6 +839,23 @@ async function postCategories(token, payload){
     if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
     const t = await safeText(resp);
     throw new Error(`Categories failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function postPeriodType(token, payload){
+  // payload: { period_type, period_anchor_date? }  or  { cancel: true }
+  const url = join(API.periodType);
+  const resp = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    let msg = "";
+    try { msg = (await resp.json())?.error || ""; } catch {}
+    throw new Error(msg || `Period change failed (${resp.status})`);
   }
   return { authFailed:false, result: await resp.json().catch(()=> ({})) };
 }
@@ -1300,6 +1363,18 @@ async function renderDashboard(state){
     periodLabel.textContent = `${fmtYmdToMdySlash(String(p.start_ts).slice(0,10))} → ${fmtEndTsForDisplay(p.end_ts)}`;
   } else {
     periodLabel.textContent = "—";
+  }
+
+  // Heads-up while a budget-period change is scheduled
+  const pendingNote = $("periodPendingNote");
+  if (pendingNote) {
+    const pc = state?.pending_period_change;
+    if (pc?.effective_date) {
+      pendingNote.textContent = `Switching to ${PERIOD_SHORT[pc.period_type] || pc.period_type} budgets on ${fmtYmdToMdySlash(pc.effective_date)}`;
+      pendingNote.classList.remove("hidden");
+    } else {
+      pendingNote.classList.add("hidden");
+    }
   }
 
   let cats = normalizeCategories(state);
@@ -2259,7 +2334,7 @@ const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct",
 /* Close every settings sub-panel except the one named (by element id) */
 function closeOtherSettingsPanels(exceptId){
   ["settingsEditBudgetsPanel","settingsAddCatsPanel","settingsReorderPanel",
-   "settingsFixedExpensesPanel","settingsAddFixedPanel"].forEach(id => {
+   "settingsFixedExpensesPanel","settingsAddFixedPanel","settingsPeriodPanel"].forEach(id => {
     if (id !== exceptId) $(id)?.classList.add("hidden");
   });
 }
@@ -2614,6 +2689,199 @@ settingsCancelNewFixedBtn.addEventListener("click", () => {
   setStatus(settingsAddFixedStatus, "");
 });
 
+/* --- Settings: Change Budget Period --- */
+const settingsOpenPeriodBtn  = $("settingsOpenPeriodBtn");
+const settingsPeriodPanel    = $("settingsPeriodPanel");
+const periodCurrentInfo      = $("periodCurrentInfo");
+const periodPendingBox       = $("periodPendingBox");
+const periodPendingText      = $("periodPendingText");
+const periodCancelPendingBtn = $("periodCancelPendingBtn");
+const periodNewType          = $("periodNewType");
+const periodStartWrap        = $("periodStartWrap");
+const periodStartLabel       = $("periodStartLabel");
+const periodStartInput       = $("periodStartInput");
+const periodSaveBtn          = $("periodSaveBtn");
+const periodCloseBtn         = $("periodCloseBtn");
+const periodStatus           = $("periodStatus");
+const periodReviewRow        = $("periodReviewRow");
+const periodReviewBtn        = $("periodReviewBtn");
+
+// Types whose cycle depends on a start date; the date is optional (default: the switch date)
+const PERIOD_START_HELP = {
+  weekly:    "Week starts on (MM-DD-YYYY), optional. Enter any date that falls on the weekday your weeks should start. Leave blank to start on the switch date.",
+  biweekly:  "Pay period starts on (MM-DD-YYYY), optional. Enter a date that begins one of your two-week periods, such as a payday. Leave blank to start on the switch date.",
+  quarterly: "First month of a quarter (MM-DD-YYYY), optional. Enter any date in the month your quarters should start. Leave blank to start on the switch date."
+};
+
+function periodSwitchYmd(){
+  const p = CURRENT_STATE?.period;
+  return p?.end_ts ? String(p.end_ts).slice(0, 10) : null;   // the day the current period ends = first day of the new schedule
+}
+
+function updatePeriodStartField(){
+  const help = PERIOD_START_HELP[periodNewType.value];
+  periodStartWrap.classList.toggle("hidden", !help);
+  if (help) periodStartLabel.textContent = help;
+}
+
+function refreshPeriodPanel(){
+  const st   = CURRENT_STATE;
+  const type = st?.period_type;
+  periodSaveBtn.disabled = false;
+
+  if (!st?.initialized || !type) {
+    // An older server does not report the period type yet
+    periodCurrentInfo.textContent = "Your server needs to be updated before the budget period can be changed.";
+    periodSaveBtn.disabled = true;
+    periodPendingBox.classList.add("hidden");
+    periodNewType.innerHTML = "";
+    periodStartWrap.classList.add("hidden");
+    return;
+  }
+
+  const switchYmd = periodSwitchYmd();
+  periodCurrentInfo.textContent =
+    `Current budget period: ${PERIOD_LABELS[type] || type}\n` +
+    `The current period ends ${fmtEndTsForDisplay(st.period.end_ts)}. A change takes effect on ${fmtYmdToMdySlash(switchYmd)}, ` +
+    `when the next period begins. Nothing in the current period changes.`;
+
+  const pc = st.pending_period_change;
+  if (pc) {
+    periodPendingText.textContent =
+      `Scheduled: switching to ${PERIOD_LABELS[pc.period_type] || pc.period_type} on ${fmtYmdToMdySlash(pc.effective_date)}.\n` +
+      `First period: ${fmtYmdToMdySlash(String(pc.first_period.start_ts).slice(0, 10))} → ${fmtEndTsForDisplay(pc.first_period.end_ts)}.\n` +
+      `Choose a different type below to replace it, or cancel it.`;
+    periodPendingBox.classList.remove("hidden");
+  } else {
+    periodPendingBox.classList.add("hidden");
+  }
+
+  const keep = periodNewType.value;
+  periodNewType.innerHTML = "";
+  const ph = document.createElement("option");
+  ph.value = ""; ph.textContent = "Select a period type…";
+  periodNewType.appendChild(ph);
+  Object.keys(PERIOD_LABELS).filter(k => k !== type).forEach(k => {
+    const o = document.createElement("option");
+    o.value = k; o.textContent = PERIOD_LABELS[k];
+    periodNewType.appendChild(o);
+  });
+  periodNewType.value = (keep && keep !== type && PERIOD_LABELS[keep]) ? keep : "";
+  updatePeriodStartField();
+}
+
+function openPeriodPanel(){
+  if (!settingsPeriodPanel.classList.contains("hidden")) {
+    settingsPeriodPanel.classList.add("hidden");
+    setStatus(periodStatus, "");
+    return;
+  }
+  closeOtherSettingsPanels("settingsPeriodPanel");
+  setStatus(periodStatus, "");
+  periodReviewRow.classList.add("hidden");
+  periodStartInput.value = "";
+  periodNewType.value = "";
+  refreshPeriodPanel();
+  settingsPeriodPanel.classList.remove("hidden");
+}
+
+async function sendPeriodChange(payload){
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) { showAuth("Missing token. Please re-enter.", true); return null; }
+  const res = await postPeriodType(token, payload);
+  if (res.authFailed) {
+    await idbDel(KEY_TOKEN);
+    closeSettings();
+    showAuth("Token invalid/expired. Please re-enter.", true);
+    return null;
+  }
+  CURRENT_STATE = res.result || CURRENT_STATE;
+  await renderDashboard(CURRENT_STATE);
+  return CURRENT_STATE;
+}
+
+async function savePeriodChange(){
+  const type = periodNewType.value;
+  if (!type) return setStatus(periodStatus, "Choose a period type.", "error");
+  const cur = CURRENT_STATE?.period_type;
+  if (!cur) return setStatus(periodStatus, "Your server needs to be updated first.", "error");
+
+  const payload = { period_type: type };
+  if (PERIOD_START_HELP[type]) {
+    const raw = periodStartInput.value.trim();
+    if (raw) {
+      const ymd = mdyToYmd(raw);
+      if (!ymd) return setStatus(periodStatus, "Enter the date as MM-DD-YYYY, or leave it blank.", "error");
+      payload.period_anchor_date = ymd;
+    }
+  }
+
+  const when = fmtYmdToMdySlash(periodSwitchYmd());
+  const replacing = CURRENT_STATE?.pending_period_change
+    ? "\n\nThis replaces the change that is already scheduled."
+    : "";
+  const ok = await showConfirm(
+    "Change budget period?",
+    `Switch from ${PERIOD_LABELS[cur]} to ${PERIOD_LABELS[type]} budgets, starting ${when}?\n\n` +
+    `⚠ Your category budget amounts will NOT change. A $500 budget stays $500 per period, so it will now cover one ${PERIOD_UNIT[type]} instead of one ${PERIOD_UNIT[cur]}.\n\n` +
+    `Review your amounts in Edit Budget Amounts (choose "Next period") so they fit the new period length. ` +
+    `Any unspent or overspent balance rolls into the first new period. Your fixed expenses are not affected.` + replacing,
+    "Schedule Change"
+  );
+  if (!ok) return;
+
+  periodSaveBtn.disabled = true;
+  setStatus(periodStatus, "Saving…");
+  try {
+    const st = await sendPeriodChange(payload);
+    if (!st) return;
+    periodNewType.value = "";          // back to the placeholder: it is scheduled now
+    refreshPeriodPanel();
+    periodStartInput.value = "";
+    const pc = st.pending_period_change;
+    setStatus(periodStatus,
+      `Scheduled: switching to ${PERIOD_LABELS[type]} on ${fmtYmdToMdySlash(pc?.effective_date || periodSwitchYmd())}.\n` +
+      `Next step: review your budget amounts so they fit the new period length.`, "ok");
+    periodReviewRow.classList.remove("hidden");
+  } catch (e) {
+    setStatus(periodStatus, e?.message || String(e), "error");
+  } finally {
+    periodSaveBtn.disabled = !CURRENT_STATE?.period_type;
+  }
+}
+
+async function cancelPeriodChange(){
+  periodCancelPendingBtn.disabled = true;
+  setStatus(periodStatus, "Cancelling…");
+  try {
+    const st = await sendPeriodChange({ cancel: true });
+    if (!st) return;
+    periodNewType.value = "";
+    refreshPeriodPanel();
+    periodReviewRow.classList.add("hidden");
+    setStatus(periodStatus, "Scheduled change cancelled. Your budget period stays the same.", "ok");
+  } catch (e) {
+    setStatus(periodStatus, e?.message || String(e), "error");
+  } finally {
+    periodCancelPendingBtn.disabled = false;
+  }
+}
+
+settingsOpenPeriodBtn.addEventListener("click", openPeriodPanel);
+periodNewType.addEventListener("change", updatePeriodStartField);
+periodSaveBtn.addEventListener("click", savePeriodChange);
+periodCancelPendingBtn.addEventListener("click", cancelPeriodChange);
+periodCloseBtn.addEventListener("click", () => {
+  settingsPeriodPanel.classList.add("hidden");
+  setStatus(periodStatus, "");
+});
+periodReviewBtn.addEventListener("click", () => {
+  settingsPeriodPanel.classList.add("hidden");
+  setStatus(periodStatus, "");
+  periodReviewRow.classList.add("hidden");
+  settingsOpenEditBudgetsBtn.click();      // opens Edit Budget Amounts
+});
+
 /* --- Wizard Step 3: Fixed Expenses --- */
 function addWizFixedRow(id, name = "", amount = "", due_day = ""){
   const wrap = document.createElement("div");
@@ -2801,6 +3069,7 @@ async function openReorderPanel(){
   hide(settingsAddCatsPanel);
   hide($("settingsFixedExpensesPanel"));
   hide($("settingsAddFixedPanel"));
+  hide($("settingsPeriodPanel"));
   setStatus(settingsEditBudgetsStatus, "");
   setStatus(settingsAddCatsStatus, "");
 
@@ -2914,6 +3183,7 @@ async function openEditBudgetsPanel(){
   hide(settingsAddCatsPanel);
   hide($("settingsFixedExpensesPanel"));
   hide($("settingsAddFixedPanel"));
+  hide($("settingsPeriodPanel"));
   setStatus(settingsReorderStatus, "");
   setStatus(settingsAddCatsStatus, "");
 
@@ -3149,6 +3419,7 @@ function openAddCatsPanel(){
   hide(settingsEditBudgetsPanel);
   hide($("settingsFixedExpensesPanel"));
   hide($("settingsAddFixedPanel"));
+  hide($("settingsPeriodPanel"));
   setStatus(settingsReorderStatus, "");
   setStatus(settingsEditBudgetsStatus, "");
 
@@ -3280,6 +3551,7 @@ function openSettings(){
   hide(settingsAddCatsPanel);
   hide($("settingsFixedExpensesPanel"));
   hide($("settingsAddFixedPanel"));
+  hide($("settingsPeriodPanel"));
 }
 
 function closeSettings(){
@@ -3627,7 +3899,8 @@ const HELP_CONTENT = {
   <li><strong>Remaining</strong> — how much is left. Red means you are over budget.</li>
   <li><strong>Keep in Bank</strong> — the minimum you should leave in your account: variable remaining plus all unchecked fixed bills due this period.</li>
 </ul>
-<p>The current period dates are shown at the top. Tap <strong>History</strong> in the header to view individual transactions.</p>`
+<p>The current period dates are shown at the top. Tap <strong>History</strong> in the header to view individual transactions.</p>
+<p style="margin-top:8px;"><strong>Changing your budget period:</strong> open <em>Settings → Variable Budget Settings → Change Budget Period</em> to switch, for example, from twice a month to weekly. The change takes effect when the current period ends, so nothing in the current period changes. Your category amounts do <strong>not</strong> change automatically — review them in <em>Edit Budget Amounts</em> (choose <em>Next period</em>) so they fit the new period length. Your fixed expenses are not affected.</p>`
   },
   "add-transaction": {
     title: "Add Transaction",
