@@ -427,6 +427,25 @@ td.center, th.center{text-align:center}
             <input id="periodStartInput" placeholder="MM-DD-YYYY (optional)" inputmode="numeric" />
           </div>
 
+          <div style="margin-top:12px;">
+            <label style="font-size:13px;font-weight:600;color:var(--text);margin-top:0;margin-bottom:6px;display:block;">When to switch</label>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <label style="display:flex;align-items:flex-start;gap:8px;font-size:14px;margin-top:0;cursor:pointer;">
+                <input type="radio" name="periodWhen" id="periodWhenEnd" value="end" checked style="margin-top:3px;flex-shrink:0;" />
+                <span id="periodWhenEndText"></span>
+              </label>
+              <label style="display:flex;align-items:flex-start;gap:8px;font-size:14px;margin-top:0;cursor:pointer;">
+                <input type="radio" name="periodWhen" id="periodWhenNow" value="now" style="margin-top:3px;flex-shrink:0;" />
+                <span id="periodWhenNowText"></span>
+              </label>
+            </div>
+          </div>
+
+          <div id="periodNowWarning" class="hidden" style="margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(220,53,69,0.10);border:1px solid rgba(220,53,69,0.45);font-size:13px;line-height:1.45;color:var(--text);">
+            <strong>⚠ Before you switch now:</strong> your current period will be cut short, but it keeps its full budget amounts. <strong>Change your current variable budget amounts first</strong> (Edit Budget Amounts → Immediately) so they fit the shorter period, then come back here to switch.
+            <button id="periodEditCurrentBtn" class="secondary" type="button" style="margin-top:8px;width:100%;">Edit Current Budget Amounts</button>
+          </div>
+
           <div class="row">
             <button id="periodSaveBtn" type="button">Schedule Change</button>
             <button id="periodCloseBtn" class="secondary" type="button">Cancel</button>
@@ -1370,7 +1389,11 @@ async function renderDashboard(state){
   if (pendingNote) {
     const pc = state?.pending_period_change;
     if (pc?.effective_date) {
-      pendingNote.textContent = `Switching to ${PERIOD_SHORT[pc.period_type] || pc.period_type} budgets on ${fmtYmdToMdySlash(pc.effective_date)}`;
+      const label  = PERIOD_SHORT[pc.period_type] || pc.period_type;
+      const resume = pc.period_type === state.period_type;
+      pendingNote.textContent = pc.current_period_shortened
+        ? `Current period ends ${fmtEndTsForDisplay(state.period.end_ts)}; ${label} budgets ${resume ? "resume" : "start"} ${fmtYmdToMdySlash(pc.effective_date)}`
+        : `Switching to ${label} budgets on ${fmtYmdToMdySlash(pc.effective_date)}`;
       pendingNote.classList.remove("hidden");
     } else {
       pendingNote.classList.add("hidden");
@@ -2705,6 +2728,12 @@ const periodCloseBtn         = $("periodCloseBtn");
 const periodStatus           = $("periodStatus");
 const periodReviewRow        = $("periodReviewRow");
 const periodReviewBtn        = $("periodReviewBtn");
+const periodWhenEnd          = $("periodWhenEnd");
+const periodWhenNow          = $("periodWhenNow");
+const periodWhenEndText      = $("periodWhenEndText");
+const periodWhenNowText      = $("periodWhenNowText");
+const periodNowWarning       = $("periodNowWarning");
+const periodEditCurrentBtn   = $("periodEditCurrentBtn");
 
 // Types whose cycle depends on a start date; the date is optional (default: the switch date)
 const PERIOD_START_HELP = {
@@ -2716,6 +2745,41 @@ const PERIOD_START_HELP = {
 function periodSwitchYmd(){
   const p = CURRENT_STATE?.period;
   return p?.end_ts ? String(p.end_ts).slice(0, 10) : null;   // the day the current period ends = first day of the new schedule
+}
+
+function addDaysYmdStr(ymd, n){
+  return new Date(Date.UTC(+ymd.slice(0, 4), +ymd.slice(5, 7) - 1, +ymd.slice(8, 10) + n)).toISOString().slice(0, 10);
+}
+
+// "Switch now" ends the current period tonight and starts the new type tomorrow
+function periodNowInfo(){
+  const st = CURRENT_STATE, endYmd = periodSwitchYmd();
+  if (!st?.today_et || !endYmd) return { can: false, why: "unknown" };
+  const tomorrow = addDaysYmdStr(st.today_et, 1);
+  if (tomorrow >= endYmd) return { can: false, why: "already", today: st.today_et, tomorrow, endYmd };
+  return { can: true, today: st.today_et, tomorrow, endYmd };
+}
+
+function periodWantsNow(){ return periodWhenNow.checked && !periodWhenNow.disabled; }
+
+function updatePeriodNowWarning(){
+  periodNowWarning.classList.toggle("hidden", !periodWantsNow());
+}
+
+function updatePeriodWhenOptions(){
+  const info = periodNowInfo();
+  periodWhenEndText.textContent = `At the end of the current period (${fmtYmdToMdySlash(periodSwitchYmd())}). Nothing in the current period changes.`;
+  if (info.can) {
+    periodWhenNow.disabled = false;
+    periodWhenNowText.textContent = `Now: end the current period tonight (${fmtYmdToMdySlash(info.today)}) and start the new type tomorrow (${fmtYmdToMdySlash(info.tomorrow)}).`;
+  } else {
+    periodWhenNow.disabled = true;
+    if (periodWhenNow.checked) periodWhenEnd.checked = true;
+    periodWhenNowText.textContent = info.why === "already"
+      ? "Now: not needed. The current period already ends tomorrow, so a change starts tomorrow anyway."
+      : "Now: not available until your server is updated.";
+  }
+  updatePeriodNowWarning();
 }
 
 function updatePeriodStartField(){
@@ -2736,6 +2800,8 @@ function refreshPeriodPanel(){
     periodPendingBox.classList.add("hidden");
     periodNewType.innerHTML = "";
     periodStartWrap.classList.add("hidden");
+    periodWhenNow.disabled = true;
+    periodNowWarning.classList.add("hidden");
     return;
   }
 
@@ -2747,11 +2813,16 @@ function refreshPeriodPanel(){
 
   const pc = st.pending_period_change;
   if (pc) {
-    periodPendingText.textContent =
-      `Scheduled: switching to ${PERIOD_LABELS[pc.period_type] || pc.period_type} on ${fmtYmdToMdySlash(pc.effective_date)}.\n` +
-      `First period: ${fmtYmdToMdySlash(String(pc.first_period.start_ts).slice(0, 10))} → ${fmtEndTsForDisplay(pc.first_period.end_ts)}.\n` +
-      `Choose a different type below to replace it, or cancel it.`;
+    const resume = pc.period_type === type;       // a shortened period whose switch was cancelled
+    const first  = `First period: ${fmtYmdToMdySlash(String(pc.first_period.start_ts).slice(0, 10))} → ${fmtEndTsForDisplay(pc.first_period.end_ts)}.`;
+    const shortenedNote = pc.current_period_shortened
+      ? `Your current period was shortened and ends ${fmtEndTsForDisplay(st.period.end_ts)}.\n` : "";
+    periodPendingText.textContent = resume
+      ? `${shortenedNote}${PERIOD_LABELS[type] || type} budgets resume on ${fmtYmdToMdySlash(pc.effective_date)}.\n${first}\nChoose a different type below if you would rather change it.`
+      : `Scheduled: switching to ${PERIOD_LABELS[pc.period_type] || pc.period_type} on ${fmtYmdToMdySlash(pc.effective_date)}.\n${shortenedNote}${first}\nChoose a different type below to replace it, or cancel it.` +
+        (pc.current_period_shortened ? `\nIf you cancel, ${PERIOD_LABELS[type] || type} budgets resume on that date; the current period stays shortened.` : "");
     periodPendingBox.classList.remove("hidden");
+    periodCancelPendingBtn.classList.toggle("hidden", resume);   // nothing left to cancel when it is only a resume
   } else {
     periodPendingBox.classList.add("hidden");
   }
@@ -2768,6 +2839,7 @@ function refreshPeriodPanel(){
   });
   periodNewType.value = (keep && keep !== type && PERIOD_LABELS[keep]) ? keep : "";
   updatePeriodStartField();
+  updatePeriodWhenOptions();
 }
 
 function openPeriodPanel(){
@@ -2781,6 +2853,7 @@ function openPeriodPanel(){
   periodReviewRow.classList.add("hidden");
   periodStartInput.value = "";
   periodNewType.value = "";
+  periodWhenEnd.checked = true;
   refreshPeriodPanel();
   settingsPeriodPanel.classList.remove("hidden");
 }
@@ -2816,17 +2889,31 @@ async function savePeriodChange(){
     }
   }
 
-  const when = fmtYmdToMdySlash(periodSwitchYmd());
+  const nowInfo = periodNowInfo();
+  const switchNow = periodWantsNow();
+  if (switchNow) payload.switch_now = true;
+  const when = fmtYmdToMdySlash(switchNow ? nowInfo.tomorrow : periodSwitchYmd());
   const replacing = CURRENT_STATE?.pending_period_change
     ? "\n\nThis replaces the change that is already scheduled."
     : "";
+
+  const message = switchNow
+    ? `Your current period will be cut short: it ends tonight (${fmtYmdToMdySlash(nowInfo.today)}) instead of ${fmtEndTsForDisplay(CURRENT_STATE.period.end_ts)}, ` +
+      `and ${PERIOD_LABELS[type]} budgets start tomorrow (${when}).\n\n` +
+      `⚠ The shortened period keeps its full budget amounts. If you haven't already, change your current variable budget amounts first ` +
+      `(Edit Budget Amounts → Immediately) so they fit the shorter period. Tap Cancel now if you want to do that first.\n\n` +
+      `Your category amounts will NOT change when the new type starts: a $500 budget stays $500 per period, covering one ${PERIOD_UNIT[type]} instead of one ${PERIOD_UNIT[cur]}. ` +
+      `Unspent or overspent balances roll into the first new period. Your transactions, history and fixed expenses are kept.\n\n` +
+      `The shortening can't be undone, but you can still choose a different period type before tomorrow.` + replacing
+    : `Switch from ${PERIOD_LABELS[cur]} to ${PERIOD_LABELS[type]} budgets, starting ${when}?\n\n` +
+      `⚠ Your category budget amounts will NOT change. A $500 budget stays $500 per period, so it will now cover one ${PERIOD_UNIT[type]} instead of one ${PERIOD_UNIT[cur]}.\n\n` +
+      `Review your amounts in Edit Budget Amounts (choose "Next period") so they fit the new period length. ` +
+      `Any unspent or overspent balance rolls into the first new period. Your fixed expenses are not affected.` + replacing;
+
   const ok = await showConfirm(
-    "Change budget period?",
-    `Switch from ${PERIOD_LABELS[cur]} to ${PERIOD_LABELS[type]} budgets, starting ${when}?\n\n` +
-    `⚠ Your category budget amounts will NOT change. A $500 budget stays $500 per period, so it will now cover one ${PERIOD_UNIT[type]} instead of one ${PERIOD_UNIT[cur]}.\n\n` +
-    `Review your amounts in Edit Budget Amounts (choose "Next period") so they fit the new period length. ` +
-    `Any unspent or overspent balance rolls into the first new period. Your fixed expenses are not affected.` + replacing,
-    "Schedule Change"
+    switchNow ? `Switch to ${PERIOD_LABELS[type]} budgets NOW?` : "Change budget period?",
+    message,
+    switchNow ? "Switch Now" : "Schedule Change"
   );
   if (!ok) return;
 
@@ -2836,12 +2923,15 @@ async function savePeriodChange(){
     const st = await sendPeriodChange(payload);
     if (!st) return;
     periodNewType.value = "";          // back to the placeholder: it is scheduled now
+    periodWhenEnd.checked = true;
     refreshPeriodPanel();
     periodStartInput.value = "";
     const pc = st.pending_period_change;
-    setStatus(periodStatus,
-      `Scheduled: switching to ${PERIOD_LABELS[type]} on ${fmtYmdToMdySlash(pc?.effective_date || periodSwitchYmd())}.\n` +
-      `Next step: review your budget amounts so they fit the new period length.`, "ok");
+    setStatus(periodStatus, switchNow
+      ? `Done: your current period now ends tonight. ${PERIOD_LABELS[type]} budgets start ${fmtYmdToMdySlash(pc?.effective_date || when)}.\n` +
+        `Next step: review the amounts for the new period in Edit Budget Amounts (choose Next period).`
+      : `Scheduled: switching to ${PERIOD_LABELS[type]} on ${fmtYmdToMdySlash(pc?.effective_date || periodSwitchYmd())}.\n` +
+        `Next step: review your budget amounts so they fit the new period length.`, "ok");
     periodReviewRow.classList.remove("hidden");
   } catch (e) {
     setStatus(periodStatus, e?.message || String(e), "error");
@@ -2857,9 +2947,13 @@ async function cancelPeriodChange(){
     const st = await sendPeriodChange({ cancel: true });
     if (!st) return;
     periodNewType.value = "";
+    periodWhenEnd.checked = true;
     refreshPeriodPanel();
     periodReviewRow.classList.add("hidden");
-    setStatus(periodStatus, "Scheduled change cancelled. Your budget period stays the same.", "ok");
+    const kept = st.pending_period_change?.current_period_shortened;
+    setStatus(periodStatus, kept
+      ? `Change cancelled. Your current period stays shortened (it ends ${fmtEndTsForDisplay(st.period.end_ts)}) and ${PERIOD_LABELS[st.period_type] || st.period_type} budgets resume right after.`
+      : "Scheduled change cancelled. Your budget period stays the same.", "ok");
   } catch (e) {
     setStatus(periodStatus, e?.message || String(e), "error");
   } finally {
@@ -2869,6 +2963,14 @@ async function cancelPeriodChange(){
 
 settingsOpenPeriodBtn.addEventListener("click", openPeriodPanel);
 periodNewType.addEventListener("change", updatePeriodStartField);
+periodWhenEnd.addEventListener("change", updatePeriodNowWarning);
+periodWhenNow.addEventListener("change", updatePeriodNowWarning);
+periodEditCurrentBtn.addEventListener("click", () => {
+  settingsPeriodPanel.classList.add("hidden");
+  setStatus(periodStatus, "");
+  $("budgetTimingNow").checked = true;          // "Immediately": adjust THIS period's amounts
+  settingsOpenEditBudgetsBtn.click();
+});
 periodSaveBtn.addEventListener("click", savePeriodChange);
 periodCancelPendingBtn.addEventListener("click", cancelPeriodChange);
 periodCloseBtn.addEventListener("click", () => {
@@ -3900,7 +4002,7 @@ const HELP_CONTENT = {
   <li><strong>Keep in Bank</strong> — the minimum you should leave in your account: variable remaining plus all unchecked fixed bills due this period.</li>
 </ul>
 <p>The current period dates are shown at the top. Tap <strong>History</strong> in the header to view individual transactions.</p>
-<p style="margin-top:8px;"><strong>Changing your budget period:</strong> open <em>Settings → Variable Budget Settings → Change Budget Period</em> to switch, for example, from twice a month to weekly. The change takes effect when the current period ends, so nothing in the current period changes. Your category amounts do <strong>not</strong> change automatically — review them in <em>Edit Budget Amounts</em> (choose <em>Next period</em>) so they fit the new period length. Your fixed expenses are not affected.</p>`
+<p style="margin-top:8px;"><strong>Changing your budget period:</strong> open <em>Settings → Variable Budget Settings → Change Budget Period</em> to switch, for example, from twice a month to weekly. By default the change takes effect when the current period ends, so nothing in the current period changes. You can also choose <strong>Now</strong>, which ends the current period tonight and starts the new type tomorrow; before doing that, change your current variable budget amounts (<em>Edit Budget Amounts → Immediately</em>) because the shortened period keeps its full amounts. Your category amounts do <strong>not</strong> change automatically — review them in <em>Edit Budget Amounts</em> (choose <em>Next period</em>) so they fit the new period length. Your fixed expenses are not affected.</p>`
   },
   "add-transaction": {
     title: "Add Transaction",
