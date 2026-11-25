@@ -1,591 +1,4127 @@
-// Debt Snowball Tracker Application with Cloud Sync Support
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#c3cfe2" />
+<meta name="description" content="Purrfect Budget - Track your spending and manage budgets across periods" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Purrfect Budget" />
+<title>Purrfect Budget</title>
 
-// Configuration
-const CONFIG = {
-  USE_CLOUD_SYNC: false, // Set to true to enable Cloudflare sync
-  API_URL: '', // Add your Cloudflare Worker URL here
-  AUTH_TOKEN: '' // Add authentication token if required
-};
+<style>
 
-// State Management
-let debts = [];
-let priorityMode = 'balance'; // balance, interest, custom
-let currentEditId = null;
-let syncInProgress = false;
+:root{
+  --bg0:#f8f9fa; --bg1:#ffffff;
+  --border:#dee2e6;
+  --text:#212529; --muted:#6c757d;
+  --danger:#dc3545; --ok:#28a745;
+  --radius:12px;
+}
+*{box-sizing:border-box}
+html{min-height:100%}
+body{
+  margin:0;
+  min-height:100vh;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  color:var(--text);
+  background:linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%) fixed;
+}
+.wrap{max-width:1100px;margin:0 auto;padding:18px;padding-top:calc(60px + env(safe-area-inset-top));padding-bottom:calc(32px + env(safe-area-inset-bottom))}
+h1{font-size:18px;margin:0 0 10px}
+.card{
+  background:#ffffff;
+  border:1px solid #dee2e6;
+  border-radius:var(--radius);
+  padding:16px;
+  max-width:600px;
+  margin-left:auto;
+  margin-right:auto;
+  box-shadow:0 2px 8px rgba(0,0,0,0.08);
+}
+.subcard{margin-top:14px}
+.hidden{display:none!important}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+label{font-size:13px;color:var(--muted);margin-top:10px;display:block}
+input,select{
+  width:100%;padding:10px;border-radius:12px;
+  background:#ffffff;color:var(--text);
+  border:1px solid var(--border)
+}
+button{
+  border:0;border-radius:12px;padding:10px 14px;
+  font-weight:600;color:#fff;cursor:pointer;
+  background:linear-gradient(135deg, #667eea 0%, #764ba2 100%)
+}
+button.secondary{background:#e9ecef;color:#495057}
+button.danger{background:#dc3545;color:#fff}
+button:disabled{opacity:.55}
+.status{font-size:13px;color:var(--muted);margin-top:8px;white-space:pre-wrap}
+.status.ok{color:var(--ok)}
+.status.error{color:var(--danger)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
 
-// Initialize app
-document.addEventListener('DOMContentLoaded', () => {
-  loadFromStorage();
-  render();
-  
-  // Setup periodic sync if cloud enabled
-  if (CONFIG.USE_CLOUD_SYNC && 'serviceWorker' in navigator && 'sync' in navigator.serviceWorker) {
-    setupBackgroundSync();
-  }
-});
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{padding:6px;border-bottom:1px solid var(--border)}
+th{text-align:left;font-size:13px;color:var(--muted)}
+td.right{text-align:right}
+td.center, th.center{text-align:center}
+.tableScroll{max-height:360px;overflow:auto}
 
-// Cloud Sync Functions
-async function syncToCloud() {
-  if (!CONFIG.USE_CLOUD_SYNC || !CONFIG.API_URL || syncInProgress) {
-    return;
-  }
-  
-  syncInProgress = true;
-  
-  try {
-    const response = await fetch(`${CONFIG.API_URL}/sync`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(CONFIG.AUTH_TOKEN && { 'Authorization': `Bearer ${CONFIG.AUTH_TOKEN}` })
-      },
-      body: JSON.stringify({
-        debts,
-        priorityMode,
-        lastSync: new Date().toISOString()
-      })
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      localStorage.setItem('lastCloudSync', data.synced);
-      console.log('Synced to cloud successfully');
-    } else {
-      console.error('Cloud sync failed:', response.statusText);
-    }
-  } catch (error) {
-    console.error('Cloud sync error:', error);
-    // Fallback to local storage
-  } finally {
-    syncInProgress = false;
-  }
+.stickyHeader{
+  position:fixed;
+  top:0;left:0;right:0;
+  z-index:90;
+  background:rgba(195,207,226,0.92);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(0,0,0,0.08);
+}
+.stickyHeaderInner{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:6px 12px;
+  padding-top:calc(6px + env(safe-area-inset-top));
+  box-sizing:border-box;
+  width:100%;
+}
+.stickyHeaderLogo{
+  flex-shrink:0;
+}
+.stickyHeaderTitle{
+  font-size:17px;
+  font-weight:800;
+  color:#2d3748;
+  letter-spacing:-0.3px;
+  white-space:nowrap;
+}
+.stickyHeaderBtns{
+  display:flex;
+  gap:8px;
+}
+.helpBtn{
+  width:26px;height:26px;border-radius:50%;padding:0;
+  font-size:13px;font-weight:800;line-height:1;
+  background:rgba(255,255,255,0.55);
+  color:var(--muted);
+  border:1.5px solid rgba(0,0,0,0.12);
+  cursor:pointer;flex-shrink:0;
+}
+.helpBtn:hover{background:rgba(255,255,255,0.9);color:var(--text);}
+.historyBtn, .settingsBtn{
+  background:rgba(255,255,255,0.6);
+  color:#495057;
+  border:1px solid rgba(0,0,0,0.1);
+  backdrop-filter:blur(4px);
+  padding:5px 10px;
+  font-size:12px;
+  white-space:nowrap;
+}
+.historyBtn:hover, .settingsBtn:hover{
+  background:rgba(255,255,255,0.85);
 }
 
-async function loadFromCloud() {
-  if (!CONFIG.USE_CLOUD_SYNC || !CONFIG.API_URL) {
-    return false;
-  }
-  
-  try {
-    const response = await fetch(`${CONFIG.API_URL}/debts`, {
-      method: 'GET',
-      headers: {
-        ...(CONFIG.AUTH_TOKEN && { 'Authorization': `Bearer ${CONFIG.AUTH_TOKEN}` })
-      }
-    });
-    
-    if (response.ok) {
-      const cloudDebts = await response.json();
+.modalOverlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:18px;z-index:100
+}
+.modal{
+  max-width:780px;width:100%;
+  max-height:calc(100vh - 36px);
+  overflow:auto;
+  background:var(--bg1);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:16px;
+}
+.modalHeader{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.divider{height:1px;background:rgba(255,255,255,.10);margin:12px 0}
+.small{font-size:12px;color:var(--muted)}
+</style>
+</head>
+
+<body>
+<header class="stickyHeader" id="stickyHeader">
+  <div class="stickyHeaderInner">
+    <img src="logo.png" alt="Purrfect Budget" class="stickyHeaderLogo" style="height:36px;width:auto;object-fit:contain;border-radius:6px;">
+    <div class="stickyHeaderBtns" id="headerBtns" style="display:none;">
+      <button id="openHistoryBtn" type="button" class="historyBtn">History</button>
+      <button id="openSettingsBtn" type="button" class="settingsBtn">Settings</button>
+    </div>
+  </div>
+</header>
+<div class="wrap">
+
+  <!-- AUTH -->
+  <div id="authView" class="card hidden">
+    <label>Your name</label>
+    <input id="userNameInput" autocomplete="off" />
+    <label>Password</label>
+    <input id="tokenInput" type="password" autocomplete="off" />
+    <div class="row">
+      <button id="saveTokenBtn" type="button">Continue</button>
+      <button id="toggleTokenBtn" class="secondary" type="button">Show</button>
+    </div>
+    <div id="authStatus" class="status"></div>
+  </div>
+
+  <!-- SETUP WIZARD -->
+  <div id="noCategoriesView" class="hidden">
+    <div id="wizStep1" class="card">
+      <h1>Step 1 — Budget period</h1>
+
+      <label>Period type</label>
+      <select id="wizPeriodType">
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="biweekly" selected>Every Two Weeks (Bi-weekly)</option>
+        <option value="semi_monthly">Twice a Month (1st and 15th)</option>
+        <option value="monthly">Monthly</option>
+        <option value="quarterly">Quarterly</option>
+      </select>
+
+      <label>When was your last paycheck? (MM-DD-YYYY)</label>
+      <input id="wizStartDate" placeholder="MM-DD-YYYY" />
+
+      <label>When should the budget start?</label>
+      <select id="wizBudgetStart">
+        <option value="immediate" selected>Start immediately with full budget</option>
+        <option value="wait">Wait until the date above (budget at $0 until then)</option>
+      </select>
+
+      <div class="row">
+        <button id="wizNext1" type="button">Next</button>
+      </div>
+      <div id="wizStatus1" class="status"></div>
+    </div>
+
+    <div id="wizStep2" class="card hidden">
+      <h1>Step 2 — Categories</h1>
+      <div id="wizCatList"></div>
+      <div class="row">
+        <button id="wizAddCat" class="secondary" type="button">Add Category</button>
+        <button id="wizNext2" type="button">Next</button>
+      </div>
+      <div id="wizStatus2" class="status"></div>
+    </div>
+
+    <div id="wizStep3" class="card hidden">
+      <h1>Step 3 — Fixed Expenses <span style="font-size:13px;font-weight:400;color:var(--muted);">(optional)</span></h1>
+      <div class="small" style="margin-top:4px;color:var(--muted);">Add recurring bills charged on a fixed day each month (e.g. Netflix $15.99 on the 8th). You can skip this and add them later in Settings.</div>
+      <div id="wizFixedList" style="margin-top:10px;"></div>
+      <div class="row">
+        <button id="wizAddFixed" class="secondary" type="button">Add Fixed Expense</button>
+        <button id="wizSubmit" type="button">Initialize Budget</button>
+      </div>
+      <div id="wizStatus3" class="status"></div>
+    </div>
+  </div>
+  <!-- APP -->
+  <div id="appView" class="hidden">
+    <div id="dashboardView" class="hidden">
+
+      <!-- Budget Summary (Spent 2nd col, Remaining 3rd; both centered) -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h1 style="margin:0;">Budgets</h1>
+          <button type="button" class="helpBtn" onclick="showHelp('budget-summary')" aria-label="Help">?</button>
+        </div>
+        <div class="status">Period: <strong id="periodLabel">—</strong></div>
+        <div id="periodPendingNote" class="hidden" style="margin-top:4px;font-size:12px;font-weight:600;color:#8a6d00;"></div>
+
+        <div class="tableScroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th class="center">Budget</th>
+                <th class="center">Spent</th>
+                <th class="center">Remaining</th>
+              </tr>
+            </thead>
+            <tbody id="catTableBody"></tbody>
+          </table>
+        </div>
+        <div id="keepInBankRow" style="margin-top:12px;padding:10px 8px;background:linear-gradient(135deg,#f0f4ff,#e8effe);border-radius:10px;border:1px solid #c9d6f5;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-weight:700;font-size:14px;">🏦 Keep in Bank</span>
+          <span id="keepInBankAmt" style="font-weight:800;font-size:16px;color:#3a5bc7;">—</span>
+        </div>
+        <div id="keepInBankBreakdown" class="small" style="margin-top:4px;color:var(--muted);padding:0 2px;text-align:center;"></div>
+      </div>
+
+      <div class="card subcard">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h1 style="margin:0;">Add Transaction</h1>
+          <button type="button" class="helpBtn" onclick="showHelp('add-transaction')" aria-label="Help">?</button>
+        </div>
+
+        <label>Type</label>
+        <select id="txType">
+          <option value="expense" style="color:#dc3545;font-weight:bold;">Expense</option>
+          <option value="credit" style="color:#28a745;font-weight:bold;">Credit</option>
+          <option value="transfer" style="color:#000000;font-weight:bold;">Transfer</option>
+        </select>
+
+        <!-- Expense/Credit -->
+        <div id="txStandardPanel">
+          <label>Category</label>
+          <select id="txCategory"></select>
+
+          <label>Amount</label>
+          <input id="txAmount" placeholder="$0.00" inputmode="decimal" />
+
+          <label>Note</label>
+          <input id="txNote" />
+        </div>
+
+        <!-- Transfer -->
+        <div id="txTransferPanel" class="hidden">
+          <label>Transfer from</label>
+          <select id="txFromCategory"></select>
+
+          <label>Transfer to</label>
+          <select id="txToCategory"></select>
+
+          <label>Amount</label>
+          <input id="txTransferAmount" placeholder="$0.00" inputmode="decimal" />
+
+          <label>Note (optional)</label>
+          <input id="txTransferNote" placeholder="e.g. moved budget to cover overage" />
+        </div>
+
+        <div class="row">
+          <button id="txSubmitBtn" type="button">Save</button>
+        </div>
+        <div id="txStatus" class="status"></div>
+      </div>
+
+      <!-- Fixed Expenses Card -->
+      <div class="card subcard" id="fixedExpensesCard">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h1 style="margin:0;">Fixed Expenses</h1>
+          <button type="button" class="helpBtn" onclick="showHelp('fixed-expenses')" aria-label="Help">?</button>
+        </div>
+        <div id="fixedExpensesPanel">
+          <div class="small" style="margin-top:6px;color:var(--muted);">Fixed bills due within this budget period. Check them off once paid.</div>
+          <div id="fixedExpensesList" style="margin-top:10px;"></div>
+          <div id="fixedExpensesStatus" class="status"></div>
+        </div>
+      </div>
+
+      <!-- History/Settings buttons moved to sticky header -->
+
+    </div>
+  </div>
+
+  <div id="globalStatus" class="status"></div>
+</div>
+
+<div id="settingsOverlay" class="modalOverlay hidden" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modalHeader">
+      <h1 style="margin:0;">Settings</h1>
+      <button id="settingsCloseBtn" class="secondary" type="button">Close</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="card">
+      <h1 style="text-align:center;">Variable Budget Settings</h1>
       
-      // Merge with local data (cloud takes precedence if newer)
-      const localLastSync = localStorage.getItem('lastSync');
-      const cloudLastSync = localStorage.getItem('lastCloudSync');
-      
-      if (!localLastSync || (cloudLastSync && cloudLastSync > localLastSync)) {
-        debts = cloudDebts;
-        return true;
-      }
-    }
-  } catch (error) {
-    console.error('Failed to load from cloud:', error);
-  }
-  
-  return false;
-}
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+        <button id="settingsOpenEditBudgetsBtn" class="secondary" type="button">Edit Budget Amounts</button>
+        
+        <div id="settingsEditBudgetsPanel" class="subcard hidden">
+          <div class="status" style="margin-top:0;">
+            Check the categories you want to change, enter new amounts, then choose when to apply.
+          </div>
 
-function setupBackgroundSync() {
-  // Register for background sync
-  navigator.serviceWorker.ready.then(registration => {
-    registration.sync.register('sync-debts')
-      .then(() => console.log('Background sync registered'))
-      .catch(err => console.error('Background sync registration failed:', err));
-  });
-}
+          <div style="margin-top:10px;">
+            <label style="font-size:13px;font-weight:600;color:var(--text);margin-top:0;margin-bottom:6px;display:block;">When to apply</label>
+            <div style="display:flex;gap:18px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:14px;margin-top:0;cursor:pointer;">
+                <input type="radio" name="budgetTiming" id="budgetTimingNext" value="next" checked />
+                Next period
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:14px;margin-top:0;cursor:pointer;">
+                <input type="radio" name="budgetTiming" id="budgetTimingNow" value="now" />
+                Immediately
+              </label>
+            </div>
+          </div>
 
-// Load data from localStorage
-function loadFromStorage() {
-  const stored = localStorage.getItem('debtSnowball');
-  if (stored) {
-    const data = JSON.parse(stored);
-    debts = data.debts || [];
-    priorityMode = data.priorityMode || 'balance';
-  }
-  
-  // Try to load from cloud if enabled
-  if (CONFIG.USE_CLOUD_SYNC) {
-    loadFromCloud().then(loaded => {
-      if (loaded) {
-        render();
-      }
-    });
-  }
-}
-
-// Save to localStorage and optionally cloud
-function saveToStorage() {
-  const data = {
-    debts,
-    priorityMode,
-    lastSync: new Date().toISOString()
-  };
-  
-  localStorage.setItem('debtSnowball', JSON.stringify(data));
-  
-  // Sync to cloud if enabled
-  if (CONFIG.USE_CLOUD_SYNC) {
-    syncToCloud();
-  }
-}
-
-// Priority Management
-function changePriority(mode) {
-  priorityMode = mode;
-  
-  // Update button states
-  document.querySelectorAll('.priority-btn').forEach(btn => {
-    btn.classList.remove('active');
-    if (btn.dataset.priority === mode) {
-      btn.classList.add('active');
-    }
-  });
-  
-  saveToStorage();
-  render();
-}
-
-// Calculate debt payoff details
-function calculateDebtDetails(debt) {
-  const monthlyRate = (debt.interestRate / 100) / 12;
-  const currentBalance = debt.currentBalance;
-  const minimumPayment = debt.minimumPayment;
-  
-  if (minimumPayment === 0 || monthlyRate === 0) {
-    const months = Math.ceil(currentBalance / (minimumPayment || 1));
-    return {
-      monthsRemaining: months,
-      payoffDate: new Date(Date.now() + months * 30 * 24 * 60 * 60 * 1000)
-    };
-  }
-  
-  // Calculate months to payoff using amortization formula
-  let balance = currentBalance;
-  let months = 0;
-  const maxMonths = 600; // 50 years cap
-  
-  while (balance > 0 && months < maxMonths) {
-    const interest = balance * monthlyRate;
-    const principal = minimumPayment - interest;
-    
-    if (principal <= 0) {
-      // Payment doesn't cover interest
-      months = maxMonths;
-      break;
-    }
-    
-    balance -= principal;
-    months++;
-  }
-  
-  const payoffDate = new Date();
-  payoffDate.setMonth(payoffDate.getMonth() + months);
-  
-  return {
-    monthsRemaining: months,
-    payoffDate
-  };
-}
-
-// Sort debts based on priority
-function sortDebts() {
-  const sorted = [...debts];
-  
-  if (priorityMode === 'balance') {
-    sorted.sort((a, b) => a.currentBalance - b.currentBalance);
-  } else if (priorityMode === 'interest') {
-    sorted.sort((a, b) => b.interestRate - a.interestRate);
-  }
-  // custom mode uses existing order
-  
-  return sorted;
-}
-
-// Calculate summary statistics
-function calculateSummary() {
-  const totalDebt = debts.reduce((sum, d) => sum + d.currentBalance, 0);
-  const totalOriginal = debts.reduce((sum, d) => sum + d.originalBalance, 0);
-  const totalPaid = totalOriginal - totalDebt;
-  const debtsRemaining = debts.filter(d => d.currentBalance > 0).length;
-  
-  // Calculate debt-free date (last debt payoff)
-  let latestPayoff = null;
-  debts.forEach(debt => {
-    if (debt.currentBalance > 0) {
-      const details = calculateDebtDetails(debt);
-      if (!latestPayoff || details.payoffDate > latestPayoff) {
-        latestPayoff = details.payoffDate;
-      }
-    }
-  });
-  
-  return {
-    totalDebt,
-    totalPaid,
-    debtsRemaining,
-    debtFreeDate: latestPayoff
-  };
-}
-
-// Format currency
-function formatCurrency(amount) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount);
-}
-
-// Format date
-function formatDate(date) {
-  if (!date) return '--';
-  return new Intl.DateFormat('en-US', {
-    month: 'short',
-    year: 'numeric'
-  }).format(date);
-}
-
-// Render the entire UI
-function render() {
-  renderSummary();
-  renderDebtList();
-  renderTargetDebtSelector();
-}
-
-// Render summary cards
-function renderSummary() {
-  const summary = calculateSummary();
-  
-  document.getElementById('totalDebt').textContent = formatCurrency(summary.totalDebt);
-  document.getElementById('totalPaid').textContent = formatCurrency(summary.totalPaid);
-  document.getElementById('debtsRemaining').textContent = summary.debtsRemaining;
-  document.getElementById('debtFreeDate').textContent = formatDate(summary.debtFreeDate);
-}
-
-// Render debt list
-function renderDebtList() {
-  const debtListEl = document.getElementById('debtList');
-  const sortedDebts = sortDebts();
-  
-  if (sortedDebts.length === 0) {
-    debtListEl.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon">📊</div>
-        <div class="empty-state-text">
-          No debts added yet.<br>
-          Click Settings to get started.
+          <div id="settingsEditBudgetsList"></div>
+          <div class="row">
+            <button id="settingsSaveEditBudgetsBtn" type="button">Save Changes</button>
+            <button id="settingsCancelEditBudgetsBtn" class="secondary" type="button">Cancel</button>
+          </div>
+          <div id="settingsEditBudgetsStatus" class="status"></div>
         </div>
-      </div>
-    `;
-    return;
-  }
-  
-  debtListEl.innerHTML = sortedDebts.map((debt, index) => {
-    const details = calculateDebtDetails(debt);
-    const progress = ((debt.originalBalance - debt.currentBalance) / debt.originalBalance) * 100;
-    const priorityClass = index === 0 ? 'priority-1' : '';
-    
-    return `
-      <div class="debt-card ${priorityClass}">
-        <div class="debt-header">
-          <div class="debt-name">${escapeHtml(debt.name)}</div>
-          <div class="debt-priority">#${index + 1}</div>
+
+        <button id="settingsOpenAddCatsBtn" class="secondary" type="button">Add/Remove Categories</button>
+
+        <div id="settingsAddCatsPanel" class="subcard hidden">
+          <div class="status" style="margin-top:0;">
+            Remove existing categories or add new ones with starting budget amounts.
+          </div>
+
+          <div id="settingsExistingCatsList"></div>
+
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-top:16px;margin-bottom:2px;">Add new categories</div>
+          <div id="settingsAddCatsList"></div>
+
+          <div class="row" style="margin-top:10px;">
+            <button id="settingsAddCatsRowBtn" class="secondary" type="button">Add Row</button>
+          </div>
+
+          <div class="row">
+            <button id="settingsSaveCatsBtn" type="button">Save Changes</button>
+            <button id="settingsCancelCatsBtn" class="secondary" type="button">Cancel</button>
+          </div>
+
+          <div id="settingsAddCatsStatus" class="status"></div>
         </div>
-        <div class="debt-stats">
-          <div class="debt-stat">
-            <div class="debt-stat-label">Original</div>
-            <div class="debt-stat-value">${formatCurrency(debt.originalBalance)}</div>
+
+        <button id="settingsOpenReorderBtn" class="secondary" type="button">Reorder Categories</button>
+
+        <div id="settingsReorderPanel" class="subcard hidden">
+          <div class="status" style="margin-top:0;">
+            Move categories up/down. This affects how categories are shown in the app on this device.
           </div>
-          <div class="debt-stat">
-            <div class="debt-stat-label">Current</div>
-            <div class="debt-stat-value">${formatCurrency(debt.currentBalance)}</div>
+          <div id="settingsReorderList"></div>
+          <div class="row">
+            <button id="settingsSaveOrderBtn" type="button">Save Order</button>
+            <button id="settingsCancelOrderBtn" class="secondary" type="button">Cancel</button>
           </div>
-          <div class="debt-stat">
-            <div class="debt-stat-label">Interest Rate</div>
-            <div class="debt-stat-value">${debt.interestRate.toFixed(2)}%</div>
-          </div>
-          <div class="debt-stat">
-            <div class="debt-stat-label">Min Payment</div>
-            <div class="debt-stat-value">${formatCurrency(debt.minimumPayment)}</div>
-          </div>
-          <div class="debt-stat">
-            <div class="debt-stat-label">Months Left</div>
-            <div class="debt-stat-value">${details.monthsRemaining}</div>
-          </div>
-          <div class="debt-stat">
-            <div class="debt-stat-label">Payoff Date</div>
-            <div class="debt-stat-value">${formatDate(details.payoffDate)}</div>
-          </div>
+          <div id="settingsReorderStatus" class="status"></div>
         </div>
-        <div class="debt-progress">
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: ${progress}%"></div>
+
+        <button id="settingsOpenPeriodBtn" class="secondary" type="button">Change Budget Period</button>
+
+        <div id="settingsPeriodPanel" class="subcard hidden">
+          <div id="periodCurrentInfo" class="status" style="margin-top:0;text-indent:0;"></div>
+
+          <div id="periodPendingBox" class="hidden" style="margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(102,126,234,0.12);border:1px solid rgba(102,126,234,0.35);">
+            <div id="periodPendingText" style="font-size:13px;color:var(--text);white-space:pre-wrap;"></div>
+            <button id="periodCancelPendingBtn" class="secondary" type="button" style="margin-top:8px;">Cancel Scheduled Change</button>
           </div>
-          <div class="progress-text">${progress.toFixed(1)}% paid</div>
+
+          <div id="periodWarning" style="margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(255,193,7,0.16);border:1px solid rgba(214,158,0,0.55);font-size:13px;line-height:1.45;color:var(--text);">
+            <strong>⚠ Review your budget amounts.</strong> Changing the period type changes how long each budget period is, but your category amounts do <strong>not</strong> change. A $500 budget stays $500 per period, so it will cover a different length of time. After scheduling the change, review your amounts in <em>Edit Budget Amounts</em> (choose <em>Next period</em>) so they fit the new period length.
+          </div>
+
+          <label style="margin-top:12px;">Change to</label>
+          <select id="periodNewType"></select>
+
+          <div id="periodStartWrap" class="hidden">
+            <label id="periodStartLabel"></label>
+            <input id="periodStartInput" placeholder="MM-DD-YYYY (optional)" inputmode="numeric" />
+          </div>
+
+          <div style="margin-top:12px;">
+            <label style="font-size:13px;font-weight:600;color:var(--text);margin-top:0;margin-bottom:6px;display:block;">When to switch</label>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <label style="display:flex;align-items:flex-start;gap:8px;font-size:14px;margin-top:0;cursor:pointer;">
+                <input type="radio" name="periodWhen" id="periodWhenEnd" value="end" checked style="margin-top:3px;flex-shrink:0;" />
+                <span id="periodWhenEndText"></span>
+              </label>
+              <label style="display:flex;align-items:flex-start;gap:8px;font-size:14px;margin-top:0;cursor:pointer;">
+                <input type="radio" name="periodWhen" id="periodWhenNow" value="now" style="margin-top:3px;flex-shrink:0;" />
+                <span id="periodWhenNowText"></span>
+              </label>
+            </div>
+          </div>
+
+          <div id="periodNowWarning" class="hidden" style="margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(220,53,69,0.10);border:1px solid rgba(220,53,69,0.45);font-size:13px;line-height:1.45;color:var(--text);">
+            <strong>⚠ Before you switch now:</strong> your current period will be cut short, but it keeps its full budget amounts. <strong>Change your current variable budget amounts first</strong> (Edit Budget Amounts → Immediately) so they fit the shorter period, then come back here to switch.
+            <button id="periodEditCurrentBtn" class="secondary" type="button" style="margin-top:8px;width:100%;">Edit Current Budget Amounts</button>
+          </div>
+
+          <div class="row">
+            <button id="periodSaveBtn" type="button">Schedule Change</button>
+            <button id="periodCloseBtn" class="secondary" type="button">Cancel</button>
+          </div>
+          <div id="periodStatus" class="status"></div>
+          <div id="periodReviewRow" class="hidden"><button id="periodReviewBtn" class="secondary" type="button" style="width:100%;">Review Budget Amounts</button></div>
         </div>
-      </div>
-    `;
-  }).join('');
-}
 
-// Render target debt selector
-function renderTargetDebtSelector() {
-  const selectEl = document.getElementById('targetDebt');
-  const sortedDebts = sortDebts();
-  
-  selectEl.innerHTML = '<option value="priority">Priority #1 (Default)</option>' +
-    sortedDebts.map((debt, index) => 
-      `<option value="${debt.id}">${escapeHtml(debt.name)} (#${index + 1})</option>`
-    ).join('');
-}
-
-// Apply extra payment
-function applyExtraPayment() {
-  const amount = parseFloat(document.getElementById('extraAmount').value);
-  const target = document.getElementById('targetDebt').value;
-  
-  if (!amount || amount <= 0) {
-    showToast('Please enter a valid payment amount');
-    return;
-  }
-  
-  let targetDebt;
-  if (target === 'priority') {
-    const sortedDebts = sortDebts();
-    targetDebt = sortedDebts[0];
-  } else {
-    targetDebt = debts.find(d => d.id === target);
-  }
-  
-  if (!targetDebt) {
-    showToast('Debt not found');
-    return;
-  }
-  
-  // Apply payment
-  targetDebt.currentBalance = Math.max(0, targetDebt.currentBalance - amount);
-  
-  // Clear input
-  document.getElementById('extraAmount').value = '';
-  
-  saveToStorage();
-  render();
-  showToast(`Payment of ${formatCurrency(amount)} applied to ${targetDebt.name}!`);
-}
-
-// Settings Modal
-function openSettings() {
-  renderDebtListSettings();
-  document.getElementById('settingsModal').classList.add('active');
-}
-
-function closeSettings() {
-  document.getElementById('settingsModal').classList.remove('active');
-  render();
-}
-
-function renderDebtListSettings() {
-  const container = document.getElementById('debtListSettings');
-  const sortedDebts = sortDebts();
-  
-  if (sortedDebts.length === 0) {
-    container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No debts yet. Add your first debt below.</p>';
-    return;
-  }
-  
-  container.innerHTML = sortedDebts.map((debt, index) => `
-    <div class="debt-item" draggable="${priorityMode === 'custom'}" data-id="${debt.id}">
-      <div class="debt-item-info">
-        <div class="debt-item-name">${escapeHtml(debt.name)}</div>
-        <div class="debt-item-details">
-          ${formatCurrency(debt.currentBalance)} at ${debt.interestRate}% APR
-        </div>
-      </div>
-      <div style="display: flex; gap: 8px;">
-        <button class="btn-primary" style="width: auto; padding: 8px 16px;" onclick="editDebt('${debt.id}')">Edit</button>
-        <button class="btn-danger" onclick="deleteDebt('${debt.id}')">Delete</button>
       </div>
     </div>
-  `).join('');
-  
-  if (priorityMode === 'custom') {
-    enableDragAndDrop();
-  }
+
+    <div class="card subcard">
+      <h1 style="text-align:center;">Fixed Budget Settings</h1>
+
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+        <button id="settingsOpenAddFixedBtn" class="secondary" type="button">Add Fixed Expense</button>
+
+        <div id="settingsAddFixedPanel" class="subcard hidden">
+          <div class="status" style="margin-top:0;text-indent:0;">Enter the bill details and choose the month(s) it is due. Tap All for a bill that is due every month.</div>
+          <div id="settingsAddFixedFormHost" style="margin-top:10px;"></div>
+          <div class="row">
+            <button id="settingsSaveNewFixedBtn" type="button">Save Fixed Expense</button>
+            <button id="settingsCancelNewFixedBtn" class="secondary" type="button">Cancel</button>
+          </div>
+          <div id="settingsAddFixedStatus" class="status"></div>
+        </div>
+
+        <button id="settingsOpenFixedExpensesBtn" class="secondary" type="button">Edit/Remove Expenses</button>
+
+        <div id="settingsFixedExpensesPanel" class="subcard hidden">
+          <div class="status" style="margin-top:0;text-indent:0;">Edit or remove your fixed bills, then tap Save. Only bills due within the current budget period count toward Keep in Bank.</div>
+          <div id="fixedSortBar" style="display:flex;align-items:center;gap:6px;margin-top:10px;">
+            <span class="small" style="font-weight:700;">Sort by:</span>
+            <button type="button" data-sort="date">Due Date</button>
+            <button type="button" data-sort="name">Name</button>
+            <button type="button" data-sort="amount">Amount</button>
+          </div>
+          <div class="row">
+            <button id="settingsSaveFixedExpensesBtn" type="button">Save Fixed Expenses</button>
+            <button id="settingsCancelFixedExpensesBtn" class="secondary" type="button">Cancel</button>
+          </div>
+          <div id="settingsFixedExpensesStatus" class="status"></div>
+          <div style="border-top:1px solid #9aa0a6;margin-top:14px;padding-top:14px;"></div>
+          <div id="settingsFixedEmptyMsg" class="small hidden" style="padding:4px 0 8px;">No fixed expenses yet. Use Add Fixed Expense above to create one.</div>
+          <div id="settingsFixedExpensesList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card subcard">
+      <h1 style="text-align:center;">Account Settings</h1>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+        <button id="settingsChangeNameBtn" class="secondary" type="button">Change Name</button>
+        <button id="settingsLogoutBtn" class="secondary" type="button">Log Out</button>
+        <button id="settingsResetBtn" class="danger" type="button">Reset Budget / Start Over</button>
+      </div>
+      <div class="small" style="margin-top:8px;">
+        Reset clears categories, budgets, and all transaction history from the server.
+      </div>
+      <div id="settingsAccountStatus" class="status"></div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY MODAL -->
+<div id="historyOverlay" class="modalOverlay hidden" aria-hidden="true" style="padding:6px;">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modalHeader">
+      <div>
+        <h1 style="margin:0;">History</h1>
+        <div id="historyPeriod" class="small" style="margin-top:4px;font-weight:600;"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button type="button" class="helpBtn" onclick="showHelp('history')" aria-label="Help">?</button>
+        <button id="historyCloseBtn" class="secondary" type="button">Close</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div style="display:flex;justify-content:center;gap:8px;margin-top:0;">
+      <button id="historyCurrentBtn" class="secondary" type="button" style="flex:1;white-space:nowrap;padding-left:8px;padding-right:8px;font-size:13px;">Current Period</button>
+      <button id="historyPriorBtn" class="secondary" type="button" style="flex:1;white-space:nowrap;padding-left:8px;padding-right:8px;font-size:13px;">Prior Period</button>
+      <button id="historyExportBtn" class="secondary" type="button" style="flex:1;white-space:nowrap;padding-left:8px;padding-right:8px;font-size:13px;">Export (2 periods)</button>
+    </div>
+    <div id="historyStatus" class="status"></div>
+
+    <div style="overflow-x:auto;margin-top:10px;max-height:calc(100vh - 200px);overflow-y:auto;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr id="historyHeaderRow">
+            <th data-col="date"     style="cursor:pointer;user-select:none;white-space:nowrap;">Date <span class="sortArrow"></span></th>
+            <th data-col="category" style="cursor:pointer;user-select:none;white-space:nowrap;">Category <span class="sortArrow"></span></th>
+            <th data-col="amount"   style="cursor:pointer;user-select:none;white-space:nowrap;text-align:right;">Amount <span class="sortArrow"></span></th>
+            <th data-col="note"     style="cursor:pointer;user-select:none;">Note <span class="sortArrow"></span></th>
+          </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= CONFIG ================= */
+const API = {
+  base: "https://purrfect-budget-api.kardian.workers.dev",
+  validate: "/api/auth/validate",
+  state: "/api/budget/state",
+  init: "/api/budget/init",
+  tx: "/api/budget/transactions",
+  categories: "/api/budget/categories",
+  adjustNext: "/api/budget/adjust-next",
+  periodType: "/api/budget/period-type",
+  reset: "/api/budget/reset",
+  fixedExpenses: "/api/budget/fixed-expenses",
+  fixedPaid:     "/api/budget/fixed-paid",
+  timeoutMs: 12000
+};
+
+/* Budget period types: display names for the Settings screens */
+const PERIOD_LABELS = {
+  daily: "Daily", weekly: "Weekly", biweekly: "Every Two Weeks (Bi-weekly)",
+  semi_monthly: "Twice a Month (1st and 15th)", monthly: "Monthly", quarterly: "Quarterly"
+};
+const PERIOD_SHORT = {
+  daily: "Daily", weekly: "Weekly", biweekly: "Bi-weekly",
+  semi_monthly: "Twice-a-month", monthly: "Monthly", quarterly: "Quarterly"
+};
+const PERIOD_UNIT = {   // "a $500 budget is now $500 per ___"
+  daily: "day", weekly: "week", biweekly: "two weeks",
+  semi_monthly: "half-month", monthly: "month", quarterly: "quarter"
+};
+
+/* ================= DOM ================= */
+const $ = (id) => document.getElementById(id);
+
+const authView = $("authView");
+const userNameInput = $("userNameInput");
+const tokenInput = $("tokenInput");
+const saveTokenBtn = $("saveTokenBtn");
+const toggleTokenBtn = $("toggleTokenBtn");
+const authStatus = $("authStatus");
+
+const noCategoriesView = $("noCategoriesView");
+const wizStep1 = $("wizStep1");
+const wizStep2 = $("wizStep2");
+const wizPeriodType = $("wizPeriodType");
+const wizStartDate = $("wizStartDate");
+const wizBudgetStart = $("wizBudgetStart");
+const wizCatList = $("wizCatList");
+const wizNext1 = $("wizNext1");
+const wizAddCat = $("wizAddCat");
+const wizNext2 = $("wizNext2");
+const wizFixedList = $("wizFixedList");
+const wizAddFixed = $("wizAddFixed");
+const wizSubmit = $("wizSubmit");
+const wizStatus1 = $("wizStatus1");
+const wizStatus2 = $("wizStatus2");
+const wizStep3   = $("wizStep3");
+const wizStatus3 = $("wizStatus3");
+
+const appView = $("appView");
+const dashboardView = $("dashboardView");
+const periodLabel = $("periodLabel");
+const catTableBody = $("catTableBody");
+
+const txType = $("txType");
+const txStandardPanel = $("txStandardPanel");
+const txTransferPanel = $("txTransferPanel");
+
+const txCategory = $("txCategory");
+const txAmount = $("txAmount");
+const txNote = $("txNote");
+
+const txFromCategory = $("txFromCategory");
+const txToCategory = $("txToCategory");
+const txTransferAmount = $("txTransferAmount");
+const txTransferNote = $("txTransferNote");
+
+const txSubmitBtn = $("txSubmitBtn");
+const txStatus = $("txStatus");
+
+const globalStatus = $("globalStatus");
+
+const openSettingsBtn = $("openSettingsBtn");
+const settingsOverlay = $("settingsOverlay");
+const settingsCloseBtn = $("settingsCloseBtn");
+
+const settingsOpenReorderBtn = $("settingsOpenReorderBtn");
+const settingsReorderPanel = $("settingsReorderPanel");
+const settingsReorderList = $("settingsReorderList");
+const settingsSaveOrderBtn = $("settingsSaveOrderBtn");
+const settingsCancelOrderBtn = $("settingsCancelOrderBtn");
+const settingsReorderStatus = $("settingsReorderStatus");
+
+const settingsOpenEditBudgetsBtn = $("settingsOpenEditBudgetsBtn");
+const settingsEditBudgetsPanel = $("settingsEditBudgetsPanel");
+const settingsEditBudgetsList = $("settingsEditBudgetsList");
+const settingsSaveEditBudgetsBtn = $("settingsSaveEditBudgetsBtn");
+const settingsCancelEditBudgetsBtn = $("settingsCancelEditBudgetsBtn");
+const settingsEditBudgetsStatus = $("settingsEditBudgetsStatus");
+
+const settingsOpenAddCatsBtn = $("settingsOpenAddCatsBtn");
+const settingsAddCatsPanel = $("settingsAddCatsPanel");
+const settingsAddCatsList = $("settingsAddCatsList");
+const settingsAddCatsRowBtn = $("settingsAddCatsRowBtn");
+const settingsSaveCatsBtn = $("settingsSaveCatsBtn");
+const settingsCancelCatsBtn = $("settingsCancelCatsBtn");
+const settingsAddCatsStatus = $("settingsAddCatsStatus");
+
+const settingsChangeNameBtn = $("settingsChangeNameBtn");
+const settingsLogoutBtn = $("settingsLogoutBtn");
+const settingsResetBtn = $("settingsResetBtn");
+const settingsAccountStatus = $("settingsAccountStatus");
+
+/* History DOM */
+const openHistoryBtn = $("openHistoryBtn");
+const historyOverlay = $("historyOverlay");
+const historyCloseBtn = $("historyCloseBtn");
+const historyCurrentBtn = $("historyCurrentBtn");
+const historyPriorBtn = $("historyPriorBtn");
+const historyStatus = $("historyStatus");
+const historyBody = $("historyBody");
+const historyPeriod = $("historyPeriod");
+
+/* ================= UI HELPERS ================= */
+function show(el){ if (el) el.classList.remove("hidden"); }
+function hide(el){ if (el) el.classList.add("hidden"); }
+
+function setStatus(el, msg, kind){
+  if (!el) return;
+  el.textContent = msg || "";
+  el.classList.remove("ok","error");
+  if (kind) el.classList.add(kind);
 }
 
-// Drag and drop for custom ordering
-function enableDragAndDrop() {
-  const items = document.querySelectorAll('.debt-item[draggable="true"]');
-  
-  items.forEach(item => {
-    item.addEventListener('dragstart', handleDragStart);
-    item.addEventListener('dragover', handleDragOver);
-    item.addEventListener('drop', handleDrop);
-    item.addEventListener('dragend', handleDragEnd);
+function join(path){
+  return API.base.replace(/\/+$/,"") + "/" + path.replace(/^\/+/,"");
+}
+
+function authHeaders(token){
+  return { Authorization:`Bearer ${token}`, "Content-Type":"application/json" };
+}
+
+function fetchWithTimeout(url, options = {}){
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), API.timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(id));
+}
+
+async function safeText(resp){
+  try { return await resp.text(); } catch { return ""; }
+}
+</script>
+<script>
+/* ================= INDEXEDDB (ROBUST) ================= */
+const IDB = { name:"pwa-budget-app", version:4, store:"kv" };
+const KEY_TOKEN = "token";
+const KEY_NAME  = "name";
+const KEY_CAT_ORDER = "catOrder"; // array of category_id numbers in desired UI order
+
+function deleteDb(){
+  return new Promise((resolve) => {
+    const del = indexedDB.deleteDatabase(IDB.name);
+    del.onsuccess = () => resolve(true);
+    del.onerror = () => resolve(false);
+    del.onblocked = () => resolve(false);
   });
 }
 
-let draggedElement = null;
-
-function handleDragStart(e) {
-  draggedElement = this;
-  this.classList.add('dragging');
-  e.dataTransfer.effectAllowed = 'move';
-}
-
-function handleDragOver(e) {
-  if (e.preventDefault) {
-    e.preventDefault();
-  }
-  e.dataTransfer.dropEffect = 'move';
-  
-  const items = document.querySelectorAll('.debt-item');
-  items.forEach(item => item.classList.remove('drag-over'));
-  
-  if (this !== draggedElement) {
-    this.classList.add('drag-over');
-  }
-  
-  return false;
-}
-
-function handleDrop(e) {
-  if (e.stopPropagation) {
-    e.stopPropagation();
-  }
-  
-  if (draggedElement !== this) {
-    const draggedId = draggedElement.dataset.id;
-    const targetId = this.dataset.id;
-    
-    const draggedIndex = debts.findIndex(d => d.id === draggedId);
-    const targetIndex = debts.findIndex(d => d.id === targetId);
-    
-    // Reorder array
-    const [removed] = debts.splice(draggedIndex, 1);
-    debts.splice(targetIndex, 0, removed);
-    
-    saveToStorage();
-    renderDebtListSettings();
-  }
-  
-  return false;
-}
-
-function handleDragEnd(e) {
-  this.classList.remove('dragging');
-  document.querySelectorAll('.debt-item').forEach(item => {
-    item.classList.remove('drag-over');
+function openDbOnce(versionOverride){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB.name, versionOverride ?? IDB.version);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(IDB.store)) db.createObjectStore(IDB.store);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
   });
 }
 
-// Add/Edit Debt Form
-function openAddDebtForm() {
-  currentEditId = null;
-  document.getElementById('formModalTitle').textContent = 'Add Debt';
-  document.getElementById('debtForm').reset();
-  document.getElementById('debtId').value = '';
-  document.getElementById('debtFormModal').classList.add('active');
-}
-
-function editDebt(id) {
-  const debt = debts.find(d => d.id === id);
-  if (!debt) return;
-  
-  currentEditId = id;
-  document.getElementById('formModalTitle').textContent = 'Edit Debt';
-  document.getElementById('debtId').value = debt.id;
-  document.getElementById('debtName').value = debt.name;
-  document.getElementById('originalBalance').value = debt.originalBalance;
-  document.getElementById('currentBalance').value = debt.currentBalance;
-  document.getElementById('interestRate').value = debt.interestRate;
-  document.getElementById('minimumPayment').value = debt.minimumPayment;
-  
-  document.getElementById('debtFormModal').classList.add('active');
-}
-
-function closeDebtForm() {
-  document.getElementById('debtFormModal').classList.remove('active');
-}
-
-function saveDebt(e) {
-  e.preventDefault();
-  
-  const id = document.getElementById('debtId').value || generateId();
-  const debtData = {
-    id,
-    name: document.getElementById('debtName').value,
-    originalBalance: parseFloat(document.getElementById('originalBalance').value),
-    currentBalance: parseFloat(document.getElementById('currentBalance').value),
-    interestRate: parseFloat(document.getElementById('interestRate').value),
-    minimumPayment: parseFloat(document.getElementById('minimumPayment').value)
-  };
-  
-  const existingIndex = debts.findIndex(d => d.id === id);
-  if (existingIndex >= 0) {
-    debts[existingIndex] = debtData;
-    showToast('Debt updated successfully!');
-  } else {
-    debts.push(debtData);
-    showToast('Debt added successfully!');
+async function openDb(){
+  try {
+    const db = await openDbOnce();
+    if (!db.objectStoreNames.contains(IDB.store)) {
+      db.close();
+      await deleteDb();
+      return await openDbOnce();
+    }
+    return db;
+  } catch (e) {
+    const msg = String(e?.message || e || "");
+    if (msg.includes("higher version")) {
+      await deleteDb();
+      return await openDbOnce();
+    }
+    throw e;
   }
-  
-  saveToStorage();
-  closeDebtForm();
-  renderDebtListSettings();
-  render();
 }
 
-function deleteDebt(id) {
-  if (!confirm('Are you sure you want to delete this debt?')) {
-    return;
+async function idbGet(key){
+  const db = await openDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB.store, "readonly");
+      const store = tx.objectStore(IDB.store);
+      const req = store.get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => reject(req.error);
+    });
+  } finally { db.close(); }
+}
+
+async function idbSet(key, value){
+  const db = await openDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB.store, "readwrite");
+      const store = tx.objectStore(IDB.store);
+      const req = store.put(value, key);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
+    });
+  } finally { db.close(); }
+}
+
+async function idbDel(key){
+  const db = await openDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB.store, "readwrite");
+      const store = tx.objectStore(IDB.store);
+      const req = store.delete(key);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
+    });
+  } finally { db.close(); }
+}
+</script>
+
+<script>
+/* ================= API ================= */
+async function validateToken(token){
+  const url = join(API.validate);
+  const resp = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(token) });
+  if (resp.ok) return true;
+  if (resp.status === 401 || resp.status === 403) return false;
+  const t = await safeText(resp);
+  throw new Error(`Token validate failed (${resp.status}): ${t || resp.statusText}`);
+}
+
+async function fetchState(token){
+  const url = join(API.state);
+  const resp = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(token) });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, state:null };
+    const t = await safeText(resp);
+    throw new Error(`State failed (${resp.status}): ${t || resp.statusText}`);
   }
+  return { authFailed:false, state: await resp.json().catch(()=> ({})) };
+}
+
+async function postInit(token, payload){
+  const url = join(API.init);
+  const resp = await fetchWithTimeout(url, { method:"POST", headers: authHeaders(token), body: JSON.stringify(payload) });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Init failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function postTransaction(token, payload){
+  const url = join(API.tx);
+  const resp = await fetchWithTimeout(url, { method:"POST", headers: authHeaders(token), body: JSON.stringify(payload) });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Transaction failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function postReset(token){
+  const url = join(API.reset);
+  const resp = await fetchWithTimeout(url, {
+    method:"POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ confirm:"RESET" })
+  });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Reset failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function postCategories(token, payload){
+  const url = join(API.categories);
+  const resp = await fetchWithTimeout(url, {
+    method:"POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Categories failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function postPeriodType(token, payload){
+  // payload: { period_type, period_anchor_date? }  or  { cancel: true }
+  const url = join(API.periodType);
+  const resp = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    let msg = "";
+    try { msg = (await resp.json())?.error || ""; } catch {}
+    throw new Error(msg || `Period change failed (${resp.status})`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function postAdjustNext(token, budgets){
+  // budgets: [{ category_id, budget_cents }, ...]
+  // Updates category_budgets_next_items (the true default amounts)
+  const url = join(API.adjustNext);
+  const resp = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ budgets })
+  });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Adjust-next failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function fetchTransactions(token, opts = {}){
+  const url = new URL(join(API.tx));
+  if (opts?.sinceMs) url.searchParams.set("since", String(opts.sinceMs));
+  if (opts?.limit) url.searchParams.set("limit", String(opts.limit));
+  const resp = await fetchWithTimeout(url.toString(), { method:"GET", headers: authHeaders(token) });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Transactions failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function fetchFixedExpenses(token){
+  const url = join(API.fixedExpenses);
+  const resp = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(token) });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Fixed expenses fetch failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function postFixedExpenses(token, items){
+  // items: [{id, name, amount_cents, due_day}, ...]
+  const url = join(API.fixedExpenses);
+  const resp = await fetchWithTimeout(url, {
+    method:"POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ items })
+  });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Fixed expenses save failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function fetchFixedPaid(token){
+  const url = join(API.fixedPaid);
+  const resp = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(token) });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Fixed paid fetch failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function postFixedPaidOps(token, ops){
+  // ops: [{ period_key, expense_id, paid: true|false }]
+  // Changes only the rows named. Response is the full, authoritative paid map.
+  const url = join(API.fixedPaid);
+  const resp = await fetchWithTimeout(url, {
+    method:"POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ set: ops })
+  });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Fixed paid save failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+
+async function postFixedPaid(token, paid){
+  // FULL REPLACE — only for Reset. Never use this for a normal checkbox change:
+  // it overwrites every period's paid state with whatever map is sent.
+  // paid: { [period_key]: [id, id, ...] }
+  const url = join(API.fixedPaid);
+  const resp = await fetchWithTimeout(url, {
+    method:"POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ paid })
+  });
+  if (!resp.ok){
+    if (resp.status === 401 || resp.status === 403) return { authFailed:true, result:null };
+    const t = await safeText(resp);
+    throw new Error(`Fixed paid save failed (${resp.status}): ${t || resp.statusText}`);
+  }
+  return { authFailed:false, result: await resp.json().catch(()=> ({})) };
+}
+</script>
+
+<script>
+/* ================= DATE + MONEY ================= */
+const pad2 = (n) => String(n).padStart(2, "0");
+
+function todayYMD(){
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+}
+
+function ymdToMdy(ymd){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd||""));
+  if (!m) return "";
+  return `${m[2]}-${m[3]}-${m[1]}`;
+}
+
+function mdyToYmd(mdy){
+  const s = String(mdy||"").trim();
+  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s);
+  if (!m) return null;
+  const mm = Number(m[1]), dd = Number(m[2]), yyyy = Number(m[3]);
+  if (yyyy < 1900 || yyyy > 2100) return null;
+  const dt = new Date(yyyy, mm-1, dd);
+  if (dt.getFullYear() !== yyyy || dt.getMonth() !== (mm-1) || dt.getDate() !== dd) return null;
+  return `${yyyy}-${pad2(mm)}-${pad2(dd)}`;
+}
+
+function normalizeMoneyDisplay(s){
+  const raw = String(s||"").trim().replace(/[^0-9.]/g,""); // strips commas and other non-numeric chars
+  if (!raw) return "";
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return "";
   
-  debts = debts.filter(d => d.id !== id);
-  saveToStorage();
-  renderDebtListSettings();
-  render();
-  showToast('Debt deleted');
+  // Format with commas: split into integer and decimal parts
+  const formatted = n.toFixed(2);
+  const parts = formatted.split('.');
+  const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  
+  return "$" + integerPart + "." + parts[1];
 }
 
-// Utility functions
-function generateId() {
-  return 'debt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+function validateAndFixCommas(value){
+  // Allow user to type freely, but validate/fix when they're done
+  let clean = String(value || "").replace(/[^0-9.,]/g, "");
+  
+  // Split on decimal point
+  const parts = clean.split('.');
+  const integerPart = parts[0] || "";
+  const decimalPart = parts.length > 1 ? parts[1] : "";
+  
+  // Remove all commas to get pure digits
+  const digitsOnly = integerPart.replace(/,/g, "");
+  
+  // Always return with proper comma formatting
+  const formatted = digitsOnly.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  
+  return formatted + (decimalPart ? '.' + decimalPart : '');
 }
 
-function escapeHtml(text) {
-  const map = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;'
+function dollarsToCentsFromInput(s){
+  const raw = String(s||"").trim().replace(/[^0-9.]/g,""); // strips commas and other non-numeric chars
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n*100);
+}
+
+function fmtCents(c){
+  const n = Number(c);
+  if (!Number.isFinite(n)) return "—";
+  return "$" + (n/100).toFixed(2);
+}
+
+function fmtLocalDateTime(iso){
+  const s = String(iso || "");
+  const d = new Date(s);
+  if (!Number.isFinite(d.getTime())) return s || "—";
+  return d.toLocaleString(undefined, {
+    year:"numeric", month:"2-digit", day:"2-digit",
+    hour:"2-digit", minute:"2-digit"
+  });
+}
+
+// History table date column: MM/DD only
+function fmtHistoryDate(iso){
+  const s = String(iso || "");
+  const d = new Date(s);
+  if (!Number.isFinite(d.getTime())) return s || "—";
+  return pad2(d.getMonth()+1) + "/" + pad2(d.getDate());
+}
+
+// Convert YYYY-MM-DD to MM/DD/YYYY for history period header
+function fmtYmdToMdySlash(ymd){
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(ymd || ""));
+  if (!m) return String(ymd || "");
+  return `${m[2]}/${m[3]}/${m[1]}`;
+}
+
+// The server stores period end_ts as the EXCLUSIVE start of the next period.
+// Subtract one day before displaying so "Feb 15 → Mar 1" shows as "Feb 15 → Feb 28".
+
+// Return a proper English ordinal string for a day-of-month number (1–31).
+// Handles the -th/-st/-nd/-rd suffix correctly, including 11th/12th/13th,
+// 21st, 22nd, 23rd, 31st, etc.
+function dayOrdinal(n){
+  const mod100 = n % 100;
+  const mod10  = n % 10;
+  // 11, 12, 13 are always "th" regardless of their last digit
+  if (mod100 >= 11 && mod100 <= 13) return n + "th";
+  if (mod10 === 1) return n + "st";
+  if (mod10 === 2) return n + "nd";
+  if (mod10 === 3) return n + "rd";
+  return n + "th";
+}
+function fmtEndTsForDisplay(isoTs){
+  const ymd = String(isoTs || "").slice(0, 10);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return fmtYmdToMdySlash(ymd);
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  d.setUTCDate(d.getUTCDate() - 1);
+  const y2  = String(d.getUTCFullYear());
+  const mo2 = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const d2  = String(d.getUTCDate()).padStart(2, "0");
+  return `${mo2}/${d2}/${y2}`;
+}
+</script>
+
+<script>
+/* ================= WIZARD ================= */
+function showWizardStep(n){
+  [wizStep1, wizStep2, wizStep3].forEach((el, idx) => el.classList.toggle("hidden", idx !== n));
+}
+
+function addWizRow(name = "", budget = ""){
+  const wrap = document.createElement("div");
+  wrap.className = "row";
+  wrap.style.marginTop = "10px";
+  wrap.innerHTML = `
+    <input class="wizCatName" placeholder="Category" value="${String(name).replaceAll('"','&quot;')}" />
+    <input class="wizCatBudget" placeholder="$0.00" value="${String(budget).replaceAll('"','&quot;')}" inputmode="decimal" />
+    <button type="button" class="secondary wizRemoveBtn">Remove</button>
+  `;
+  const b = wrap.querySelector(".wizCatBudget");
+  b.addEventListener("blur", () => { 
+    b.value = validateAndFixCommas(b.value);
+    b.value = normalizeMoneyDisplay(b.value); 
+  });
+  wrap.querySelector(".wizRemoveBtn").addEventListener("click", () => wrap.remove());
+  wizCatList.appendChild(wrap);
+}
+
+function initWizard(){
+  wizCatList.innerHTML = "";
+  wizFixedList.innerHTML = "";
+  wizStartDate.value = ymdToMdy(todayYMD());
+  addWizRow("Groceries", "300.00");
+  addWizRow("Gas", "120.00");
+  setStatus(wizStatus1, "");
+  setStatus(wizStatus2, "");
+  setStatus(wizStatus3, "");
+  showWizardStep(0);
+}
+
+function readWizardCategories(){
+  const rows = Array.from(wizCatList.querySelectorAll(".row"));
+  const cats = [];
+  for (const r of rows){
+    const name = (r.querySelector(".wizCatName")?.value || "").trim();
+    const money = (r.querySelector(".wizCatBudget")?.value || "").trim();
+    const dollars = money.replace(/[^0-9.]/g,"");
+    if (!name) continue;
+    cats.push({ name, sort_order: cats.length + 1, budget_dollars: dollars });
+  }
+  return cats;
+}
+
+function validateWizardStep1(){
+  const pt = String(wizPeriodType.value || "").trim();
+  const allowed = new Set(["daily","weekly","biweekly","semi_monthly","monthly","quarterly"]);
+  if (!allowed.has(pt)) return "Invalid period type.";
+  const ymd = mdyToYmd(wizStartDate.value);
+  if (!ymd) return "Start date must be MM-DD-YYYY.";
+  return null;
+}
+
+function validateWizardStep2(){
+  const cats = readWizardCategories();
+  if (cats.length < 1 || cats.length > 10) return "Please provide 1 to 10 categories.";
+  const seen = new Set();
+  for (const c of cats){
+    if (!c.name) return "Category name cannot be blank.";
+    if (!c.budget_dollars) return `Please enter a budget for: ${c.name}`;
+    const k = c.name.toLowerCase();
+    if (seen.has(k)) return `Duplicate category name: ${c.name}`;
+    seen.add(k);
+  }
+  return null;
+}
+
+async function submitInit(){
+  const err1 = validateWizardStep1();
+  if (err1){ showWizardStep(0); return setStatus(wizStatus1, err1, "error"); }
+  const err2 = validateWizardStep2();
+  if (err2){ showWizardStep(1); return setStatus(wizStatus2, err2, "error"); }
+
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return showAuth("Missing token. Please re-enter.", true);
+
+  const budgetStartMode = String(wizBudgetStart.value || "immediate").trim();
+  const categories = readWizardCategories();
+  
+  // If user chose to wait, set all budgets to 0 initially
+  if (budgetStartMode === "wait") {
+    categories.forEach(cat => {
+      cat.budget_dollars = "0";
+    });
+  }
+
+  const payload = {
+    period_type: String(wizPeriodType.value || "").trim(),
+    period_anchor_date: mdyToYmd(wizStartDate.value),
+    categories: categories
   };
-  return text.replace(/[&<>"']/g, m => map[m]);
+
+  setStatus(wizStatus3, "Initializing…");
+  try {
+    const res = await postInit(token, payload);
+    if (res.authFailed){
+      await idbDel(KEY_TOKEN);
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+    // Save fixed expenses from step 3 (API-backed; non-fatal if fails — user can re-add in Settings)
+    try { await saveWizardFixed(); } catch(fxErr) {
+      console.warn("Fixed expenses not saved during init:", fxErr);
+    }
+    setStatus(wizStatus3, "Initialized. Loading…", "ok");
+    await bootstrap();
+  } catch (e) {
+    setStatus(wizStatus3, e?.message || String(e), "error");
+  }
 }
 
-function showToast(message) {
-  const toast = document.getElementById('toast');
-  toast.textContent = message;
-  toast.classList.add('active');
-  
-  setTimeout(() => {
-    toast.classList.remove('active');
-  }, 3000);
+/* Wizard events */
+wizNext1.addEventListener("click", () => {
+  const err = validateWizardStep1();
+  if (err) return setStatus(wizStatus1, err, "error");
+  setStatus(wizStatus1, "");
+  showWizardStep(1);
+});
+wizAddCat.addEventListener("click", () => addWizRow("", ""));
+wizNext2.addEventListener("click", () => {
+  const err = validateWizardStep2();
+  if (err) return setStatus(wizStatus2, err, "error");
+  setStatus(wizStatus2, "");
+  showWizardStep(2);
+});
+wizAddFixed.addEventListener("click", () => addWizFixedRow(genFixedId(), "", "", ""));
+wizSubmit.addEventListener("click", async () => {
+  const fxErr = validateWizardFixed();
+  if (fxErr) return setStatus(wizStatus3, fxErr, "error");
+  setStatus(wizStatus3, "");
+  await submitInit();
+});
+</script>
+
+<script>
+/* ================= AUTH/UI FLOW ================= */
+function showAuth(message = "", isError = false){
+  show(authView);
+  hide(appView);
+  hide(noCategoriesView);
+  hide(dashboardView);
+  setStatus(authStatus, message, isError ? "error" : "");
+  setStatus(globalStatus, "");
+  userNameInput?.focus();
+  const hb = $("headerBtns"); if (hb) hb.style.display = "none";
 }
 
-// Close modals on background click
-document.addEventListener('click', (e) => {
-  if (e.target.classList.contains('modal')) {
-    e.target.classList.remove('active');
+function showWizard(){
+  hide(authView);
+  hide(appView);
+  show(noCategoriesView);
+  hide(dashboardView);
+  initWizard();
+  const hb = $("headerBtns"); if (hb) hb.style.display = "none";
+}
+
+function showApp(){
+  hide(authView);
+  hide(noCategoriesView);
+  show(appView);
+  show(dashboardView);
+  const hb = $("headerBtns"); if (hb) hb.style.display = "flex";
+}
+
+/* Token show/hide */
+toggleTokenBtn.addEventListener("click", () => {
+  const isPw = tokenInput.type === "password";
+  tokenInput.type = isPw ? "text" : "password";
+  toggleTokenBtn.textContent = isPw ? "Hide" : "Show";
+});
+
+/* Save token */
+saveTokenBtn.addEventListener("click", async () => {
+  const name = String(userNameInput.value || "").trim().slice(0, 40);
+  const token = String(tokenInput.value || "").trim();
+  if (!name) return setStatus(authStatus, "Please enter your name.", "error");
+  if (!token) return setStatus(authStatus, "Please enter your password.", "error");
+
+  setStatus(authStatus, "Validating…");
+  try {
+    const ok = await validateToken(token);
+    if (!ok) return setStatus(authStatus, "Token invalid.", "error");
+
+    await idbSet(KEY_NAME, name);
+    await idbSet(KEY_TOKEN, token);
+    setStatus(authStatus, "Saved.", "ok");
+    await bootstrap();
+  } catch (e) {
+    setStatus(authStatus, e?.message || String(e), "error");
   }
 });
+</script>
+
+<script>
+/* ================= CATEGORY ORDERING (UI ONLY) ================= */
+function normalizeCategories(state){
+  const cats = Array.isArray(state?.categories) ? state.categories : [];
+  // Build a lookup of default (next-period) budgets by category_id
+  const nextItems = Array.isArray(state?.next_budget_settings?.items)
+    ? state.next_budget_settings.items : [];
+  const defaultBudgetMap = new Map(nextItems.map(i => [Number(i.category_id), Number(i.budget_cents) || 0]));
+  return cats.map(c => {
+    const category_id     = Number(c.category_id);
+    const budget_cents    = Number(c.budget_cents)   || 0;
+    const rollover_cents  = Number(c.rollover_cents) || 0;
+    return {
+      category_id,
+      name: String(c.name || ""),
+      spent_cents:   Number(c.spent_cents)    || 0,
+      remaining_cents: Number(c.remaining_cents) || 0,
+      // effective_budget = base budget for this period + rollover from prior period
+      // This reflects what the user actually has available, including over/underspend carryover.
+      effective_budget_cents: budget_cents + rollover_cents,
+      // default_budget = the user-set default amount, unaffected by rollovers
+      default_budget_cents: defaultBudgetMap.has(category_id)
+        ? defaultBudgetMap.get(category_id)
+        : budget_cents,
+    };
+  }).filter(c => Number.isFinite(c.category_id) && c.category_id > 0 && c.name);
+}
+
+async function applyUiOrder(cats){
+  const saved = await idbGet(KEY_CAT_ORDER);
+  if (!Array.isArray(saved) || saved.length === 0) return cats;
+
+  const order = saved.map(Number).filter(n => Number.isFinite(n) && n > 0);
+  const byId = new Map(cats.map(c => [c.category_id, c]));
+
+  const out = [];
+  const seen = new Set();
+  for (const id of order){
+    const c = byId.get(id);
+    if (c) { out.push(c); seen.add(id); }
+  }
+  for (const c of cats){
+    if (!seen.has(c.category_id)) out.push(c);
+  }
+  return out;
+}
+
+async function ensureOrderDefaults(cats){
+  const saved = await idbGet(KEY_CAT_ORDER);
+
+  if (!Array.isArray(saved) || saved.length === 0) {
+    await idbSet(KEY_CAT_ORDER, cats.map(c => c.category_id));
+    return;
+  }
+
+  const order = saved.map(Number).filter(n => Number.isFinite(n) && n > 0);
+  const set = new Set(order);
+  let changed = false;
+  for (const c of cats){
+    if (!set.has(c.category_id)) { order.push(c.category_id); set.add(c.category_id); changed = true; }
+  }
+  if (changed) await idbSet(KEY_CAT_ORDER, order);
+}
+</script>
+
+<script>
+/* ================= DASHBOARD + HISTORY CATEGORY MAP ================= */
+let CURRENT_STATE = null;
+let HISTORY_CATEGORY_MAP = new Map(); // category_id -> name
+
+async function renderDashboard(state){
+  const p = state?.period;
+  if (p?.start_ts && p?.end_ts) {
+    periodLabel.textContent = `${fmtYmdToMdySlash(String(p.start_ts).slice(0,10))} → ${fmtEndTsForDisplay(p.end_ts)}`;
+  } else {
+    periodLabel.textContent = "—";
+  }
+
+  // Heads-up while a budget-period change is scheduled
+  const pendingNote = $("periodPendingNote");
+  if (pendingNote) {
+    const pc = state?.pending_period_change;
+    if (pc?.effective_date) {
+      const label  = PERIOD_SHORT[pc.period_type] || pc.period_type;
+      const resume = pc.period_type === state.period_type;
+      pendingNote.textContent = pc.current_period_shortened
+        ? `Current period ends ${fmtEndTsForDisplay(state.period.end_ts)}; ${label} budgets ${resume ? "resume" : "start"} ${fmtYmdToMdySlash(pc.effective_date)}`
+        : `Switching to ${label} budgets on ${fmtYmdToMdySlash(pc.effective_date)}`;
+      pendingNote.classList.remove("hidden");
+    } else {
+      pendingNote.classList.add("hidden");
+    }
+  }
+
+  let cats = normalizeCategories(state);
+  await ensureOrderDefaults(cats);
+  cats = await applyUiOrder(cats);
+
+  // Budget summary table
+  catTableBody.innerHTML = "";
+  for (const c of cats){
+    // Main data row
+    const tr = document.createElement("tr");
+    tr.style.cursor = "pointer";
+
+    const tdName = document.createElement("td");
+    tdName.textContent = c.name;
+
+    const tdBudget = document.createElement("td");
+    tdBudget.className = "center";
+    tdBudget.textContent = fmtCents(c.effective_budget_cents);
+    if (c.effective_budget_cents < 0) tdBudget.style.color = "var(--danger)";
+
+    const tdSpent = document.createElement("td");
+    tdSpent.className = "center";
+    tdSpent.textContent = fmtCents(c.spent_cents);
+
+    const tdRemaining = document.createElement("td");
+    tdRemaining.className = "center";
+    tdRemaining.textContent = fmtCents(c.remaining_cents);
+    if (c.remaining_cents < 0) tdRemaining.style.color = "var(--danger)";
+
+    tr.appendChild(tdName);
+    tr.appendChild(tdBudget);
+    tr.appendChild(tdSpent);
+    tr.appendChild(tdRemaining);
+    catTableBody.appendChild(tr);
+
+    // Expand row: shown on tap, reveals the default budget amount
+    const trExp = document.createElement("tr");
+    trExp.style.display = "none";
+    const tdExp = document.createElement("td");
+    tdExp.colSpan = 4;
+    tdExp.style.cssText = "padding:4px 8px 8px;font-size:12px;color:var(--muted);background:rgba(255,255,255,0.3);";
+
+    const rollover = c.effective_budget_cents - c.default_budget_cents;
+    let expandText = "Default budget: " + fmtCents(c.default_budget_cents);
+    if (rollover !== 0) {
+      const sign = rollover > 0 ? "+" : "";
+      expandText += "  ·  Rollover: " + sign + fmtCents(rollover);
+    }
+    tdExp.textContent = expandText;
+    trExp.appendChild(tdExp);
+    catTableBody.appendChild(trExp);
+
+    tr.addEventListener("click", () => {
+      const open = trExp.style.display !== "none";
+      trExp.style.display = open ? "none" : "table-row";
+      tr.style.background  = open ? "" : "rgba(255,255,255,0.2)";
+    });
+  }
+
+  // Dropdowns
+  txCategory.innerHTML = "";
+  txFromCategory.innerHTML = "";
+  txToCategory.innerHTML = "";
+
+  for (const c of cats){
+    const opt = document.createElement("option");
+    opt.value = String(c.category_id);
+    opt.textContent = c.name;
+    txCategory.appendChild(opt);
+
+    const o1 = document.createElement("option");
+    o1.value = String(c.category_id);
+    o1.textContent = c.name;
+    txFromCategory.appendChild(o1);
+
+    const o2 = document.createElement("option");
+    o2.value = String(c.category_id);
+    o2.textContent = c.name;
+    txToCategory.appendChild(o2);
+  }
+
+  HISTORY_CATEGORY_MAP = new Map(cats.map(c => [c.category_id, c.name]));
+
+  // Keep in Bank
+  await renderKeepInBank(state);
+
+  // Fixed Expenses (always visible — no collapse)
+  await renderFixedExpensesMainCard();
+}
+</script>
+
+<script>
+/* ================= HISTORY MODAL (NO CATEGORY NUMBERS) ================= */
+let HISTORY_MODE = "current"; // current | prior
+
+function escapeHtml(s){
+  return String(s || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function labelForCategoryId(id){
+  const name = HISTORY_CATEGORY_MAP.get(Number(id));
+  return name || "Unknown category";
+}
+
+function labelForType(it){
+  if (it.is_credit) return "Credit";
+  if (String(it.note || "").startsWith("Transfer:")) return "Transfer";
+  return "Expense";
+}
+
+function signedAmountCents(it){
+  const sign = it.is_credit ? -1 : 1;
+  return sign * Number(it.amount_cents || 0);
+}
+
+function normalizeLedgerItems(items){
+  const arr = Array.isArray(items) ? items : [];
+  return arr.map(x => ({
+    id: String(x.id || ""),
+    period_key: String(x.period_key || ""),
+    category_id: Number(x.category_id),
+    amount_cents: Number(x.amount_cents) || 0,
+    is_credit: Boolean(x.is_credit),
+    note: String(x.note || ""),
+    created_at: String(x.created_at || ""),
+    created_by_label: String(x.created_by_label || "")
+  })).filter(x => x.id && x.period_key && Number.isFinite(x.category_id));
+}
+
+// Sort state for the history table
+let HISTORY_ITEMS = [];       // raw items from last load, unsorted
+let HISTORY_SORT_COL = "date"; // active sort column key
+let HISTORY_SORT_DIR = "desc"; // "asc" or "desc"
+
+function openHistory(mode = "current"){
+  HISTORY_MODE = mode === "prior" ? "prior" : "current";
+  show(historyOverlay);
+  historyOverlay.setAttribute("aria-hidden","false");
+  setStatus(historyStatus, "");
+  historyBody.innerHTML = "";
+
+  // Reset to default sort (newest first) when switching periods
+  HISTORY_SORT_COL = "date";
+  HISTORY_SORT_DIR = "desc";
+  updateHistorySortHeaders();
+
+  historyCurrentBtn.disabled = HISTORY_MODE === "current";
+  historyPriorBtn.disabled = HISTORY_MODE === "prior";
+
+  loadAndRenderHistory().catch((e) => setStatus(historyStatus, e?.message || String(e), "error"));
+}
+
+function closeHistory(){
+  hide(historyOverlay);
+  historyOverlay.setAttribute("aria-hidden","true");
+}
+
+async function loadAndRenderHistory(){
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) { closeHistory(); return showAuth("Missing token. Please re-enter.", true); }
+  if (!CURRENT_STATE) return setStatus(historyStatus, "No budget loaded yet.", "error");
+
+  const cur = CURRENT_STATE?.period;
+  const prior = CURRENT_STATE?.prior_period;
+
+  if (HISTORY_MODE === "prior"){
+    if (!prior?.period_key) return setStatus(historyStatus, "No prior period available yet.", "error");
+    
+    historyPeriod.textContent = `${fmtYmdToMdySlash(String(prior.start_ts).slice(0,10))} → ${fmtEndTsForDisplay(prior.end_ts)}`;
+    
+    setStatus(historyStatus, "Loading…");
+    
+    // Use the specific period_key parameter instead of ?period=prior
+    // This is more reliable, especially with daily periods
+    const url = new URL(API.base + API.tx);
+    url.searchParams.set("period_key", prior.period_key);
+    url.searchParams.set("limit", "500");
+    
+    const resp = await fetchWithTimeout(url.toString(), { 
+      method:"GET", 
+      headers: authHeaders(token) 
+    });
+    
+    if (!resp.ok){
+      if (resp.status === 401 || resp.status === 403) {
+        await idbDel(KEY_TOKEN);
+        closeHistory();
+        return showAuth("Token invalid/expired. Please re-enter.", true);
+      }
+      const t = await safeText(resp);
+      return setStatus(historyStatus, `Error: ${t || resp.statusText}`, "error");
+    }
+    
+    const payload = await resp.json().catch(() => ({}));
+    
+    // Debug logging
+    console.log("Prior period request:", {
+      requestedPeriodKey: prior.period_key,
+      returnedPeriodKey: payload.period_key,
+      itemCount: payload.items?.length || 0,
+      items: payload.items
+    });
+    
+    const items = normalizeLedgerItems(payload.items || []);
+    
+    // Better error message with period info
+    if (items.length === 0) {
+      const msg = `No transactions found for prior period (${prior.period_key})`;
+      console.warn(msg, { prior, payload });
+      setStatus(historyStatus, msg);
+    } else {
+      setStatus(historyStatus, "");
+    }
+    
+    HISTORY_ITEMS = items;
+    renderHistoryTable(sortHistoryItems(items));
+    return;
+  }
+
+  // Current period
+  historyPeriod.textContent = cur?.start_ts && cur?.end_ts
+    ? `${fmtYmdToMdySlash(String(cur.start_ts).slice(0,10))} → ${fmtEndTsForDisplay(cur.end_ts)}`
+    : "Current Period";
+
+  setStatus(historyStatus, "Loading…");
+  
+  // Fetch current period transactions (default behavior)
+  const res = await fetchTransactions(token, { limit: 500 });
+  if (res.authFailed){
+    await idbDel(KEY_TOKEN);
+    closeHistory();
+    return showAuth("Token invalid/expired. Please re-enter.", true);
+  }
+
+  const payload = res.result || {};
+  const items = normalizeLedgerItems(payload.items || []);
+  setStatus(historyStatus, items.length ? "" : "No transactions found for this period.");
+  HISTORY_ITEMS = items;
+  renderHistoryTable(sortHistoryItems(items));
+}
+
+/* Sort a copy of items by the current HISTORY_SORT_COL / HISTORY_SORT_DIR */
+function sortHistoryItems(items){
+  const dir = HISTORY_SORT_DIR === "asc" ? 1 : -1;
+  return [...items].sort((a, b) => {
+    switch (HISTORY_SORT_COL) {
+      case "date":
+        return dir * (String(a.created_at) < String(b.created_at) ? -1 : String(a.created_at) > String(b.created_at) ? 1 : 0);
+      case "who": {
+        const wa = (a.created_by_label || "").toLowerCase();
+        const wb = (b.created_by_label || "").toLowerCase();
+        return dir * (wa < wb ? -1 : wa > wb ? 1 : 0);
+      }
+      case "category": {
+        const ca = labelForCategoryId(a.category_id).toLowerCase();
+        const cb = labelForCategoryId(b.category_id).toLowerCase();
+        return dir * (ca < cb ? -1 : ca > cb ? 1 : 0);
+      }
+      case "amount":
+        return dir * (signedAmountCents(a) - signedAmountCents(b));
+      case "note": {
+        const na = (a.note || "").toLowerCase();
+        const nb = (b.note || "").toLowerCase();
+        return dir * (na < nb ? -1 : na > nb ? 1 : 0);
+      }
+      default: return 0;
+    }
+  });
+}
+
+/* Update table header sort arrows */
+function updateHistorySortHeaders(){
+  const headerRow = document.getElementById("historyHeaderRow");
+  if (!headerRow) return;
+  headerRow.querySelectorAll("th[data-col]").forEach(th => {
+    const arrow = th.querySelector(".sortArrow");
+    if (!arrow) return;
+    if (th.dataset.col === HISTORY_SORT_COL) {
+      arrow.textContent = HISTORY_SORT_DIR === "asc" ? " ▲" : " ▼";
+      th.style.color = "var(--text)";
+    } else {
+      arrow.textContent = " ⇅";
+      th.style.color = "var(--muted)";
+    }
+  });
+}
+
+const NOTE_TRUNCATE = 28; // characters before truncation
+
+function renderHistoryTable(items){
+  historyBody.innerHTML = "";
+
+  for (const it of items){
+    const amt     = signedAmountCents(it);
+    const amtText = (amt < 0 ? "-" : "") + fmtCents(Math.abs(amt));
+    const color   = it.is_credit ? "var(--ok)" : "var(--danger)";
+    const note    = it.note || "";
+    const truncated = note.length > NOTE_TRUNCATE;
+    const noteShort = truncated ? note.slice(0, NOTE_TRUNCATE) + "…" : note;
+
+    // Main data row
+    const tr = document.createElement("tr");
+    tr.style.color = color;
+    tr.style.cursor = "pointer";
+
+    const tdDate = document.createElement("td");
+    tdDate.textContent = fmtHistoryDate(it.created_at);
+    tdDate.style.whiteSpace = "nowrap";
+
+    const tdCat = document.createElement("td");
+    tdCat.textContent = labelForCategoryId(it.category_id);
+    tdCat.style.whiteSpace = "nowrap";
+
+    const tdAmt = document.createElement("td");
+    tdAmt.textContent = amtText;
+    tdAmt.style.cssText = "text-align:right;white-space:nowrap;font-weight:700;";
+
+    const tdNote = document.createElement("td");
+    tdNote.textContent = noteShort;
+    tdNote.style.cssText = "color:var(--muted);font-size:12px;max-width:120px;";
+
+    tr.appendChild(tdDate);
+    tr.appendChild(tdCat);
+    tr.appendChild(tdAmt);
+    tr.appendChild(tdNote);
+    historyBody.appendChild(tr);
+
+    // Expand row (hidden until tap) — shows Who, full note, type
+    const trExpand = document.createElement("tr");
+    trExpand.style.display = "none";
+    const tdExpand = document.createElement("td");
+    tdExpand.colSpan = 4;
+    tdExpand.style.cssText = "padding:6px 10px 10px;background:rgba(255,255,255,0.35);border-radius:0 0 8px 8px;";
+
+    const who  = it.created_by_label || "—";
+    const type = labelForType(it);
+    const typeColor = it.is_credit ? "var(--ok)" : "var(--danger)";
+    const typeBg    = it.is_credit ? "rgba(40,167,69,0.1)" : "rgba(220,53,69,0.08)";
+
+    tdExpand.innerHTML =
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+        '<span style="font-size:12px;color:var(--muted);">By: <strong style="color:var(--text);">' + escapeHtml(who) + '</strong></span>' +
+        '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:' + typeBg + ';color:' + typeColor + ';">' + escapeHtml(type) + '</span>' +
+        (note ? '<span style="font-size:13px;color:var(--text);word-break:break-word;flex:1;">' + escapeHtml(note) + '</span>' : '') +
+      '</div>';
+
+    trExpand.appendChild(tdExpand);
+    historyBody.appendChild(trExpand);
+
+    // Toggle expand on tap
+    tr.addEventListener("click", () => {
+      const open = trExpand.style.display !== "none";
+      trExpand.style.display = open ? "none" : "table-row";
+      tr.style.background = open ? "" : "rgba(255,255,255,0.25)";
+    });
+  }
+
+  updateHistorySortHeaders();
+
+  // Re-attach header click handler each render
+  const headerRow = document.getElementById("historyHeaderRow");
+  if (headerRow) headerRow.addEventListener("click", onHistoryHeaderClick);
+}
+
+function onHistoryHeaderClick(e){
+  const th = e.target.closest("th[data-col]");
+  if (!th) return;
+  const col = th.dataset.col;
+  if (HISTORY_SORT_COL === col) {
+    HISTORY_SORT_DIR = HISTORY_SORT_DIR === "asc" ? "desc" : "asc";
+  } else {
+    HISTORY_SORT_COL = col;
+    HISTORY_SORT_DIR = (col === "date" || col === "amount") ? "desc" : "asc";
+  }
+  renderHistoryTable(sortHistoryItems(HISTORY_ITEMS));
+}
+
+/* History events */
+openHistoryBtn.addEventListener("click", () => openHistory("current"));
+historyCloseBtn.addEventListener("click", closeHistory);
+historyOverlay.addEventListener("click", (e) => { if (e.target === historyOverlay) closeHistory(); });
+historyCurrentBtn.addEventListener("click", () => openHistory("current"));
+historyPriorBtn.addEventListener("click", () => openHistory("prior"));
+const historyExportBtn = $("historyExportBtn");
+if (historyExportBtn) historyExportBtn.addEventListener("click", exportHistoryCsv);
+
+/* ---- XLSX Export ---- */
+async function exportHistoryCsv(){
+  const btn = $("historyExportBtn");
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return setStatus(historyStatus, "Not authenticated.", "error");
+  if (!CURRENT_STATE) return setStatus(historyStatus, "No budget loaded yet.", "error");
+
+  btn.disabled = true;
+  btn.textContent = "Exporting\u2026";
+  setStatus(historyStatus, "");
+
+  try {
+    const prior = CURRENT_STATE?.prior_period;
+
+    // Fetch current period
+    const curRes = await fetchTransactions(token, { limit: 500 });
+    if (curRes.authFailed) throw new Error("Authentication failed.");
+    const curItems = normalizeLedgerItems((curRes.result?.items) || []);
+
+    // Fetch prior period if available
+    let priorItems = [];
+    if (prior?.period_key) {
+      const priorUrl = new URL(API.base + API.tx);
+      priorUrl.searchParams.set("period_key", prior.period_key);
+      priorUrl.searchParams.set("limit", "500");
+      const priorResp = await fetchWithTimeout(priorUrl.toString(), { method: "GET", headers: authHeaders(token) });
+      if (priorResp.ok) {
+        const priorPayload = await priorResp.json().catch(() => ({}));
+        priorItems = normalizeLedgerItems(priorPayload.items || []);
+      }
+    }
+
+    // Merge, deduplicate by id, sort newest first
+    const seen = new Set();
+    const all = [...curItems, ...priorItems].filter(it => {
+      if (seen.has(it.id)) return false;
+      seen.add(it.id);
+      return true;
+    }).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+
+    if (all.length === 0) {
+      setStatus(historyStatus, "No transactions to export.", "error");
+      return;
+    }
+
+    // Load SheetJS dynamically
+    if (!window.XLSX) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+        script.onload = resolve;
+        script.onerror = () => reject(new Error("Failed to load SheetJS library."));
+        document.head.appendChild(script);
+      });
+    }
+
+    // Build rows array: header + data
+    const headers = ["Date", "Period", "Who", "Category", "Type", "Amount", "Note"];
+    const rows = [headers];
+    for (const it of all) {
+      const amt = signedAmountCents(it);
+      const amtDollars = parseFloat(((amt < 0 ? -1 : 1) * Math.abs(amt) / 100).toFixed(2)) * (amt < 0 ? -1 : 1);
+      rows.push([
+        fmtHistoryDate(it.created_at),
+        it.period_key,
+        it.created_by_label || "",
+        labelForCategoryId(it.category_id),
+        labelForType(it),
+        amtDollars,
+        it.note || "",
+      ]);
+    }
+
+    // Build workbook
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+
+    // Column widths
+    ws["!cols"] = [
+      { wch: 10 }, // Date
+      { wch: 24 }, // Period
+      { wch: 12 }, // Who
+      { wch: 14 }, // Category
+      { wch: 10 }, // Type
+      { wch: 10 }, // Amount
+      { wch: 36 }, // Note
+    ];
+
+    // Bold header row
+    for (let c = 0; c < headers.length; c++) {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c });
+      if (ws[cellRef]) ws[cellRef].s = { font: { bold: true } };
+    }
+
+    XLSX.utils.book_append_sheet(wb, ws, "History");
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, "budget-history-" + dateStr + ".xlsx");
+
+    setStatus(historyStatus, "Exported " + all.length + " transaction" + (all.length !== 1 ? "s" : "") + ".", "ok");
+  } catch (e) {
+    setStatus(historyStatus, e?.message || String(e), "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Export";
+  }
+}
+
+/* Column header sort clicks handled inside renderHistoryTable via onHistoryHeaderClick */
+</script>
+<script>
+/* ================= FIXED EXPENSES ================= */
+
+/* --- Helpers --- */
+function genFixedId(){
+  return "fx_" + Date.now() + "_" + Math.floor(Math.random()*10000);
+}
+
+/* Load fixed expense definitions from server; fall back to IDB cache on error */
+async function loadFixedExpenses(){
+  const token = await idbGet(KEY_TOKEN).catch(() => null);
+  if (token){
+    try {
+      const res = await fetchFixedExpenses(token);
+      if (!res.authFailed){
+        const list = Array.isArray(res.result?.items) ? res.result.items : [];
+        await idbSet(KEY_FX_CACHE, list).catch(() => {});
+        return list;
+      }
+    } catch { /* fall through to cache */ }
+  }
+  // Cache fallback (offline / auth not yet ready)
+  try {
+    const cached = await idbGet(KEY_FX_CACHE);
+    return Array.isArray(cached) ? cached : [];
+  } catch { return []; }
+}
+
+/* Save fixed expense definitions to server and update IDB cache */
+async function saveFixedExpenses(list){
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) throw new Error("Not authenticated");
+  const res = await postFixedExpenses(token, list);
+  if (res.authFailed) throw new Error("Authentication failed — please log in again.");
+  // Update local cache
+  await idbSet(KEY_FX_CACHE, list).catch(() => {});
+}
+
+/* Load paid-state from server; fall back to IDB cache on error */
+async function loadFixedPaid(){
+  const token = await idbGet(KEY_TOKEN).catch(() => null);
+  if (token){
+    try {
+      const res = await fetchFixedPaid(token);
+      if (!res.authFailed){
+        const paid = (res.result?.paid && typeof res.result.paid === "object") ? res.result.paid : {};
+        await idbSet(KEY_FP_CACHE, paid).catch(() => {});
+        return paid;
+      }
+    } catch { /* fall through to cache */ }
+  }
+  try {
+    const cached = await idbGet(KEY_FP_CACHE);
+    return (cached && typeof cached === "object") ? cached : {};
+  } catch { return {}; }
+}
+
+/* Mark ONE bill paid/unpaid for ONE period. The server changes just that row,
+   so this can never wipe other bills or other periods (the old approach sent the
+   whole map back, and any stale/partial copy overwrote everything). */
+async function setFixedPaid(periodKey, expenseId, isPaid){
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) throw new Error("Not authenticated");
+  const res = await postFixedPaidOps(token, [{ period_key: periodKey, expense_id: expenseId, paid: !!isPaid }]);
+  if (res.authFailed) throw new Error("Authentication failed — please log in again.");
+  // Refresh the local cache from the server's authoritative map
+  if (res.result?.paid && typeof res.result.paid === "object") {
+    await idbSet(KEY_FP_CACHE, res.result.paid).catch(() => {});
+  }
+}
+
+/* Return the actual calendar date (Date object) on which a bill with the given
+   due_day should be charged within a specific year/month.
+   If the month is shorter than due_day (e.g. due_day=30 in February), the bill
+   is treated as due on the last day of that month — matching standard bank/
+   subscription service convention. */
+function effectiveDueDate(year, month, due_day){
+  // Day 0 of the next month = last day of this month
+  const lastDay = new Date(year, month, 0).getDate(); // month is 1-based, so month+0 = next month day 0
+  const actual  = Math.min(due_day, lastDay);
+  return new Date(year, month - 1, actual);
+}
+
+/* Return true if a bill is due within the period defined by startYmd/endYmd.
+   active_months: comma-separated string of active month numbers e.g. "5,11"
+   (defaults to all months if null/undefined/empty).
+   Accounts for months shorter than due_day. */
+function isDueInPeriod(due_day, startYmd, endYmd, active_months){
+  if (!startYmd || !endYmd) return true;
+
+  // Build the set of active month numbers (1-12)
+  const activeSet = parseActiveMonths(active_months);
+
+  const [sy, sm, sd] = startYmd.split("-").map(Number);
+  const [ey, em, ed] = endYmd.split("-").map(Number);
+  const startDate = new Date(sy, sm - 1, sd);
+  const endDate   = new Date(ey, em - 1, ed); // exclusive
+  const lastInclusive = new Date(endDate);
+  lastInclusive.setDate(lastInclusive.getDate() - 1);
+
+  let y = sy, m = sm;
+  while (true) {
+    // Only check this month if it is in the active set
+    if (activeSet.has(m)) {
+      const candidate = effectiveDueDate(y, m, due_day);
+      if (candidate >= startDate && candidate < endDate) return true;
+    }
+    if (y > lastInclusive.getFullYear() ||
+       (y === lastInclusive.getFullYear() && m >= lastInclusive.getMonth() + 1)) break;
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return false;
+}
+
+/* Parse active_months string into a Set of month numbers.
+   Returns a full Set(1..12) if the value is falsy or "all months". */
+function parseActiveMonths(active_months){
+  if (!active_months) return new Set([1,2,3,4,5,6,7,8,9,10,11,12]);
+  const nums = String(active_months).split(",")
+    .map(s => parseInt(s.trim(), 10))
+    .filter(n => Number.isInteger(n) && n >= 1 && n <= 12);
+  if (nums.length === 0) return new Set([1,2,3,4,5,6,7,8,9,10,11,12]);
+  return new Set(nums);
+}
+
+/* Human-readable schedule string for display e.g. "Monthly · 15th"
+   or "May & Nov · 5th" or "Annual (Jun) · 15th" */
+function fxScheduleStr(fx){
+  const ordinal = dayOrdinal(fx.due_day);
+  const active  = parseActiveMonths(fx.active_months);
+  const MONTHS  = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  if (active.size === 12) return "Monthly · " + ordinal;
+  if (active.size === 1) {
+    const mo = MONTHS[[...active][0] - 1];
+    return "Annual (" + mo + ") · " + ordinal;
+  }
+  const names = [...active].sort((a,b)=>a-b).map(n => MONTHS[n-1]).join(" & ");
+  return names + " · " + ordinal;
+}
+
+/* Legacy helper retained for getCarriedOverIds — returns Set of actual day
+   numbers that exist in the period (still needed for the carryover check). */
+function dueDaysInPeriod(startYmd, endYmd){
+  if (!startYmd || !endYmd) return new Set();
+  const [sy, sm, sd] = startYmd.split("-").map(Number);
+  const [ey, em, ed] = endYmd.split("-").map(Number);
+  const startDate = new Date(sy, sm - 1, sd);
+  const endDate   = new Date(ey, em - 1, ed);
+  const days = new Set();
+  const cur = new Date(startDate);
+  while (cur < endDate) {
+    days.add(cur.getDate());
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+}
+
+/* Next budget period's start/end (YYYY-MM-DD; end is exclusive).
+   1) state.next_period — computed by the server, exact for every period type.
+   2) next_effective_period_key — set when budgets were adjusted for next period.
+   3) Fallback for an older server: derive it from the current period's shape. */
+function getNextPeriodYmds(state){
+  const np = state?.next_period;
+  if (np?.start_ts && np?.end_ts) {
+    return { nextStart: String(np.start_ts).slice(0,10), nextEnd: String(np.end_ts).slice(0,10) };
+  }
+
+  const nk = state?.next_budget_settings?.next_effective_period_key;
+  if (nk && /^\d{4}-\d{2}-\d{2}__\d{4}-\d{2}-\d{2}$/.test(nk)) {
+    const [ns, ne] = nk.split("__");
+    return { nextStart: ns, nextEnd: ne };
+  }
+
+  const p = state?.period;
+  if (!p?.start_ts || !p?.end_ts) return null;
+  const curStart = String(p.start_ts).slice(0,10);
+  const curEnd   = String(p.end_ts).slice(0,10);
+  const [sy, sm, sd] = curStart.split("-").map(Number);
+  const [ey, em, ed] = curEnd.split("-").map(Number);
+  const ymd = (y, m, d) => new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10);
+
+  let nextEnd;
+  if (sd === 1 && ed === 15)      nextEnd = ymd(ey, em + 1, 1);   // 1st–15th  -> 15th–1st
+  else if (sd === 15 && ed === 1) nextEnd = ymd(ey, em, 15);      // 15th–1st  -> 1st–15th
+  else if (sd === 1 && ed === 1)  nextEnd = ymd(ey, em + ((ey - sy) * 12 + (em - sm)), 1); // monthly/quarterly
+  else {                                                          // daily/weekly/biweekly: fixed length
+    const days = Math.round((Date.UTC(ey, em - 1, ed) - Date.UTC(sy, sm - 1, sd)) / 86400000);
+    nextEnd = ymd(ey, em, ed + days);
+  }
+  return { nextStart: curEnd, nextEnd };
+}
+
+/* Return IDs of fixed expenses that were due in the prior period but never marked paid.
+   These carry forward into the current period regardless of their due_day. */
+async function getCarriedOverIds(state, paid){
+  const prior = state?.prior_period;
+  if (!prior?.period_key || !prior?.start_ts || !prior?.end_ts) return new Set();
+
+  const priorStart   = String(prior.start_ts).slice(0,10);
+  const priorEnd     = String(prior.end_ts).slice(0,10);
+  const priorPaidSet = new Set(Array.isArray(paid[prior.period_key]) ? paid[prior.period_key] : []);
+
+  const fixed = await loadFixedExpenses();
+  const carriedIds = new Set();
+  for (const fx of fixed){
+    // Use isDueInPeriod so bills due on days that don't exist in the prior
+    // month (e.g. 30th in February) are still correctly recognised as overdue.
+    if (isDueInPeriod(fx.due_day, priorStart, priorEnd, fx.active_months) && !priorPaidSet.has(fx.id)){
+      carriedIds.add(fx.id);
+    }
+  }
+  return carriedIds;
+}
+
+/* Return fixed expenses that are due within the current period and not yet marked paid,
+   plus any that were due last period but never checked off (carried over). */
+async function getUnpaidFixedDuThisPeriod(state){
+  const fixed = await loadFixedExpenses();
+  if (!fixed.length) return [];
+
+  const p = state?.period;
+  if (!p?.start_ts || !p?.end_ts) return fixed; // no period info, show all
+
+  const startYmd   = String(p.start_ts).slice(0,10);
+  const endYmd     = String(p.end_ts).slice(0,10);
+
+  const paid        = await loadFixedPaid();
+  const paidSet     = new Set(Array.isArray(paid[p.period_key]) ? paid[p.period_key] : []);
+  const carriedIds  = await getCarriedOverIds(state, paid);
+
+  return fixed.filter(fx =>
+    (isDueInPeriod(fx.due_day, startYmd, endYmd, fx.active_months) || carriedIds.has(fx.id)) && !paidSet.has(fx.id)
+  );
+}
+
+/* Return ALL fixed expenses due this period (paid + unpaid) including carryovers,
+   for the Keep in Bank breakdown display. */
+async function getAllFixedDueThisPeriod(state){
+  const fixed = await loadFixedExpenses();
+  if (!fixed.length) return [];
+
+  const p = state?.period;
+  if (!p?.start_ts || !p?.end_ts) return fixed;
+
+  const startYmd   = String(p.start_ts).slice(0,10);
+  const endYmd     = String(p.end_ts).slice(0,10);
+
+  const paid       = await loadFixedPaid();
+  const carriedIds = await getCarriedOverIds(state, paid);
+
+  return fixed.filter(fx => isDueInPeriod(fx.due_day, startYmd, endYmd, fx.active_months) || carriedIds.has(fx.id));
+}
+
+/* --- Keep in Bank calculation and rendering --- */
+async function renderKeepInBank(state){
+  const keepInBankAmt = $("keepInBankAmt");
+  const keepInBankBreakdown = $("keepInBankBreakdown");
+  if (!keepInBankAmt) return;
+
+  const cats = normalizeCategories(state);
+  const variableRemaining = cats.reduce((sum, c) => sum + Math.max(0, c.remaining_cents), 0);
+
+  const unpaid = await getUnpaidFixedDuThisPeriod(state);
+  const fixedUnpaidTotal = unpaid.reduce((sum, fx) => sum + fx.amount_cents, 0);
+
+  const total = variableRemaining + fixedUnpaidTotal;
+  keepInBankAmt.textContent = fmtCents(total);
+  keepInBankAmt.style.color = total < 0 ? "var(--danger)" : "#3a5bc7";
+
+  // Breakdown text with dollar amounts
+  keepInBankBreakdown.textContent =
+    `Budget (${fmtCents(variableRemaining)}) + ` +
+    `${unpaid.length} unpaid fixed expenses` +
+    (unpaid.length > 0 ? ` (${fmtCents(fixedUnpaidTotal)})` : "");
+}
+
+/* --- Fixed Expenses card — always visible, render on dashboard load --- */
+
+async function renderFixedExpensesMainCard(){
+  const list = $("fixedExpensesList");
+  const statusEl = $("fixedExpensesStatus");
+  if (!list) return;
+
+  const allFixed = await loadFixedExpenses();
+  const p = CURRENT_STATE?.period;
+
+  if (!allFixed.length) {
+    list.innerHTML = `<div class="small" style="color:var(--muted);margin-top:4px;">No fixed expenses set up yet. Add them in Settings.</div>`;
+    setStatus(statusEl, "");
+    return;
+  }
+
+  const startYmd   = p?.start_ts ? String(p.start_ts).slice(0,10) : null;
+  const endYmd     = p?.end_ts   ? String(p.end_ts).slice(0,10)   : null;
+  const paid       = await loadFixedPaid();
+  const periodKey  = p?.period_key || "";
+  const paidSet    = new Set(Array.isArray(paid[periodKey]) ? paid[periodKey] : []);
+  const carriedIds = await getCarriedOverIds(CURRENT_STATE, paid);
+
+  // Three buckets:
+  //   duePeriod   — bill is due this period (accounting for short months)
+  //   carriedOver — not due this period but unpaid from prior period
+  //   dueNext     — due in the next budget period (replaces "not due this period")
+  const isDue = fx => startYmd && endYmd ? isDueInPeriod(fx.due_day, startYmd, endYmd, fx.active_months) : true;
+  const duePeriod   = allFixed.filter(fx =>  isDue(fx)).sort((a,b) => a.due_day - b.due_day);
+  const carriedOver = allFixed.filter(fx => !isDue(fx) && carriedIds.has(fx.id)).sort((a,b) => a.due_day - b.due_day);
+
+  // Compute next period window for the "due next period" bucket
+  const nextYmds   = getNextPeriodYmds(CURRENT_STATE);
+  const isNextDue  = fx => nextYmds
+    ? isDueInPeriod(fx.due_day, nextYmds.nextStart, nextYmds.nextEnd, fx.active_months)
+    : false;
+  // A bill can be carried over from last period AND due again next period; both
+  // are real, so a carried-over bill must not be hidden from the preview.
+  const dueNext = allFixed
+    .filter(fx => !isDue(fx) && isNextDue(fx))
+    .sort((a,b) => a.due_day - b.due_day);
+
+  list.innerHTML = "";
+
+  function makeRow(fx, isDue, isCarryover = false, isPreview = false){
+    // Preview rows (Due Next Period) are upcoming instances, so they are never
+    // shown as paid — even if the same bill was just checked off as a carry-over.
+    const isPaid = !isPreview && paidSet.has(fx.id);
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border);";
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = isPaid;
+    cb.disabled = !isDue;
+    cb.style.cssText = "width:18px;height:18px;cursor:" + (isDue ? "pointer" : "default") + ";flex-shrink:0;";
+    cb.addEventListener("change", async () => {
+      const statusEl = $("fixedExpensesStatus");
+      try {
+        await setFixedPaid(periodKey, fx.id, cb.checked);
+        await renderKeepInBank(CURRENT_STATE);
+        await renderFixedExpensesMainCard();
+      } catch(e) {
+        cb.checked = !cb.checked;
+        setStatus(statusEl, "Could not save: " + (e?.message || String(e)), "error");
+      }
+    });
+
+    const info = document.createElement("div");
+    info.style.flex = "1";
+    const nameSpan = document.createElement("div");
+    nameSpan.style.cssText = "font-weight:600;font-size:14px;" + (isPaid ? "text-decoration:line-through;color:var(--muted);" : "");
+    nameSpan.textContent = fx.name;
+    const detailSpan = document.createElement("div");
+    detailSpan.className = "small";
+    const amtStr = fmtCents(fx.amount_cents);
+    detailSpan.textContent = amtStr + " · " + fxScheduleStr(fx);
+    if (isCarryover) detailSpan.textContent += " · carried over (unpaid last period)";
+    // dueNext rows: no extra suffix needed — section header makes context clear
+    info.appendChild(nameSpan);
+    info.appendChild(detailSpan);
+
+    const amtEl = document.createElement("div");
+    amtEl.style.cssText = "font-weight:700;font-size:14px;min-width:60px;text-align:right;" +
+      (isPaid ? "color:var(--ok);" : isDue ? "color:var(--danger);" : "color:var(--muted);");
+    amtEl.textContent = isPaid ? "✓ Paid" : (isDue ? fmtCents(fx.amount_cents) : "—");
+
+    row.appendChild(cb);
+    row.appendChild(info);
+    row.appendChild(amtEl);
+    return row;
+  }
+
+  if (duePeriod.length > 0) {
+    const hdr = document.createElement("div");
+    hdr.className = "small";
+    hdr.style.cssText = "font-weight:700;color:var(--text);margin-bottom:4px;";
+    hdr.textContent = "Due this period";
+    list.appendChild(hdr);
+    duePeriod.forEach(fx => list.appendChild(makeRow(fx, true, false)));
+  }
+
+  if (carriedOver.length > 0) {
+    const hdr = document.createElement("div");
+    hdr.className = "small";
+    hdr.style.cssText = "font-weight:700;color:var(--danger);margin-top:12px;margin-bottom:4px;";
+    hdr.textContent = "⚠ Carried over from last period";
+    list.appendChild(hdr);
+    carriedOver.forEach(fx => list.appendChild(makeRow(fx, true, true)));
+  }
+
+  if (dueNext.length > 0) {
+    // Count how many of the dueNext items are non-monthly (active_months !== all 12)
+    const nonMonthlyCount = dueNext.filter(fx => {
+      const active = parseActiveMonths(fx.active_months);
+      return active.size < 12;
+    }).length;
+    // Divider above the next-period section
+    const divider = document.createElement("div");
+    divider.style.cssText = "border-top:1.5px solid var(--border);margin:14px 0 10px;";
+    list.appendChild(divider);
+
+    const hdr2 = document.createElement("div");
+    hdr2.style.cssText = [
+      "display:flex",
+      "align-items:center",
+      "gap:8px",
+      "margin-bottom:6px",
+    ].join(";");
+
+    const hdr2Label = document.createElement("span");
+    hdr2Label.style.cssText = "font-size:13px;font-weight:800;color:var(--text);letter-spacing:0.1px;";
+    hdr2Label.textContent = "Due Next Period";
+
+    if (nonMonthlyCount > 0) {
+      const badge = document.createElement("span");
+      badge.style.cssText = [
+        "font-size:10px",
+        "font-weight:700",
+        "padding:2px 7px",
+        "border-radius:10px",
+        "background:rgba(102,126,234,0.15)",
+        "color:#4a5bd4",
+        "white-space:nowrap",
+      ].join(";");
+      badge.textContent = nonMonthlyCount + " non-monthly";
+      hdr2.appendChild(hdr2Label);
+      hdr2.appendChild(badge);
+    } else {
+      hdr2.appendChild(hdr2Label);
+    }
+    list.appendChild(hdr2);
+    dueNext.forEach(fx => list.appendChild(makeRow(fx, false, false, true)));
+  }
+
+  setStatus(statusEl, "");
+}
+
+/* --- Settings: Fixed Budget Settings (Add Fixed Expense + Edit/Remove Expenses) --- */
+const settingsOpenFixedExpensesBtn   = $("settingsOpenFixedExpensesBtn");
+const settingsFixedExpensesPanel     = $("settingsFixedExpensesPanel");
+const settingsFixedExpensesList      = $("settingsFixedExpensesList");
+const settingsSaveFixedExpensesBtn   = $("settingsSaveFixedExpensesBtn");
+const settingsCancelFixedExpensesBtn = $("settingsCancelFixedExpensesBtn");
+const settingsFixedExpensesStatus    = $("settingsFixedExpensesStatus");
+
+const settingsOpenAddFixedBtn  = $("settingsOpenAddFixedBtn");
+const settingsAddFixedPanel    = $("settingsAddFixedPanel");
+const settingsAddFixedFormHost = $("settingsAddFixedFormHost");
+const settingsSaveNewFixedBtn  = $("settingsSaveNewFixedBtn");
+const settingsCancelNewFixedBtn = $("settingsCancelNewFixedBtn");
+const settingsAddFixedStatus   = $("settingsAddFixedStatus");
+
+let FIXED_SORT_MODE = "date"; // "date" (due day of month) | "name" | "amount"
+
+const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+/* Close every settings sub-panel except the one named (by element id) */
+function closeOtherSettingsPanels(exceptId){
+  ["settingsEditBudgetsPanel","settingsAddCatsPanel","settingsReorderPanel",
+   "settingsFixedExpensesPanel","settingsAddFixedPanel","settingsPeriodPanel"].forEach(id => {
+    if (id !== exceptId) $(id)?.classList.add("hidden");
+  });
+}
+
+/* Only the first row in the edit list has no top separator */
+function recalcFixedBorders(){
+  Array.from(settingsFixedExpensesList.children).forEach((child, idx) => {
+    child.style.borderTop  = idx === 0 ? "none" : "1px solid #9aa0a6";
+    child.style.paddingTop = idx === 0 ? "0" : "14px";
+  });
+}
+
+function updateFixedEmptyMsg(){
+  const msg = $("settingsFixedEmptyMsg");
+  if (!msg) return;
+  const hasRows = settingsFixedExpensesList.querySelector("[data-fixed-id]") !== null;
+  msg.classList.toggle("hidden", hasRows);
+}
+
+/* Re-order the rows in place (keeps any unsaved edits typed into the fields) */
+function sortFixedRows(){
+  const rows = Array.from(settingsFixedExpensesList.querySelectorAll(":scope > [data-fixed-id]"));
+  const keyName = r => (r.querySelector(".fixedName")?.value || "").trim().toLowerCase();
+  const keyDay  = r => {
+    const d = parseInt(r.querySelector(".fixedDay")?.value || "", 10);
+    return Number.isFinite(d) ? d : 99; // blank/invalid days sort last
+  };
+  const keyAmt = r => {
+    const cents = dollarsToCentsFromInput(r.querySelector(".fixedAmt")?.value || "");
+    return (cents === null || !Number.isFinite(cents)) ? -1 : cents; // blank/invalid sort last
+  };
+  rows.sort((a, b) => {
+    if (FIXED_SORT_MODE === "name") {
+      const cmp = keyName(a).localeCompare(keyName(b));
+      return cmp !== 0 ? cmp : keyDay(a) - keyDay(b);
+    }
+    if (FIXED_SORT_MODE === "amount") {
+      const cmp = keyAmt(b) - keyAmt(a); // largest first
+      return cmp !== 0 ? cmp : keyName(a).localeCompare(keyName(b));
+    }
+    const cmp = keyDay(a) - keyDay(b);
+    return cmp !== 0 ? cmp : keyName(a).localeCompare(keyName(b));
+  });
+  rows.forEach(r => settingsFixedExpensesList.appendChild(r));
+  recalcFixedBorders();
+}
+
+function updateFixedSortBar(){
+  const bar = $("fixedSortBar");
+  if (!bar) return;
+  bar.querySelectorAll("button[data-sort]").forEach(btn => {
+    const active = btn.dataset.sort === FIXED_SORT_MODE;
+    btn.style.cssText = active
+      ? "padding:5px 14px;font-size:12px;border-radius:20px;border:0;cursor:pointer;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-weight:700;"
+      : "padding:5px 14px;font-size:12px;border-radius:20px;border:1px solid var(--border);cursor:pointer;background:rgba(255,255,255,0.5);color:var(--muted);font-weight:500;";
+  });
+}
+
+$("fixedSortBar").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-sort]");
+  if (!btn) return;
+  FIXED_SORT_MODE = btn.dataset.sort;
+  updateFixedSortBar();
+  sortFixedRows();
+});
+
+/* Builds one fixed-expense editor row and returns it (the caller places it).
+   opts.showRemove — include the Remove button (edit list)
+   opts.labels     — show captions above each field (Add form) */
+function buildFixedRowEl(id, name = "", amount = "", due_day = "", active_months = null, opts = {}){
+  const showRemove = opts.showRemove !== false && !opts.labels;
+  const wrap = document.createElement("div");
+  wrap.dataset.fixedId = String(id || genFixedId());
+  wrap.style.cssText = opts.labels
+    ? "margin:0;padding:0;"
+    : "margin-top:0;padding-top:14px;padding-bottom:14px;border-top:1px solid #9aa0a6;";
+
+  // null/undefined = brand-new row: no months pre-selected
+  const activeSet = (active_months === null || active_months === undefined)
+    ? new Set()
+    : parseActiveMonths(active_months);
+
+  const mkField = (labelText, input) => {
+    if (!opts.labels) return input;
+    const f = document.createElement("div");
+    f.style.cssText = "flex:1;min-width:0;";
+    const l = document.createElement("div");
+    l.className = "small";
+    l.style.cssText = "margin-bottom:4px;font-weight:600;";
+    l.textContent = labelText;
+    input.style.width = "100%";
+    f.appendChild(l);
+    f.appendChild(input);
+    return f;
+  };
+
+  // Row 1: bill name
+  const row1 = document.createElement("div");
+  row1.style.cssText = "display:flex;gap:10px;margin-bottom:8px;";
+  const nameInput = document.createElement("input");
+  nameInput.className = "fixedName";
+  nameInput.placeholder = "Bill name";
+  nameInput.value = String(name);
+  nameInput.style.flex = "1";
+  row1.appendChild(mkField("Bill name", nameInput));
+
+  // Row 2: amount + day of month (+ Remove in the edit list)
+  const row2 = document.createElement("div");
+  row2.style.cssText = "display:flex;gap:10px;align-items:flex-end;margin-bottom:8px;";
+
+  const amtInput = document.createElement("input");
+  amtInput.className = "fixedAmt";
+  amtInput.placeholder = "$0.00";
+  amtInput.value = String(amount);
+  amtInput.inputMode = "decimal";
+  amtInput.style.flex = "1";
+  amtInput.addEventListener("blur", () => {
+    amtInput.value = validateAndFixCommas(amtInput.value);
+    amtInput.value = normalizeMoneyDisplay(amtInput.value);
+  });
+
+  const dayInput = document.createElement("input");
+  dayInput.className = "fixedDay";
+  dayInput.placeholder = "Day (1-31)";
+  dayInput.value = String(due_day);
+  dayInput.inputMode = "numeric";
+  dayInput.style.flex = "1";
+
+  row2.appendChild(mkField("Amount", amtInput));
+  row2.appendChild(mkField("Due day of month", dayInput));
+
+  if (showRemove) {
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "secondary fixedRemoveBtn";
+    removeBtn.style.flexShrink = "0";
+    removeBtn.textContent = "Remove";
+    removeBtn.addEventListener("click", () => {
+      wrap.remove();
+      recalcFixedBorders();
+      updateFixedEmptyMsg();
+    });
+    row2.appendChild(removeBtn);
+  }
+
+  // Row 3: month pills with All / None shortcuts
+  const row3 = document.createElement("div");
+  row3.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
+
+  const mkShortcut = (text, setTo) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = text;
+    b.style.cssText = "font-size:11px;padding:3px 8px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.5);cursor:pointer;color:var(--text);";
+    b.addEventListener("click", () => {
+      row3.querySelectorAll(".fixedMonthCb").forEach(cb => cb.checked = setTo);
+      updateMonthBtnStyles();
+    });
+    row3.appendChild(b);
+    return b;
+  };
+  const allBtn  = mkShortcut("All", true);
+  const noneBtn = mkShortcut("None", false);
+
+  const monthCbs = [];
+  for (let mo = 1; mo <= 12; mo++) {
+    const lbl = document.createElement("label");
+    lbl.style.cssText = "display:flex;align-items:center;gap:2px;font-size:11px;padding:3px 7px;border-radius:12px;border:1px solid var(--border);cursor:pointer;user-select:none;";
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.className = "fixedMonthCb";
+    cb.dataset.month = String(mo);
+    cb.checked = activeSet.has(mo);
+    cb.style.cssText = "width:11px;height:11px;margin:0;cursor:pointer;";
+    cb.addEventListener("change", updateMonthBtnStyles);
+
+    const span = document.createElement("span");
+    span.textContent = MONTH_ABBR[mo - 1];
+    lbl.appendChild(cb);
+    lbl.appendChild(span);
+    row3.appendChild(lbl);
+    monthCbs.push(cb);
+  }
+
+  function updateMonthBtnStyles() {
+    const allChecked  = monthCbs.every(cb => cb.checked);
+    const noneChecked = monthCbs.every(cb => !cb.checked);
+    monthCbs.forEach(cb => {
+      const lbl = cb.parentElement;
+      lbl.style.background  = cb.checked ? "rgba(102,126,234,0.18)" : "rgba(255,255,255,0.4)";
+      lbl.style.borderColor = cb.checked ? "#667eea" : "var(--border)";
+      lbl.style.color       = cb.checked ? "#4a5bd4" : "var(--muted)";
+    });
+    allBtn.style.background   = allChecked  ? "rgba(102,126,234,0.18)" : "rgba(255,255,255,0.5)";
+    allBtn.style.borderColor  = allChecked  ? "#667eea" : "var(--border)";
+    allBtn.style.color        = allChecked  ? "#4a5bd4" : "var(--text)";
+    noneBtn.style.background  = noneChecked ? "rgba(102,126,234,0.18)" : "rgba(255,255,255,0.5)";
+    noneBtn.style.borderColor = noneChecked ? "#667eea" : "var(--border)";
+    noneBtn.style.color       = noneChecked ? "#4a5bd4" : "var(--text)";
+  }
+  updateMonthBtnStyles();
+
+  wrap.appendChild(row1);
+  wrap.appendChild(row2);
+  if (opts.labels) {
+    const cap = document.createElement("div");
+    cap.className = "small";
+    cap.style.cssText = "margin-bottom:4px;font-weight:600;";
+    cap.textContent = "Months due";
+    wrap.appendChild(cap);
+  }
+  wrap.appendChild(row3);
+  return wrap;
+}
+
+/* Reads + validates one editor row.
+   Returns { skip:true } for a blank row, { error } if invalid, or { item }. */
+function readFixedRowEl(r){
+  const id     = r.dataset.fixedId || genFixedId();
+  const name   = (r.querySelector(".fixedName")?.value || "").trim();
+  const amtRaw = r.querySelector(".fixedAmt")?.value || "";
+  const amt    = dollarsToCentsFromInput(amtRaw);
+  const day    = parseInt(r.querySelector(".fixedDay")?.value || "", 10);
+
+  if (!name && !amtRaw.trim()) return { skip: true };
+  if (!name) return { error: "Each row needs a name." };
+  if (amt === null) return { error: `Enter a valid amount for: ${name}` };
+  if (amt <= 0) return { error: `Amount must be greater than $0.00 for: ${name}` };
+  if (!Number.isFinite(day) || day < 1 || day > 31) return { error: `Enter a due day (1–31) for: ${name}` };
+
+  const months = Array.from(r.querySelectorAll(".fixedMonthCb"))
+    .filter(cb => cb.checked)
+    .map(cb => Number(cb.dataset.month));
+  if (months.length === 0) return { error: `Select at least one month for: ${name}` };
+
+  return { item: { id, name, amount_cents: amt, due_day: day,
+                   active_months: months.sort((a, b) => a - b).join(",") } };
+}
+
+/* ---- Edit/Remove Expenses panel ---- */
+async function openFixedExpensesPanel(){
+  if (!settingsFixedExpensesPanel.classList.contains("hidden")) {
+    settingsFixedExpensesPanel.classList.add("hidden");
+    setStatus(settingsFixedExpensesStatus, "");
+    return;
+  }
+  closeOtherSettingsPanels("settingsFixedExpensesPanel");
+
+  const existing = await loadFixedExpenses();
+  settingsFixedExpensesList.innerHTML = "";
+  existing.forEach(fx => settingsFixedExpensesList.appendChild(
+    buildFixedRowEl(fx.id, fx.name, (fx.amount_cents / 100).toFixed(2), fx.due_day, fx.active_months, { showRemove: true })
+  ));
+  updateFixedSortBar();
+  sortFixedRows();
+  updateFixedEmptyMsg();
+  settingsFixedExpensesPanel.classList.remove("hidden");
+  setStatus(settingsFixedExpensesStatus, "");
+}
+
+async function saveSettingsFixedExpenses(){
+  const rows = Array.from(settingsFixedExpensesList.querySelectorAll(":scope > [data-fixed-id]"));
+  const result = [];
+  for (const r of rows){
+    const out = readFixedRowEl(r);
+    if (out.skip) continue;
+    if (out.error) return setStatus(settingsFixedExpensesStatus, out.error, "error");
+    result.push(out.item);
+  }
+  setStatus(settingsFixedExpensesStatus, "Saving…");
+  try {
+    await saveFixedExpenses(result);
+  } catch(e) {
+    return setStatus(settingsFixedExpensesStatus, e?.message || String(e), "error");
+  }
+  setStatus(settingsFixedExpensesStatus, "Saved.", "ok");
+  if (CURRENT_STATE) await renderKeepInBank(CURRENT_STATE);
+  await renderFixedExpensesMainCard();
+  setTimeout(() => {
+    settingsFixedExpensesPanel.classList.add("hidden");
+    setStatus(settingsFixedExpensesStatus, "");
+  }, 1400);
+}
+
+settingsOpenFixedExpensesBtn.addEventListener("click", openFixedExpensesPanel);
+settingsSaveFixedExpensesBtn.addEventListener("click", saveSettingsFixedExpenses);
+settingsCancelFixedExpensesBtn.addEventListener("click", () => {
+  settingsFixedExpensesPanel.classList.add("hidden");
+  setStatus(settingsFixedExpensesStatus, "");
+});
+
+/* ---- Add Fixed Expense panel ---- */
+function resetAddFixedForm(){
+  settingsAddFixedFormHost.innerHTML = "";
+  settingsAddFixedFormHost.appendChild(
+    buildFixedRowEl(genFixedId(), "", "", "", null, { labels: true, showRemove: false })
+  );
+}
+
+function openAddFixedPanel(){
+  if (!settingsAddFixedPanel.classList.contains("hidden")) {
+    settingsAddFixedPanel.classList.add("hidden");
+    setStatus(settingsAddFixedStatus, "");
+    return;
+  }
+  closeOtherSettingsPanels("settingsAddFixedPanel");
+  resetAddFixedForm();
+  setStatus(settingsAddFixedStatus, "");
+  settingsAddFixedPanel.classList.remove("hidden");
+  settingsAddFixedFormHost.querySelector(".fixedName")?.focus();
+}
+
+async function saveNewFixedExpense(){
+  const row = settingsAddFixedFormHost.firstElementChild;
+  if (!row) return;
+  const out = readFixedRowEl(row);
+  if (out.skip)  return setStatus(settingsAddFixedStatus, "Enter a bill name and amount.", "error");
+  if (out.error) return setStatus(settingsAddFixedStatus, out.error, "error");
+
+  setStatus(settingsAddFixedStatus, "Saving…");
+  try {
+    const token = await idbGet(KEY_TOKEN);
+    if (!token) throw new Error("Not authenticated");
+    // Read the current list straight from the server (never the offline cache):
+    // the server replaces the whole list on save, so a stale read could drop bills.
+    const cur = await fetchFixedExpenses(token);
+    if (cur.authFailed) throw new Error("Authentication failed — please log in again.");
+    const items = Array.isArray(cur.result?.items) ? cur.result.items : [];
+    const list = items.map(fx => ({
+      id: fx.id, name: fx.name, amount_cents: fx.amount_cents,
+      due_day: fx.due_day, active_months: fx.active_months
+    })).concat([out.item]);
+    await saveFixedExpenses(list);
+  } catch(e) {
+    return setStatus(settingsAddFixedStatus, e?.message || String(e), "error");
+  }
+
+  setStatus(settingsAddFixedStatus, `Added: ${out.item.name}`, "ok");
+  if (CURRENT_STATE) await renderKeepInBank(CURRENT_STATE);
+  await renderFixedExpensesMainCard();
+  setTimeout(() => {
+    settingsAddFixedPanel.classList.add("hidden");
+    setStatus(settingsAddFixedStatus, "");
+  }, 1400);
+}
+
+settingsOpenAddFixedBtn.addEventListener("click", openAddFixedPanel);
+settingsSaveNewFixedBtn.addEventListener("click", saveNewFixedExpense);
+settingsCancelNewFixedBtn.addEventListener("click", () => {
+  settingsAddFixedPanel.classList.add("hidden");
+  setStatus(settingsAddFixedStatus, "");
+});
+
+/* --- Settings: Change Budget Period --- */
+const settingsOpenPeriodBtn  = $("settingsOpenPeriodBtn");
+const settingsPeriodPanel    = $("settingsPeriodPanel");
+const periodCurrentInfo      = $("periodCurrentInfo");
+const periodPendingBox       = $("periodPendingBox");
+const periodPendingText      = $("periodPendingText");
+const periodCancelPendingBtn = $("periodCancelPendingBtn");
+const periodNewType          = $("periodNewType");
+const periodStartWrap        = $("periodStartWrap");
+const periodStartLabel       = $("periodStartLabel");
+const periodStartInput       = $("periodStartInput");
+const periodSaveBtn          = $("periodSaveBtn");
+const periodCloseBtn         = $("periodCloseBtn");
+const periodStatus           = $("periodStatus");
+const periodReviewRow        = $("periodReviewRow");
+const periodReviewBtn        = $("periodReviewBtn");
+const periodWhenEnd          = $("periodWhenEnd");
+const periodWhenNow          = $("periodWhenNow");
+const periodWhenEndText      = $("periodWhenEndText");
+const periodWhenNowText      = $("periodWhenNowText");
+const periodNowWarning       = $("periodNowWarning");
+const periodEditCurrentBtn   = $("periodEditCurrentBtn");
+
+// Types whose cycle depends on a start date; the date is optional (default: the switch date)
+const PERIOD_START_HELP = {
+  weekly:    "Week starts on (MM-DD-YYYY), optional. Enter any date that falls on the weekday your weeks should start. Leave blank to start on the switch date.",
+  biweekly:  "Pay period starts on (MM-DD-YYYY), optional. Enter a date that begins one of your two-week periods, such as a payday. Leave blank to start on the switch date.",
+  quarterly: "First month of a quarter (MM-DD-YYYY), optional. Enter any date in the month your quarters should start. Leave blank to start on the switch date."
+};
+
+function periodSwitchYmd(){
+  const p = CURRENT_STATE?.period;
+  return p?.end_ts ? String(p.end_ts).slice(0, 10) : null;   // the day the current period ends = first day of the new schedule
+}
+
+function addDaysYmdStr(ymd, n){
+  return new Date(Date.UTC(+ymd.slice(0, 4), +ymd.slice(5, 7) - 1, +ymd.slice(8, 10) + n)).toISOString().slice(0, 10);
+}
+
+// "Switch now" ends the current period tonight and starts the new type tomorrow
+function periodNowInfo(){
+  const st = CURRENT_STATE, endYmd = periodSwitchYmd();
+  if (!st?.today_et || !endYmd) return { can: false, why: "unknown" };
+  const tomorrow = addDaysYmdStr(st.today_et, 1);
+  if (tomorrow >= endYmd) return { can: false, why: "already", today: st.today_et, tomorrow, endYmd };
+  return { can: true, today: st.today_et, tomorrow, endYmd };
+}
+
+function periodWantsNow(){ return periodWhenNow.checked && !periodWhenNow.disabled; }
+
+function updatePeriodNowWarning(){
+  periodNowWarning.classList.toggle("hidden", !periodWantsNow());
+}
+
+function updatePeriodWhenOptions(){
+  const info = periodNowInfo();
+  periodWhenEndText.textContent = `At the end of the current period (${fmtYmdToMdySlash(periodSwitchYmd())}). Nothing in the current period changes.`;
+  if (info.can) {
+    periodWhenNow.disabled = false;
+    periodWhenNowText.textContent = `Now: end the current period tonight (${fmtYmdToMdySlash(info.today)}) and start the new type tomorrow (${fmtYmdToMdySlash(info.tomorrow)}).`;
+  } else {
+    periodWhenNow.disabled = true;
+    if (periodWhenNow.checked) periodWhenEnd.checked = true;
+    periodWhenNowText.textContent = info.why === "already"
+      ? "Now: not needed. The current period already ends tomorrow, so a change starts tomorrow anyway."
+      : "Now: not available until your server is updated.";
+  }
+  updatePeriodNowWarning();
+}
+
+function updatePeriodStartField(){
+  const help = PERIOD_START_HELP[periodNewType.value];
+  periodStartWrap.classList.toggle("hidden", !help);
+  if (help) periodStartLabel.textContent = help;
+}
+
+function refreshPeriodPanel(){
+  const st   = CURRENT_STATE;
+  const type = st?.period_type;
+  periodSaveBtn.disabled = false;
+
+  if (!st?.initialized || !type) {
+    // An older server does not report the period type yet
+    periodCurrentInfo.textContent = "Your server needs to be updated before the budget period can be changed.";
+    periodSaveBtn.disabled = true;
+    periodPendingBox.classList.add("hidden");
+    periodNewType.innerHTML = "";
+    periodStartWrap.classList.add("hidden");
+    periodWhenNow.disabled = true;
+    periodNowWarning.classList.add("hidden");
+    return;
+  }
+
+  const switchYmd = periodSwitchYmd();
+  periodCurrentInfo.textContent =
+    `Current budget period: ${PERIOD_LABELS[type] || type}\n` +
+    `The current period ends ${fmtEndTsForDisplay(st.period.end_ts)}. A change takes effect on ${fmtYmdToMdySlash(switchYmd)}, ` +
+    `when the next period begins. Nothing in the current period changes.`;
+
+  const pc = st.pending_period_change;
+  if (pc) {
+    const resume = pc.period_type === type;       // a shortened period whose switch was cancelled
+    const first  = `First period: ${fmtYmdToMdySlash(String(pc.first_period.start_ts).slice(0, 10))} → ${fmtEndTsForDisplay(pc.first_period.end_ts)}.`;
+    const shortenedNote = pc.current_period_shortened
+      ? `Your current period was shortened and ends ${fmtEndTsForDisplay(st.period.end_ts)}.\n` : "";
+    periodPendingText.textContent = resume
+      ? `${shortenedNote}${PERIOD_LABELS[type] || type} budgets resume on ${fmtYmdToMdySlash(pc.effective_date)}.\n${first}\nChoose a different type below if you would rather change it.`
+      : `Scheduled: switching to ${PERIOD_LABELS[pc.period_type] || pc.period_type} on ${fmtYmdToMdySlash(pc.effective_date)}.\n${shortenedNote}${first}\nChoose a different type below to replace it, or cancel it.` +
+        (pc.current_period_shortened ? `\nIf you cancel, ${PERIOD_LABELS[type] || type} budgets resume on that date; the current period stays shortened.` : "");
+    periodPendingBox.classList.remove("hidden");
+    periodCancelPendingBtn.classList.toggle("hidden", resume);   // nothing left to cancel when it is only a resume
+  } else {
+    periodPendingBox.classList.add("hidden");
+  }
+
+  const keep = periodNewType.value;
+  periodNewType.innerHTML = "";
+  const ph = document.createElement("option");
+  ph.value = ""; ph.textContent = "Select a period type…";
+  periodNewType.appendChild(ph);
+  Object.keys(PERIOD_LABELS).filter(k => k !== type).forEach(k => {
+    const o = document.createElement("option");
+    o.value = k; o.textContent = PERIOD_LABELS[k];
+    periodNewType.appendChild(o);
+  });
+  periodNewType.value = (keep && keep !== type && PERIOD_LABELS[keep]) ? keep : "";
+  updatePeriodStartField();
+  updatePeriodWhenOptions();
+}
+
+function openPeriodPanel(){
+  if (!settingsPeriodPanel.classList.contains("hidden")) {
+    settingsPeriodPanel.classList.add("hidden");
+    setStatus(periodStatus, "");
+    return;
+  }
+  closeOtherSettingsPanels("settingsPeriodPanel");
+  setStatus(periodStatus, "");
+  periodReviewRow.classList.add("hidden");
+  periodStartInput.value = "";
+  periodNewType.value = "";
+  periodWhenEnd.checked = true;
+  refreshPeriodPanel();
+  settingsPeriodPanel.classList.remove("hidden");
+}
+
+async function sendPeriodChange(payload){
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) { showAuth("Missing token. Please re-enter.", true); return null; }
+  const res = await postPeriodType(token, payload);
+  if (res.authFailed) {
+    await idbDel(KEY_TOKEN);
+    closeSettings();
+    showAuth("Token invalid/expired. Please re-enter.", true);
+    return null;
+  }
+  CURRENT_STATE = res.result || CURRENT_STATE;
+  await renderDashboard(CURRENT_STATE);
+  return CURRENT_STATE;
+}
+
+async function savePeriodChange(){
+  const type = periodNewType.value;
+  if (!type) return setStatus(periodStatus, "Choose a period type.", "error");
+  const cur = CURRENT_STATE?.period_type;
+  if (!cur) return setStatus(periodStatus, "Your server needs to be updated first.", "error");
+
+  const payload = { period_type: type };
+  if (PERIOD_START_HELP[type]) {
+    const raw = periodStartInput.value.trim();
+    if (raw) {
+      const ymd = mdyToYmd(raw);
+      if (!ymd) return setStatus(periodStatus, "Enter the date as MM-DD-YYYY, or leave it blank.", "error");
+      payload.period_anchor_date = ymd;
+    }
+  }
+
+  const nowInfo = periodNowInfo();
+  const switchNow = periodWantsNow();
+  if (switchNow) payload.switch_now = true;
+  const when = fmtYmdToMdySlash(switchNow ? nowInfo.tomorrow : periodSwitchYmd());
+  const replacing = CURRENT_STATE?.pending_period_change
+    ? "\n\nThis replaces the change that is already scheduled."
+    : "";
+
+  const message = switchNow
+    ? `Your current period will be cut short: it ends tonight (${fmtYmdToMdySlash(nowInfo.today)}) instead of ${fmtEndTsForDisplay(CURRENT_STATE.period.end_ts)}, ` +
+      `and ${PERIOD_LABELS[type]} budgets start tomorrow (${when}).\n\n` +
+      `⚠ The shortened period keeps its full budget amounts. If you haven't already, change your current variable budget amounts first ` +
+      `(Edit Budget Amounts → Immediately) so they fit the shorter period. Tap Cancel now if you want to do that first.\n\n` +
+      `Your category amounts will NOT change when the new type starts: a $500 budget stays $500 per period, covering one ${PERIOD_UNIT[type]} instead of one ${PERIOD_UNIT[cur]}. ` +
+      `Unspent or overspent balances roll into the first new period. Your transactions, history and fixed expenses are kept.\n\n` +
+      `The shortening can't be undone, but you can still choose a different period type before tomorrow.` + replacing
+    : `Switch from ${PERIOD_LABELS[cur]} to ${PERIOD_LABELS[type]} budgets, starting ${when}?\n\n` +
+      `⚠ Your category budget amounts will NOT change. A $500 budget stays $500 per period, so it will now cover one ${PERIOD_UNIT[type]} instead of one ${PERIOD_UNIT[cur]}.\n\n` +
+      `Review your amounts in Edit Budget Amounts (choose "Next period") so they fit the new period length. ` +
+      `Any unspent or overspent balance rolls into the first new period. Your fixed expenses are not affected.` + replacing;
+
+  const ok = await showConfirm(
+    switchNow ? `Switch to ${PERIOD_LABELS[type]} budgets NOW?` : "Change budget period?",
+    message,
+    switchNow ? "Switch Now" : "Schedule Change"
+  );
+  if (!ok) return;
+
+  periodSaveBtn.disabled = true;
+  setStatus(periodStatus, "Saving…");
+  try {
+    const st = await sendPeriodChange(payload);
+    if (!st) return;
+    periodNewType.value = "";          // back to the placeholder: it is scheduled now
+    periodWhenEnd.checked = true;
+    refreshPeriodPanel();
+    periodStartInput.value = "";
+    const pc = st.pending_period_change;
+    setStatus(periodStatus, switchNow
+      ? `Done: your current period now ends tonight. ${PERIOD_LABELS[type]} budgets start ${fmtYmdToMdySlash(pc?.effective_date || when)}.\n` +
+        `Next step: review the amounts for the new period in Edit Budget Amounts (choose Next period).`
+      : `Scheduled: switching to ${PERIOD_LABELS[type]} on ${fmtYmdToMdySlash(pc?.effective_date || periodSwitchYmd())}.\n` +
+        `Next step: review your budget amounts so they fit the new period length.`, "ok");
+    periodReviewRow.classList.remove("hidden");
+  } catch (e) {
+    setStatus(periodStatus, e?.message || String(e), "error");
+  } finally {
+    periodSaveBtn.disabled = !CURRENT_STATE?.period_type;
+  }
+}
+
+async function cancelPeriodChange(){
+  periodCancelPendingBtn.disabled = true;
+  setStatus(periodStatus, "Cancelling…");
+  try {
+    const st = await sendPeriodChange({ cancel: true });
+    if (!st) return;
+    periodNewType.value = "";
+    periodWhenEnd.checked = true;
+    refreshPeriodPanel();
+    periodReviewRow.classList.add("hidden");
+    const kept = st.pending_period_change?.current_period_shortened;
+    setStatus(periodStatus, kept
+      ? `Change cancelled. Your current period stays shortened (it ends ${fmtEndTsForDisplay(st.period.end_ts)}) and ${PERIOD_LABELS[st.period_type] || st.period_type} budgets resume right after.`
+      : "Scheduled change cancelled. Your budget period stays the same.", "ok");
+  } catch (e) {
+    setStatus(periodStatus, e?.message || String(e), "error");
+  } finally {
+    periodCancelPendingBtn.disabled = false;
+  }
+}
+
+settingsOpenPeriodBtn.addEventListener("click", openPeriodPanel);
+periodNewType.addEventListener("change", updatePeriodStartField);
+periodWhenEnd.addEventListener("change", updatePeriodNowWarning);
+periodWhenNow.addEventListener("change", updatePeriodNowWarning);
+periodEditCurrentBtn.addEventListener("click", () => {
+  settingsPeriodPanel.classList.add("hidden");
+  setStatus(periodStatus, "");
+  $("budgetTimingNow").checked = true;          // "Immediately": adjust THIS period's amounts
+  settingsOpenEditBudgetsBtn.click();
+});
+periodSaveBtn.addEventListener("click", savePeriodChange);
+periodCancelPendingBtn.addEventListener("click", cancelPeriodChange);
+periodCloseBtn.addEventListener("click", () => {
+  settingsPeriodPanel.classList.add("hidden");
+  setStatus(periodStatus, "");
+});
+periodReviewBtn.addEventListener("click", () => {
+  settingsPeriodPanel.classList.add("hidden");
+  setStatus(periodStatus, "");
+  periodReviewRow.classList.add("hidden");
+  settingsOpenEditBudgetsBtn.click();      // opens Edit Budget Amounts
+});
+
+/* --- Wizard Step 3: Fixed Expenses --- */
+function addWizFixedRow(id, name = "", amount = "", due_day = ""){
+  const wrap = document.createElement("div");
+  wrap.className = "row";
+  wrap.style.marginTop = "10px";
+  wrap.dataset.fixedId = String(id || genFixedId());
+  wrap.innerHTML = `
+    <input class="wizFixedName" placeholder="Bill name" value="${String(name).replaceAll('"','&quot;')}" style="flex:2;" />
+    <input class="wizFixedAmt" placeholder="$0.00" value="${String(amount).replaceAll('"','&quot;')}" inputmode="decimal" style="flex:1;" />
+    <input class="wizFixedDay" placeholder="Day (1-31)" value="${String(due_day).replaceAll('"','&quot;')}" inputmode="numeric" style="flex:1;" />
+    <button type="button" class="secondary wizFixedRemoveBtn" style="flex-shrink:0;">Remove</button>
+  `;
+  const amtInput = wrap.querySelector(".wizFixedAmt");
+  amtInput.addEventListener("blur", () => {
+    amtInput.value = validateAndFixCommas(amtInput.value);
+    amtInput.value = normalizeMoneyDisplay(amtInput.value);
+  });
+  wrap.querySelector(".wizFixedRemoveBtn").addEventListener("click", () => wrap.remove());
+  wizFixedList.appendChild(wrap);
+}
+
+function readWizardFixed(){
+  const rows = Array.from(wizFixedList.querySelectorAll(".row"));
+  return rows.map(r => ({
+    id:           r.dataset.fixedId || genFixedId(),
+    name:         (r.querySelector(".wizFixedName")?.value || "").trim(),
+    amtRaw:       r.querySelector(".wizFixedAmt")?.value || "",
+    dayRaw:       r.querySelector(".wizFixedDay")?.value || "",
+  }));
+}
+
+function validateWizardFixed(){
+  const items = readWizardFixed();
+  for (const it of items){
+    if (!it.name && !it.amtRaw.trim() && !it.dayRaw.trim()) continue; // blank row — skip
+    if (!it.name)  return "Each fixed expense needs a name.";
+    const cents = dollarsToCentsFromInput(it.amtRaw);
+    if (cents === null) return `Enter a valid amount for: ${it.name}`;
+    const day = parseInt(it.dayRaw, 10);
+    if (!Number.isFinite(day) || day < 1 || day > 31) return `Enter a due day (1–31) for: ${it.name}`;
+  }
+  return null;
+}
+
+async function saveWizardFixed(){
+  const items = readWizardFixed().filter(it => it.name || it.amtRaw.trim());
+  const result = [];
+  for (const it of items){
+    const cents = dollarsToCentsFromInput(it.amtRaw);
+    const day   = parseInt(it.dayRaw, 10);
+    if (it.name && cents !== null && Number.isFinite(day) && day >= 1 && day <= 31){
+      result.push({ id: it.id, name: it.name, amount_cents: cents, due_day: day });
+    }
+  }
+  if (result.length > 0) await saveFixedExpenses(result);
+}
+
+</script>
+
+<script>
+/* ================= TRANSFER UI ================= */
+function syncTxTypeUi(){
+  const t = String(txType.value || "expense");
+  const isTransfer = t === "transfer";
+  txTransferPanel.classList.toggle("hidden", !isTransfer);
+  txStandardPanel.classList.toggle("hidden", isTransfer);
+  setStatus(txStatus, "");
+  // Color the select to match the selected option; always bold
+  txType.style.fontWeight = "bold";
+  if (t === "expense") txType.style.color = "#dc3545";
+  else if (t === "credit") txType.style.color = "#28a745";
+  else txType.style.color = "#000000";
+}
+
+txType.addEventListener("change", syncTxTypeUi);
+syncTxTypeUi();
+
+txAmount.addEventListener("blur", () => { 
+  txAmount.value = validateAndFixCommas(txAmount.value);
+  txAmount.value = normalizeMoneyDisplay(txAmount.value); 
+});
+
+txTransferAmount.addEventListener("blur", () => { 
+  txTransferAmount.value = validateAndFixCommas(txTransferAmount.value);
+  txTransferAmount.value = normalizeMoneyDisplay(txTransferAmount.value); 
+});
+
+function buildTransferItems({ fromId, toId, cents, note }){
+  const n = String(note || "").trim().slice(0, 200);
+  const prefix = `Transfer: ${labelForCategoryId(fromId)} → ${labelForCategoryId(toId)}`;
+  const fullNote = n ? `${prefix} • ${n}` : prefix;
+
+  return [
+    { category_id: fromId, amount_cents: cents, is_credit: false, note: fullNote },
+    { category_id: toId,   amount_cents: cents, is_credit: true,  note: fullNote }
+  ];
+}
+
+/* ================= TRANSACTIONS SUBMIT ================= */
+txSubmitBtn.addEventListener("click", async () => {
+  const token = await idbGet(KEY_TOKEN);
+  const name = await idbGet(KEY_NAME);
+
+  if (!token) return showAuth("Missing token. Please re-enter.", true);
+  if (!name) return showAuth("Missing name. Please re-enter.", true);
+  if (!CURRENT_STATE) return setStatus(txStatus, "No budget loaded yet.", "error");
+
+  const mode = String(txType.value || "expense");
+
+  // Transfer
+  if (mode === "transfer"){
+    const fromId = Number(txFromCategory.value);
+    const toId = Number(txToCategory.value);
+    if (!Number.isFinite(fromId) || fromId <= 0) return setStatus(txStatus, "Choose a 'Transfer from' category.", "error");
+    if (!Number.isFinite(toId) || toId <= 0) return setStatus(txStatus, "Choose a 'Transfer to' category.", "error");
+    if (fromId === toId) return setStatus(txStatus, "Transfer from/to must be different categories.", "error");
+
+    const cents = dollarsToCentsFromInput(txTransferAmount.value);
+    if (cents === null) return setStatus(txStatus, "Enter a valid transfer amount greater than $0.00.", "error");
+
+    const note = String(txTransferNote.value || "").trim().slice(0, 240) || "";
+
+    const body = { created_by_label: name, items: buildTransferItems({ fromId, toId, cents, note }) };
+
+    setStatus(txStatus, "Saving transfer…");
+    try {
+      const res = await postTransaction(token, body);
+      if (res.authFailed){
+        await idbDel(KEY_TOKEN);
+        return showAuth("Token invalid/expired. Please re-enter.", true);
+      }
+      CURRENT_STATE = res.result || {};
+      await renderDashboard(CURRENT_STATE);
+      setStatus(txStatus, "Transfer saved.", "ok");
+      txTransferAmount.value = "";
+      txTransferNote.value = "";
+    } catch (e) {
+      setStatus(txStatus, e?.message || String(e), "error");
+    }
+    return;
+  }
+
+  // Expense / Credit
+  const categoryId = Number(txCategory.value);
+  if (!Number.isFinite(categoryId) || categoryId <= 0) return setStatus(txStatus, "Please choose a category.", "error");
+
+  const cents = dollarsToCentsFromInput(txAmount.value);
+  if (cents === null) return setStatus(txStatus, "Enter a valid amount greater than $0.00.", "error");
+
+  const isCredit = mode === "credit";
+  const note = String(txNote.value || "").trim().slice(0, 240) || undefined;
+
+  const body = { created_by_label: name, items: [{ category_id: categoryId, amount_cents: cents, is_credit: isCredit, note }] };
+
+  setStatus(txStatus, "Saving…");
+  try {
+    const res = await postTransaction(token, body);
+    if (res.authFailed){
+      await idbDel(KEY_TOKEN);
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+    CURRENT_STATE = res.result || {};
+    await renderDashboard(CURRENT_STATE);
+    setStatus(txStatus, "Saved.", "ok");
+    txAmount.value = "";
+    txNote.value = "";
+  } catch (e) {
+    setStatus(txStatus, e?.message || String(e), "error");
+  }
+});
+</script>
+
+<script>
+/* ================= SETTINGS MODAL - REORDER FUNCTIONS ================= */
+async function openReorderPanel(){
+  // Toggle: if already visible, close it
+  if (!settingsReorderPanel.classList.contains("hidden")) {
+    hide(settingsReorderPanel);
+    setStatus(settingsReorderStatus, "");
+    return;
+  }
+
+  // Close other panels
+  hide(settingsEditBudgetsPanel);
+  hide(settingsAddCatsPanel);
+  hide($("settingsFixedExpensesPanel"));
+  hide($("settingsAddFixedPanel"));
+  hide($("settingsPeriodPanel"));
+  setStatus(settingsEditBudgetsStatus, "");
+  setStatus(settingsAddCatsStatus, "");
+
+  if (!CURRENT_STATE) return setStatus(settingsReorderStatus, "No budget loaded yet.", "error");
+  
+  const cats = normalizeCategories(CURRENT_STATE);
+  if (cats.length === 0) return setStatus(settingsReorderStatus, "No categories to reorder.", "error");
+
+  show(settingsReorderPanel);
+  setStatus(settingsReorderStatus, "");
+  
+  // Apply current saved order
+  const ordered = await applyUiOrder(cats);
+  renderReorderList(ordered);
+}
+
+async function renderReorderList(cats){
+  settingsReorderList.innerHTML = "";
+
+  for (let i = 0; i < cats.length; i++){
+    const c = cats[i];
+    const wrap = document.createElement("div");
+    wrap.className = "row";
+    wrap.style.marginTop = "10px";
+    wrap.dataset.categoryId = String(c.category_id);
+    
+    const label = document.createElement("span");
+    label.textContent = c.name;
+    label.style.flex = "1";
+    label.style.alignSelf = "center";
+
+    const upBtn = document.createElement("button");
+    upBtn.className = "secondary";
+    upBtn.type = "button";
+    upBtn.textContent = "↑";
+    upBtn.disabled = i === 0;
+    upBtn.addEventListener("click", () => moveCategory(i, -1));
+
+    const downBtn = document.createElement("button");
+    downBtn.className = "secondary";
+    downBtn.type = "button";
+    downBtn.textContent = "↓";
+    downBtn.disabled = i === cats.length - 1;
+    downBtn.addEventListener("click", () => moveCategory(i, 1));
+
+    wrap.appendChild(label);
+    wrap.appendChild(upBtn);
+    wrap.appendChild(downBtn);
+    settingsReorderList.appendChild(wrap);
+  }
+}
+
+function moveCategory(index, direction){
+  const rows = Array.from(settingsReorderList.querySelectorAll(".row"));
+  if (index < 0 || index >= rows.length) return;
+  
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= rows.length) return;
+
+  // Get current order from DOM
+  const currentOrder = rows.map(r => Number(r.dataset.categoryId));
+  
+  // Swap in the array
+  [currentOrder[index], currentOrder[newIndex]] = [currentOrder[newIndex], currentOrder[index]];
+  
+  // Get categories data
+  const cats = normalizeCategories(CURRENT_STATE);
+  const catsById = new Map(cats.map(c => [c.category_id, c]));
+  
+  // Build ordered list based on new order
+  const ordered = currentOrder.map(id => catsById.get(id)).filter(Boolean);
+  
+  // Re-render with new order
+  renderReorderList(ordered);
+}
+
+async function saveReorder(){
+  const rows = Array.from(settingsReorderList.querySelectorAll(".row"));
+  const order = rows.map(r => Number(r.dataset.categoryId)).filter(n => Number.isFinite(n) && n > 0);
+  
+  if (order.length === 0) return setStatus(settingsReorderStatus, "No categories to save.", "error");
+
+  try {
+    await idbSet(KEY_CAT_ORDER, order);
+    setStatus(settingsReorderStatus, "Order saved.", "ok");
+    
+    // Update the dashboard to reflect new order
+    await renderDashboard(CURRENT_STATE);
+    
+    // Hide panel after a brief delay
+    setTimeout(() => {
+      hide(settingsReorderPanel);
+      setStatus(settingsReorderStatus, "");
+    }, 1000);
+  } catch (e) {
+    setStatus(settingsReorderStatus, e?.message || String(e), "error");
+  }
+}
+
+/* ================= SETTINGS MODAL - EDIT BUDGETS FUNCTIONS ================= */
+async function openEditBudgetsPanel(){
+  // Toggle: if already visible, close it
+  if (!settingsEditBudgetsPanel.classList.contains("hidden")) {
+    hide(settingsEditBudgetsPanel);
+    setStatus(settingsEditBudgetsStatus, "");
+    return;
+  }
+
+  // Close other panels
+  hide(settingsReorderPanel);
+  hide(settingsAddCatsPanel);
+  hide($("settingsFixedExpensesPanel"));
+  hide($("settingsAddFixedPanel"));
+  hide($("settingsPeriodPanel"));
+  setStatus(settingsReorderStatus, "");
+  setStatus(settingsAddCatsStatus, "");
+
+  if (!CURRENT_STATE) return setStatus(settingsEditBudgetsStatus, "No budget loaded yet.", "error");
+  
+  const cats = normalizeCategories(CURRENT_STATE);
+  if (cats.length === 0) return setStatus(settingsEditBudgetsStatus, "No categories to edit.", "error");
+
+  show(settingsEditBudgetsPanel);
+  setStatus(settingsEditBudgetsStatus, "");
+  
+  const ordered = await applyUiOrder(cats);
+  renderEditBudgetsList(ordered);
+}
+
+function renderEditBudgetsList(cats){
+  settingsEditBudgetsList.innerHTML = "";
+
+  for (const c of cats){
+    const currentBudget = (c.default_budget_cents ?? (c.spent_cents + c.remaining_cents)) / 100;
+
+    const wrap = document.createElement("div");
+    wrap.className = "row";
+    wrap.style.cssText = "margin-top:10px;align-items:center;";
+    wrap.dataset.categoryId = String(c.category_id);
+
+    // Checkbox — only rows with this checked are included when saving
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.className = "editBudgetCheck";
+    cb.style.cssText = "width:18px;height:18px;flex-shrink:0;cursor:pointer;";
+
+    const label = document.createElement("label");
+    label.textContent = c.name;
+    label.style.cssText = "flex:1;align-self:center;margin-top:0;cursor:pointer;";
+    label.addEventListener("click", () => { cb.checked = !cb.checked; input.disabled = !cb.checked; });
+
+    const input = document.createElement("input");
+    input.className = "editBudgetInput";
+    input.placeholder = "$0.00";
+    input.value = currentBudget.toFixed(2);
+    input.inputMode = "decimal";
+    input.style.cssText = "flex:1;";
+    input.disabled = true; // enabled only when row is checked
+
+    cb.addEventListener("change", () => {
+      input.disabled = !cb.checked;
+      if (cb.checked) input.focus();
+    });
+
+    input.addEventListener("blur", () => {
+      input.value = validateAndFixCommas(input.value);
+      input.value = normalizeMoneyDisplay(input.value);
+    });
+
+    wrap.appendChild(cb);
+    wrap.appendChild(label);
+    wrap.appendChild(input);
+    settingsEditBudgetsList.appendChild(wrap);
+  }
+}
+
+function readEditBudgets(){
+  const rows = Array.from(settingsEditBudgetsList.querySelectorAll(".row"));
+  return rows
+    .filter(r => r.querySelector(".editBudgetCheck")?.checked) // only selected rows
+    .map(r => {
+      const categoryId = Number(r.dataset.categoryId);
+      const input = r.querySelector(".editBudgetInput");
+      const value = input?.value || "";
+      const cents = dollarsToCentsFromInput(value);
+      return { categoryId, cents };
+    }).filter(x => Number.isFinite(x.categoryId) && x.categoryId > 0);
+}
+
+/* ---- Pending-budget keys (IndexedDB) ---- */
+const KEY_PENDING_BUDGETS  = "pendingBudgets";   // { "categoryId": targetCents, … }
+const KEY_LAST_PERIOD_KEY  = "lastPeriodKey";    // the period_key we last saw
+// Fixed expenses and paid state are stored server-side (see /api/budget/fixed-expenses and /api/budget/fixed-paid)
+// IDB is used only as a read-through cache for faster initial renders.
+const KEY_FX_CACHE  = "fxCache";   // [{id, name, amount_cents, due_day}] — local cache
+const KEY_FP_CACHE  = "fpCache";   // { [period_key]: [id,...] } — local cache
+
+async function saveEditBudgets(){
+  const edits = readEditBudgets();
+  if (!edits.length) return setStatus(settingsEditBudgetsStatus, "Select at least one category to change.", "error");
+
+  for (const edit of edits){
+    if (edit.cents === null || edit.cents <= 0) {
+      return setStatus(settingsEditBudgetsStatus, "All selected budget amounts must be greater than $0.00", "error");
+    }
+  }
+
+  // Only keep categories whose new amount differs from their current default
+  const cats = normalizeCategories(CURRENT_STATE);
+  const changed = edits.filter(edit => {
+    const cat = cats.find(c => c.category_id === edit.categoryId);
+    if (!cat) return false;
+    const currentDefault = cat.default_budget_cents ?? (cat.spent_cents + cat.remaining_cents);
+    return edit.cents !== currentDefault;
+  });
+
+  if (changed.length === 0) {
+    return setStatus(settingsEditBudgetsStatus, "No changes to save — selected amounts match current defaults.", "ok");
+  }
+
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return setStatus(settingsEditBudgetsStatus, "Not authenticated.", "error");
+  const name = await idbGet(KEY_NAME);
+  const applyNow = document.getElementById("budgetTimingNow")?.checked === true;
+
+  setStatus(settingsEditBudgetsStatus, "Saving…");
+
+  try {
+    // ── Always update the default (category_budgets_next_items) ─────────────
+    // This ensures the Budget column and Edit panel always show the user's
+    // chosen default, regardless of rollovers or overruns.
+    const budgetPayload = changed.map(edit => ({
+      category_id: edit.categoryId,
+      budget_cents: edit.cents
+    }));
+    const adjRes = await postAdjustNext(token, budgetPayload);
+    if (adjRes.authFailed) return setStatus(settingsEditBudgetsStatus, "Authentication failed.", "error");
+    // Update state so Budget column refreshes immediately
+    CURRENT_STATE = adjRes.result || CURRENT_STATE;
+    await renderDashboard(CURRENT_STATE);
+
+    if (applyNow) {
+      // ── Also apply a transaction for the current-period delta ────────────
+      const items = [];
+      for (const edit of changed) {
+        const cat = cats.find(c => c.category_id === edit.categoryId);
+        if (!cat) continue;
+        // Delta is relative to what's currently available this period
+        const currentPeriodBudget = cat.spent_cents + cat.remaining_cents;
+        const delta = edit.cents - currentPeriodBudget;
+        if (delta === 0) continue;
+        items.push({
+          category_id: edit.categoryId,
+          amount_cents: Math.abs(delta),
+          is_credit: delta > 0,
+          note: "Budget adjustment: " + (delta > 0 ? "+" : "") + (delta / 100).toFixed(2) + " (applied immediately)"
+        });
+      }
+
+      if (items.length > 0) {
+        const txRes = await postTransaction(token, { created_by_label: name || "Budget", items });
+        if (txRes.authFailed) return setStatus(settingsEditBudgetsStatus, "Authentication failed.", "error");
+        CURRENT_STATE = txRes.result || CURRENT_STATE;
+        await renderDashboard(CURRENT_STATE);
+      }
+
+      setStatus(settingsEditBudgetsStatus, "Done — default and current period updated.", "ok");
+    } else {
+      setStatus(settingsEditBudgetsStatus, "Saved. Default budget updated; takes full effect next period.", "ok");
+    }
+
+    setTimeout(() => { hide(settingsEditBudgetsPanel); setStatus(settingsEditBudgetsStatus, ""); }, 2400);
+  } catch (e) {
+    setStatus(settingsEditBudgetsStatus, e?.message || String(e), "error");
+  }
+}
+
+/* ---- Apply pending budget changes when a new period is detected ---- */
+async function applyPendingBudgetChanges(state){
+  // Nothing pending? Exit fast.
+  let pending;
+  try { pending = await idbGet(KEY_PENDING_BUDGETS); } catch { pending = null; }
+  if (!pending || typeof pending !== "object" || Object.keys(pending).length === 0) return;
+
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return; // can't do anything without auth
+
+  const cats = normalizeCategories(state);
+
+  // Build one transaction item per changed category.
+  // delta > 0  → budget went UP   → post a credit  (increases remaining)
+  // delta < 0  → budget went DOWN → post an expense (decreases remaining)
+  const items = [];
+  const applied = new Set();
+
+  for (const [idStr, targetCents] of Object.entries(pending)){
+    const categoryId = Number(idStr);
+    const cat = cats.find(c => c.category_id === categoryId);
+    if (!cat) continue; // category may have been removed; skip it
+
+    // In the fresh period remaining == full budget, spent == 0.
+    // The delta is simply (target − current full budget).
+    const currentBudget = cat.spent_cents + cat.remaining_cents;
+    const delta = targetCents - currentBudget;
+    if (delta === 0) { applied.add(idStr); continue; } // already matches
+
+    items.push({
+      category_id: categoryId,
+      amount_cents: Math.abs(delta),
+      is_credit: delta > 0,   // credit = add back, expense = subtract
+      note: "Budget adjustment: " + (delta > 0 ? "+" : "") + (delta/100).toFixed(2) + " (scheduled from prior period)"
+    });
+    applied.add(idStr);
+  }
+
+  if (items.length > 0) {
+    try {
+      const name = await idbGet(KEY_NAME);
+      const res = await postTransaction(token, { created_by_label: name || "Budget", items });
+      if (res.authFailed) return; // bootstrap will handle re-auth
+      CURRENT_STATE = res.result || {};
+      await renderDashboard(CURRENT_STATE);
+    } catch { /* silent — dashboard already shows current state */ }
+  }
+
+  // Remove applied entries; keep any that couldn't be matched (e.g. category gone)
+  for (const id of applied) delete pending[id];
+
+  if (Object.keys(pending).length === 0) {
+    try { await idbDel(KEY_PENDING_BUDGETS); } catch { /* ignore */ }
+  } else {
+    try { await idbSet(KEY_PENDING_BUDGETS, pending); } catch { /* ignore */ }
+  }
+}
+
+/* ================= SETTINGS MODAL - ADD/REMOVE CATEGORIES FUNCTIONS ================= */
+function openAddCatsPanel(){
+  // Toggle: if already visible, close it
+  if (!settingsAddCatsPanel.classList.contains("hidden")) {
+    hide(settingsAddCatsPanel);
+    setStatus(settingsAddCatsStatus, "");
+    return;
+  }
+
+  // Close other panels
+  hide(settingsReorderPanel);
+  hide(settingsEditBudgetsPanel);
+  hide($("settingsFixedExpensesPanel"));
+  hide($("settingsAddFixedPanel"));
+  hide($("settingsPeriodPanel"));
+  setStatus(settingsReorderStatus, "");
+  setStatus(settingsEditBudgetsStatus, "");
+
+  show(settingsAddCatsPanel);
+  setStatus(settingsAddCatsStatus, "");
+
+  // Render existing categories with Remove buttons
+  renderExistingCatsList();
+
+  // Start with one blank new-category row
+  settingsAddCatsList.innerHTML = "";
+  addSettingsCatRow("", "");
+}
+
+function renderExistingCatsList(){
+  const list = $("settingsExistingCatsList");
+  if (!list) return;
+  list.innerHTML = "";
+
+  if (!CURRENT_STATE) return;
+  const cats = normalizeCategories(CURRENT_STATE);
+  if (!cats.length) {
+    list.innerHTML = `<div class="small" style="color:var(--muted);margin-top:6px;">No existing categories.</div>`;
+    return;
+  }
+
+  cats.forEach((c, idx) => {
+    const wrap = document.createElement("div");
+    wrap.dataset.removeCatId = String(c.category_id);
+    wrap.style.cssText = "padding-top:14px;padding-bottom:14px;border-top:1px solid #9aa0a6;";
+    if (idx === 0) { wrap.style.borderTop = "none"; wrap.style.paddingTop = "0"; }
+
+    // Row 1: category name full width
+    const row1 = document.createElement("div");
+    row1.style.cssText = "font-weight:600;font-size:14px;margin-bottom:8px;";
+    row1.textContent = c.name;
+
+    // Row 2: default budget amount + Remove button
+    const row2 = document.createElement("div");
+    row2.style.cssText = "display:flex;gap:10px;align-items:center;";
+
+    const budgetLabel = document.createElement("span");
+    budgetLabel.className = "small";
+    budgetLabel.style.flex = "1";
+    budgetLabel.textContent = "Default budget: " + fmtCents(c.default_budget_cents);
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "secondary";
+    removeBtn.style.cssText = "flex-shrink:0;background:rgba(220,53,69,0.08);color:var(--danger);border-color:rgba(220,53,69,0.3);";
+    removeBtn.textContent = "Remove";
+    removeBtn.addEventListener("click", () => {
+      // Dim only the text content, not the whole row, so the Undo button stays
+      // clearly visible and doesn't look disabled
+      row1.style.opacity = "0.35";
+      budgetLabel.style.opacity = "0.35";
+      wrap.dataset.markedForRemoval = "1";
+      removeBtn.textContent = "Undo";
+      removeBtn.className = "";
+      removeBtn.style.cssText = "flex-shrink:0;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:0;";
+      removeBtn.addEventListener("click", () => {
+        row1.style.opacity = "1";
+        budgetLabel.style.opacity = "1";
+        delete wrap.dataset.markedForRemoval;
+        removeBtn.textContent = "Remove";
+        removeBtn.className = "secondary";
+        removeBtn.style.cssText = "flex-shrink:0;background:rgba(220,53,69,0.08);color:var(--danger);border-color:rgba(220,53,69,0.3);border-width:1px;border-style:solid;";
+      }, { once: true });
+    }, { once: true });
+
+    row2.appendChild(budgetLabel);
+    row2.appendChild(removeBtn);
+    wrap.appendChild(row1);
+    wrap.appendChild(row2);
+    list.appendChild(wrap);
+  });
+}
+
+function addSettingsCatRow(name = "", budget = ""){
+  const wrap = document.createElement("div");
+  wrap.className = "newCatRow";
+  wrap.style.cssText = "margin-top:10px;";
+
+  // Row 1: category name full width
+  const row1 = document.createElement("div");
+  row1.style.cssText = "display:flex;gap:10px;margin-bottom:8px;";
+  row1.innerHTML = `<input class="settingsCatName" placeholder="Category name" value="${String(name).replaceAll('"','&quot;')}" style="flex:1;" />`;
+
+  // Row 2: amount + Remove button
+  const row2 = document.createElement("div");
+  row2.style.cssText = "display:flex;gap:10px;align-items:center;";
+  row2.innerHTML = `
+    <input class="settingsCatBudget" placeholder="$0.00" value="${String(budget).replaceAll('"','&quot;')}" inputmode="decimal" style="flex:1;" />
+    <button type="button" class="secondary settingsRemoveCatBtn" style="flex-shrink:0;">Remove</button>
+  `;
+
+  const budgetInput = row2.querySelector(".settingsCatBudget");
+  budgetInput.addEventListener("blur", () => {
+    budgetInput.value = validateAndFixCommas(budgetInput.value);
+    budgetInput.value = normalizeMoneyDisplay(budgetInput.value);
+  });
+
+  row2.querySelector(".settingsRemoveCatBtn").addEventListener("click", () => wrap.remove());
+  wrap.appendChild(row1);
+  wrap.appendChild(row2);
+  settingsAddCatsList.appendChild(wrap);
+}
+
+function readSettingsAddCats(){
+  const rows = Array.from(settingsAddCatsList.querySelectorAll(".newCatRow"));
+  return rows.map(r => {
+    const name = (r.querySelector(".settingsCatName")?.value || "").trim();
+    const money = (r.querySelector(".settingsCatBudget")?.value || "").trim();
+    const cents = dollarsToCentsFromInput(money);
+    return { name, cents };
+  });
+}
+
+/* ================= SETTINGS MODAL - EVENT LISTENERS ================= */
+function openSettings(){
+  show(settingsOverlay);
+  settingsOverlay.setAttribute("aria-hidden","false");
+  setStatus(settingsAccountStatus, "");
+  setStatus(settingsReorderStatus, "");
+  setStatus(settingsEditBudgetsStatus, "");
+  setStatus(settingsAddCatsStatus, "");
+  hide(settingsReorderPanel);
+  hide(settingsEditBudgetsPanel);
+  hide(settingsAddCatsPanel);
+  hide($("settingsFixedExpensesPanel"));
+  hide($("settingsAddFixedPanel"));
+  hide($("settingsPeriodPanel"));
+}
+
+function closeSettings(){
+  hide(settingsOverlay);
+  settingsOverlay.setAttribute("aria-hidden","true");
+}
+
+openSettingsBtn.addEventListener("click", openSettings);
+settingsCloseBtn.addEventListener("click", closeSettings);
+settingsOverlay.addEventListener("click", (e) => { if (e.target === settingsOverlay) closeSettings(); });
+
+/* Reorder */
+settingsOpenReorderBtn.addEventListener("click", openReorderPanel);
+
+settingsCancelOrderBtn.addEventListener("click", () => {
+  hide(settingsReorderPanel);
+  setStatus(settingsReorderStatus, "");
+});
+
+settingsSaveOrderBtn.addEventListener("click", saveReorder);
+
+/* Edit budgets */
+settingsOpenEditBudgetsBtn.addEventListener("click", openEditBudgetsPanel);
+
+settingsCancelEditBudgetsBtn.addEventListener("click", () => {
+  hide(settingsEditBudgetsPanel);
+  setStatus(settingsEditBudgetsStatus, "");
+});
+
+settingsSaveEditBudgetsBtn.addEventListener("click", saveEditBudgets);
+
+/* Add categories panel */
+settingsOpenAddCatsBtn.addEventListener("click", openAddCatsPanel);
+settingsAddCatsRowBtn.addEventListener("click", () => addSettingsCatRow("", ""));
+
+settingsCancelCatsBtn.addEventListener("click", () => {
+  hide(settingsAddCatsPanel);
+  setStatus(settingsAddCatsStatus, "");
+});
+
+async function saveAddedCategories(){
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return showAuth("Missing token. Please re-enter.", true);
+
+  // Collect category IDs marked for removal
+  const removeIds = Array.from(
+    ($("settingsExistingCatsList") || { querySelectorAll: () => [] })
+      .querySelectorAll("[data-marked-for-removal]")
+  ).map(el => Number(el.dataset.removeCatId)).filter(id => Number.isFinite(id) && id > 0);
+
+  // Collect new categories (skip blank rows)
+  const rows = readSettingsAddCats().filter(x => x.name || x.cents !== null);
+
+  // Validate new rows
+  for (const r of rows){
+    if (!r.name) return setStatus(settingsAddCatsStatus, "Each new category needs a name.", "error");
+    if (r.cents === null) return setStatus(settingsAddCatsStatus, `Enter a valid budget for: ${r.name}`, "error");
+  }
+
+  if (!rows.length && !removeIds.length) {
+    return setStatus(settingsAddCatsStatus, "No changes to save.", "ok");
+  }
+
+  const payload = {
+    add: rows.map(r => ({ name: r.name, budget_cents: r.cents })),
+    remove: removeIds.map(id => ({ category_id: id })),  // worker expects objects
+  };
+
+  setStatus(settingsAddCatsStatus, "Saving…");
+  try {
+    const res = await postCategories(token, payload);
+    if (res.authFailed){
+      await idbDel(KEY_TOKEN);
+      closeSettings();
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+
+    CURRENT_STATE = res.result || {};
+    await renderDashboard(CURRENT_STATE);
+    setStatus(settingsAddCatsStatus, "Saved.", "ok");
+
+    // Refresh the existing list and reset new-row inputs
+    renderExistingCatsList();
+    settingsAddCatsList.innerHTML = "";
+    addSettingsCatRow("", "");
+  } catch (e) {
+    setStatus(settingsAddCatsStatus, e?.message || String(e), "error");
+  }
+}
+settingsSaveCatsBtn.addEventListener("click", saveAddedCategories);
+
+/* ================= CUSTOM PROMPT / CONFIRM MODALS ================= */
+function showPrompt(title, label, defaultValue){
+  return new Promise((resolve) => {
+    const overlay = $("promptOverlay");
+    $("promptTitle").textContent = title;
+    $("promptLabel").textContent = label;
+    $("promptInput").value = defaultValue || "";
+    show(overlay);
+    overlay.setAttribute("aria-hidden","false");
+    $("promptInput").focus();
+
+    function done(val){ cleanup(); resolve(val); }
+    function cleanup(){
+      hide(overlay);
+      overlay.setAttribute("aria-hidden","true");
+      $("promptOkBtn").removeEventListener("click", onOk);
+      $("promptCancelBtn").removeEventListener("click", onCancel);
+      overlay.removeEventListener("click", onBg);
+      $("promptInput").removeEventListener("keydown", onKey);
+    }
+    function onOk(){ done($("promptInput").value); }
+    function onCancel(){ done(null); }
+    function onBg(e){ if (e.target === overlay) done(null); }
+    function onKey(e){ if (e.key === "Enter") done($("promptInput").value); if (e.key === "Escape") done(null); }
+
+    $("promptOkBtn").addEventListener("click", onOk);
+    $("promptCancelBtn").addEventListener("click", onCancel);
+    overlay.addEventListener("click", onBg);
+    $("promptInput").addEventListener("keydown", onKey);
+  });
+}
+
+function showConfirm(title, message, confirmText = "Delete"){
+  return new Promise((resolve) => {
+    const overlay = $("confirmOverlay");
+    $("confirmTitle").textContent = title;
+    $("confirmMessage").textContent = message;
+    $("confirmOkBtn").textContent = confirmText;
+    show(overlay);
+    overlay.setAttribute("aria-hidden","false");
+
+    function done(val){ cleanup(); resolve(val); }
+    function cleanup(){
+      hide(overlay);
+      overlay.setAttribute("aria-hidden","true");
+      $("confirmOkBtn").removeEventListener("click", onOk);
+      $("confirmCancelBtn").removeEventListener("click", onCancel);
+      overlay.removeEventListener("click", onBg);
+    }
+    function onOk(){ done(true); }
+    function onCancel(){ done(false); }
+    function onBg(e){ if (e.target === overlay) done(false); }
+
+    $("confirmOkBtn").addEventListener("click", onOk);
+    $("confirmCancelBtn").addEventListener("click", onCancel);
+    overlay.addEventListener("click", onBg);
+  });
+}
+
+/* Account */
+settingsChangeNameBtn.addEventListener("click", async () => {
+  const currentName = await idbGet(KEY_NAME);
+  const newName = await showPrompt("Change Name", "Enter your new name:", currentName || "");
+  
+  if (newName === null) return;
+  
+  const trimmed = String(newName).trim().slice(0, 40);
+  if (!trimmed) return setStatus(settingsAccountStatus, "Name cannot be empty.", "error");
+  
+  try {
+    await idbSet(KEY_NAME, trimmed);
+    setStatus(settingsAccountStatus, `Name changed to: ${trimmed}`, "ok");
+  } catch (e) {
+    setStatus(settingsAccountStatus, e?.message || String(e), "error");
+  }
+});
+
+settingsLogoutBtn.addEventListener("click", async () => {
+  const confirmed = await showConfirm("Log Out", "Are you sure you want to log out? You'll need to enter your credentials again to access the app.", "Log Out");
+  if (!confirmed) return;
+
+  await idbDel(KEY_TOKEN);
+  await idbDel(KEY_NAME);
+  await idbDel(KEY_CAT_ORDER);
+  try { await idbDel(KEY_PENDING_BUDGETS); } catch { /* ignore */ }
+  try { await idbDel(KEY_LAST_PERIOD_KEY); } catch { /* ignore */ }
+  try { await idbDel(KEY_FX_CACHE); } catch { /* ignore */ }
+  try { await idbDel(KEY_FP_CACHE); } catch { /* ignore */ }
+  closeSettings();
+  showAuth("Logged out. Enter your name and password to continue.");
+});
+
+settingsResetBtn.addEventListener("click", async () => {
+  const token = await idbGet(KEY_TOKEN);
+  if (!token) return showAuth("Missing token. Please re-enter.", true);
+
+  const ok = await showConfirm("Reset Budget", "This will DELETE all categories, budgets, and transactions from the server. Continue?");
+  if (!ok) return;
+
+  setStatus(settingsAccountStatus, "Resetting…");
+  try {
+    const res = await postReset(token);
+    if (res.authFailed){
+      await idbDel(KEY_TOKEN);
+      closeSettings();
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+
+    await idbDel(KEY_CAT_ORDER);
+    try { await idbDel(KEY_PENDING_BUDGETS); } catch { /* ignore */ }
+    try { await idbDel(KEY_LAST_PERIOD_KEY); } catch { /* ignore */ }
+    // Clear fixed expense server data and local caches
+    try { await postFixedExpenses(token, []); } catch { /* ignore — backend may already be wiped */ }
+    try { await postFixedPaid(token, {}); } catch { /* ignore */ }
+    try { await idbDel(KEY_FX_CACHE); } catch { /* ignore */ }
+    try { await idbDel(KEY_FP_CACHE); } catch { /* ignore */ }
+
+    setStatus(settingsAccountStatus, "Reset complete.", "ok");
+    closeSettings();
+
+    await bootstrap(); // will fall into wizard
+  } catch (e) {
+    setStatus(settingsAccountStatus, e?.message || String(e), "error");
+  }
+});
+</script>
+
+<script>
+/* ================= BOOTSTRAP ================= */
+async function loadAppStateAndRender(token){
+  const { authFailed, state } = await fetchState(token);
+  if (authFailed){
+    await idbDel(KEY_TOKEN);
+    await idbDel(KEY_NAME);
+    return showAuth("Token invalid/expired. Please re-enter.", true);
+  }
+
+  // Not initialized
+  if (!state || state.initialized === false){
+    return showWizard();
+  }
+
+  CURRENT_STATE = state;
+  showApp();
+  await renderDashboard(CURRENT_STATE);
+  setStatus(globalStatus, "");
+
+  // --- Detect period rollover and flush pending budget edits ---
+  const currentPeriodKey = state?.period?.period_key || "";
+  let lastKey;
+  try { lastKey = await idbGet(KEY_LAST_PERIOD_KEY); } catch { lastKey = null; }
+
+  if (lastKey && currentPeriodKey && lastKey !== currentPeriodKey) {
+    // Period changed since last visit — apply any pending budget adjustments
+    await applyPendingBudgetChanges(CURRENT_STATE);
+  }
+
+  // Always remember the current period key
+  if (currentPeriodKey) {
+    try { await idbSet(KEY_LAST_PERIOD_KEY, currentPeriodKey); } catch { /* ignore */ }
+  }
+}
+
+async function bootstrap(){
+  const token = await idbGet(KEY_TOKEN);
+  const name = await idbGet(KEY_NAME);
+
+  if (!token || !name){
+    return showAuth("Enter your name and password to continue.");
+  }
+
+  // Optional: re-validate quietly (helps if token rotated)
+  try {
+    const ok = await validateToken(token);
+    if (!ok){
+      await idbDel(KEY_TOKEN);
+      await idbDel(KEY_NAME);
+      return showAuth("Token invalid/expired. Please re-enter.", true);
+    }
+  } catch (e) {
+    // If validate endpoint is down, still try state (better UX)
+    void e;
+  }
+
+  try {
+    await loadAppStateAndRender(token);
+  } catch (e) {
+    setStatus(globalStatus, e?.message || String(e), "error");
+    // show auth so user isn't stuck with blank app
+    showAuth("Could not load budget state. See error below.", true);
+    setStatus(authStatus, e?.message || String(e), "error");
+  }
+}
+
+/* Safety: surface unhandled rejections (suppress transient service worker noise) */
+window.addEventListener("unhandledrejection", (ev) => {
+  const msg = ev?.reason?.message || String(ev?.reason || "Unknown error");
+  // Service worker update failures are transient network blips — not actionable
+  // by the user and the app recovers on its own. Suppress them silently.
+  if (msg.toLowerCase().includes("serviceworker") ||
+      msg.toLowerCase().includes("service worker") ||
+      msg.toLowerCase().includes("sw.js") ||
+      msg.toLowerCase().includes("fetching the script")) {
+    ev.preventDefault(); // also suppress the console error
+    return;
+  }
+  setStatus(globalStatus, `Error: ${msg}`, "error");
+});
+
+bootstrap();
+</script>
+
+<!-- CUSTOM PROMPT MODAL (Change Name) -->
+<div id="promptOverlay" class="modalOverlay hidden" aria-hidden="true" style="z-index:200;">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:400px;">
+    <div class="modalHeader">
+      <h1 id="promptTitle" style="margin:0;"></h1>
+    </div>
+    <div class="divider"></div>
+    <label id="promptLabel" style="margin-top:0;"></label>
+    <input id="promptInput" autocomplete="off" style="margin-top:6px;" />
+    <div class="row" style="margin-top:14px;">
+      <button id="promptOkBtn" type="button">Save</button>
+      <button id="promptCancelBtn" class="secondary" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOM CONFIRM MODAL (Reset Budget) -->
+<div id="confirmOverlay" class="modalOverlay hidden" aria-hidden="true" style="z-index:200;">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:400px;">
+    <div class="modalHeader">
+      <h1 id="confirmTitle" style="margin:0;"></h1>
+    </div>
+    <div class="divider"></div>
+    <div id="confirmMessage" class="status" style="margin-top:0;"></div>
+    <div class="row" style="margin-top:14px;">
+      <button id="confirmOkBtn" class="danger" type="button">Delete</button>
+      <button id="confirmCancelBtn" class="secondary" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= SERVICE WORKER REGISTRATION + AUTO-UPDATE ================= */
+/* ================= HELP MODAL ================= */
+const HELP_CONTENT = {
+  "budget-summary": {
+    title: "Budgets",
+    body: `<p>The <strong>Budgets</strong> card shows how your money is tracking across all variable spending categories for the current budget period.</p>
+<ul style="padding-left:18px;margin:8px 0;line-height:1.8;">
+  <li><strong>Budget</strong> — the effective budget for this period, which includes your default amount plus any rollover from the prior period. Green means a prior surplus rolled over; red means prior overspending reduced this period's budget. Tap any row to see the default amount and rollover breakdown.</li>
+  <li><strong>Spent</strong> — total expenses logged so far this period.</li>
+  <li><strong>Remaining</strong> — how much is left. Red means you are over budget.</li>
+  <li><strong>Keep in Bank</strong> — the minimum you should leave in your account: variable remaining plus all unchecked fixed bills due this period.</li>
+</ul>
+<p>The current period dates are shown at the top. Tap <strong>History</strong> in the header to view individual transactions.</p>
+<p style="margin-top:8px;"><strong>Changing your budget period:</strong> open <em>Settings → Variable Budget Settings → Change Budget Period</em> to switch, for example, from twice a month to weekly. By default the change takes effect when the current period ends, so nothing in the current period changes. You can also choose <strong>Now</strong>, which ends the current period tonight and starts the new type tomorrow; before doing that, change your current variable budget amounts (<em>Edit Budget Amounts → Immediately</em>) because the shortened period keeps its full amounts. Your category amounts do <strong>not</strong> change automatically — review them in <em>Edit Budget Amounts</em> (choose <em>Next period</em>) so they fit the new period length. Your fixed expenses are not affected.</p>`
+  },
+  "add-transaction": {
+    title: "Add Transaction",
+    body: `<p>Use this form to log money in or out of a budget category.</p>
+<ul style="padding-left:18px;margin:8px 0;line-height:1.8;">
+  <li><strong>Expense</strong> — money spent, subtracted from the category's remaining balance.</li>
+  <li><strong>Credit</strong> — money returned or refunded, added back to the category's remaining balance.</li>
+  <li><strong>Transfer</strong> — moves budget from one category to another without affecting your total spending.</li>
+</ul>
+<p>Select the <strong>Category</strong>, enter the <strong>Amount</strong>, and optionally add a <strong>Note</strong> for reference. Tap <strong>Save</strong> to record it immediately.</p>
+<p style="margin-top:8px;">Transactions are reflected instantly in the Budgets and Keep in Bank totals.</p>`
+  },
+  "fixed-expenses": {
+    title: "Fixed Expenses",
+    body: `<p><strong>Fixed Expenses</strong> are recurring bills — like rent, subscriptions, insurance, or loan payments — that are due on a specific day of the month.</p>
+<p><strong>Due this period</strong> — bills whose due date falls in the current budget period. Check each one off once paid. The checkbox is saved and shared across all your devices.</p>
+<p><strong>Carried over</strong> — bills that were due last period but were never checked off. These appear in red and still count toward your Keep in Bank total until paid.</p>
+<p><strong>Due next period</strong> — a preview of bills coming up next period. Non-monthly bills (e.g. semi-annual car insurance) are flagged with a badge count so you can plan ahead.</p>
+<p>Fixed expenses are not tied to your variable spending categories — they are tracked separately and only affect the Keep in Bank calculation.</p>
+<p style="margin-top:10px;font-weight:600;">Managing your fixed expenses:</p>
+<ul style="padding-left:18px;margin:8px 0;line-height:1.8;">
+  <li><strong>Add</strong> — open <em>Settings → Fixed Budget Settings → Add Fixed Expense</em>, enter the bill name, amount, due day of month, and which months it applies to, then tap Save Fixed Expense.</li>
+  <li><strong>Edit</strong> — open <em>Settings → Fixed Budget Settings → Edit/Remove Expenses</em>, update any field directly, then tap Save Fixed Expenses.</li>
+  <li><strong>Remove</strong> — open <em>Settings → Fixed Budget Settings → Edit/Remove Expenses</em>, tap Remove next to the bill, then tap Save Fixed Expenses.</li>
+  <li><strong>Sort</strong> — in Edit/Remove Expenses, use the Due Date, Name, or Amount buttons to sort your bills by day of the month, alphabetically, or by amount (largest first).</li>
+  <li><strong>Non-monthly bills</strong> — use the month checkboxes (Jan–Dec) to select only the months the bill is due. Tap <em>All</em> for monthly, or pick individual months for quarterly, semi-annual, or annual bills.</li>
+</ul>`
+  },
+  "history": {
+    title: "Transaction History",
+    body: `<p>The <strong>History</strong> view shows all transactions recorded for the selected budget period.</p>
+<ul style="padding-left:18px;margin:8px 0;line-height:1.8;">
+  <li><strong>Current Period</strong> — transactions from the active budget period.</li>
+  <li><strong>Prior Period</strong> — transactions from the previous budget period. Only the two most recent periods are stored.</li>
+  <li><strong>Export (2 periods)</strong> — downloads all available transactions (current and prior period) as an Excel .xlsx file, named with today's date.</li>
+</ul>
+<p>Tap any column header to sort by that field. Tap the same header again to reverse the sort direction. The active sort column is highlighted with an arrow.</p>
+<p>Tap any transaction row to expand it and see who entered it, the transaction type, and the full note.</p>
+<p>Expenses appear in red, credits in green. Transfers show as a matched pair — a credit out of one category and an expense into another.</p>`
+  }
+};
+
+function showHelp(key){
+  const entry = HELP_CONTENT[key];
+  if (!entry) return;
+  $("helpTitle").textContent = entry.title;
+  $("helpBody").innerHTML = entry.body;
+  const overlay = $("helpOverlay");
+  overlay.classList.remove("hidden");
+  overlay.setAttribute("aria-hidden","false");
+}
+
+function closeHelp(){
+  const overlay = $("helpOverlay");
+  overlay.classList.add("hidden");
+  overlay.setAttribute("aria-hidden","true");
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('sw.js');
+
+      // Check for a new version immediately on every page load, and then
+      // periodically every 60 seconds while the tab stays open.
+      reg.update();
+      setInterval(() => reg.update(), 60_000);
+
+      // If a new SW just installed and is waiting, tell it to activate now.
+      function activateWaiting(reg) {
+        if (reg.waiting) {
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+      }
+      activateWaiting(reg);
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed') activateWaiting(reg);
+        });
+      });
+
+      // When the SW broadcasts SW_UPDATED (new version took control),
+      // reload the page so the user immediately gets the latest code.
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'SW_UPDATED') {
+          console.log('New app version active:', event.data.version, '— reloading.');
+          window.location.reload();
+        }
+      });
+
+      // If the controller changes mid-session (new SW claimed all clients),
+      // also reload to pick up the fresh assets.
+      let currentController = navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (currentController) {
+          window.location.reload();
+        }
+        currentController = navigator.serviceWorker.controller;
+      });
+
+    } catch (err) {
+      // Suppress SW registration failures — transient network errors, not user-actionable
+      void err;
+    }
+  });
+}
+</script>
+
+<div id="helpOverlay" class="modalOverlay hidden" aria-hidden="true" style="z-index:200;" onclick="if(event.target===this)closeHelp();">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:460px;">
+    <div class="modalHeader">
+      <h1 id="helpTitle" style="margin:0;font-size:17px;"></h1>
+      <button type="button" class="secondary" onclick="closeHelp()">Close</button>
+    </div>
+    <div class="divider"></div>
+    <div id="helpBody" style="font-size:14px;line-height:1.6;color:var(--text);"></div>
+  </div>
+</div>
+
+</body>
+</html>
