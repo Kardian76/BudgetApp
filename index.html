@@ -416,7 +416,7 @@ td.center, th.center{text-align:center}
           </div>
 
           <div id="periodWarning" style="margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(255,193,7,0.16);border:1px solid rgba(214,158,0,0.55);font-size:13px;line-height:1.45;color:var(--text);">
-            <strong>⚠ Review your budget amounts.</strong> Changing the period type changes how long each budget period is, but your category amounts do <strong>not</strong> change. A $500 budget stays $500 per period, so it will cover a different length of time. After scheduling the change, review your amounts in <em>Edit Budget Amounts</em> (choose <em>Next period</em>) so they fit the new period length.
+            <strong>⚠ Review your budget amounts.</strong> When the new period type begins, every category <strong>resets</strong> to the amount set in your options: anything left over or overspent from the old periods is <strong>not</strong> carried over, and spending starts at $0. Those amounts do <strong>not</strong> change on their own, so a $500 budget stays $500 per period and will cover a different length of time. Review them in <em>Edit Budget Amounts</em> (choose <em>Next period</em>) before the switch.
           </div>
 
           <label style="margin-top:12px;">Change to</label>
@@ -431,12 +431,12 @@ td.center, th.center{text-align:center}
             <label style="font-size:13px;font-weight:600;color:var(--text);margin-top:0;margin-bottom:6px;display:block;">When to switch</label>
             <div style="display:flex;flex-direction:column;gap:8px;">
               <label style="display:flex;align-items:flex-start;gap:8px;font-size:14px;margin-top:0;cursor:pointer;">
-                <input type="radio" name="periodWhen" id="periodWhenEnd" value="end" checked style="margin-top:3px;flex-shrink:0;" />
-                <span id="periodWhenEndText"></span>
+                <input type="radio" name="periodWhen" id="periodWhenEnd" value="end" checked style="width:18px;height:18px;min-width:18px;padding:0;margin:1px 0 0;flex:0 0 auto;" />
+                <span id="periodWhenEndText" style="flex:1 1 auto;min-width:0;"></span>
               </label>
               <label style="display:flex;align-items:flex-start;gap:8px;font-size:14px;margin-top:0;cursor:pointer;">
-                <input type="radio" name="periodWhen" id="periodWhenNow" value="now" style="margin-top:3px;flex-shrink:0;" />
-                <span id="periodWhenNowText"></span>
+                <input type="radio" name="periodWhen" id="periodWhenNow" value="now" style="width:18px;height:18px;min-width:18px;padding:0;margin:1px 0 0;flex:0 0 auto;" />
+                <span id="periodWhenNowText" style="flex:1 1 auto;min-width:0;"></span>
               </label>
             </div>
           </div>
@@ -2902,13 +2902,14 @@ async function savePeriodChange(){
       `and ${PERIOD_LABELS[type]} budgets start tomorrow (${when}).\n\n` +
       `⚠ The shortened period keeps its full budget amounts. If you haven't already, change your current variable budget amounts first ` +
       `(Edit Budget Amounts → Immediately) so they fit the shorter period. Tap Cancel now if you want to do that first.\n\n` +
-      `Your category amounts will NOT change when the new type starts: a $500 budget stays $500 per period, covering one ${PERIOD_UNIT[type]} instead of one ${PERIOD_UNIT[cur]}. ` +
-      `Unspent or overspent balances roll into the first new period. Your transactions, history and fixed expenses are kept.\n\n` +
+      `When the new period begins, every category resets to the amount set in your options. Anything left over or overspent is NOT carried over, and spending starts at $0. ` +
+      `Those amounts will NOT change on their own: a $500 budget stays $500 per period, covering one ${PERIOD_UNIT[type]} instead of one ${PERIOD_UNIT[cur]}. ` +
+      `Review them in Edit Budget Amounts (choose "Next period"). Your transactions, history and fixed expenses are kept.\n\n` +
       `The shortening can't be undone, but you can still choose a different period type before tomorrow.` + replacing
     : `Switch from ${PERIOD_LABELS[cur]} to ${PERIOD_LABELS[type]} budgets, starting ${when}?\n\n` +
-      `⚠ Your category budget amounts will NOT change. A $500 budget stays $500 per period, so it will now cover one ${PERIOD_UNIT[type]} instead of one ${PERIOD_UNIT[cur]}.\n\n` +
-      `Review your amounts in Edit Budget Amounts (choose "Next period") so they fit the new period length. ` +
-      `Any unspent or overspent balance rolls into the first new period. Your fixed expenses are not affected.` + replacing;
+      `⚠ When the new period begins, every category resets to the amount set in your options. Any leftover or overspent balance from the old periods is NOT carried over, and spending starts at $0.\n\n` +
+      `Those amounts will NOT change on their own: a $500 budget stays $500 per period, so it will now cover one ${PERIOD_UNIT[type]} instead of one ${PERIOD_UNIT[cur]}. ` +
+      `Review them in Edit Budget Amounts (choose "Next period") before the switch. Your transactions, history and fixed expenses are not affected.` + replacing;
 
   const ok = await showConfirm(
     switchNow ? `Switch to ${PERIOD_LABELS[type]} budgets NOW?` : "Change budget period?",
@@ -2929,9 +2930,9 @@ async function savePeriodChange(){
     const pc = st.pending_period_change;
     setStatus(periodStatus, switchNow
       ? `Done: your current period now ends tonight. ${PERIOD_LABELS[type]} budgets start ${fmtYmdToMdySlash(pc?.effective_date || when)}.\n` +
-        `Next step: review the amounts for the new period in Edit Budget Amounts (choose Next period).`
+        `Next step: review the amounts for the new period in Edit Budget Amounts (choose Next period). Each category will reset to those amounts.`
       : `Scheduled: switching to ${PERIOD_LABELS[type]} on ${fmtYmdToMdySlash(pc?.effective_date || periodSwitchYmd())}.\n` +
-        `Next step: review your budget amounts so they fit the new period length.`, "ok");
+        `Next step: review your budget amounts so they fit the new period length. Each category will reset to those amounts.`, "ok");
     periodReviewRow.classList.remove("hidden");
   } catch (e) {
     setStatus(periodStatus, e?.message || String(e), "error");
@@ -4002,7 +4003,7 @@ const HELP_CONTENT = {
   <li><strong>Keep in Bank</strong> — the minimum you should leave in your account: variable remaining plus all unchecked fixed bills due this period.</li>
 </ul>
 <p>The current period dates are shown at the top. Tap <strong>History</strong> in the header to view individual transactions.</p>
-<p style="margin-top:8px;"><strong>Changing your budget period:</strong> open <em>Settings → Variable Budget Settings → Change Budget Period</em> to switch, for example, from twice a month to weekly. By default the change takes effect when the current period ends, so nothing in the current period changes. You can also choose <strong>Now</strong>, which ends the current period tonight and starts the new type tomorrow; before doing that, change your current variable budget amounts (<em>Edit Budget Amounts → Immediately</em>) because the shortened period keeps its full amounts. Your category amounts do <strong>not</strong> change automatically — review them in <em>Edit Budget Amounts</em> (choose <em>Next period</em>) so they fit the new period length. Your fixed expenses are not affected.</p>`
+<p style="margin-top:8px;"><strong>Changing your budget period:</strong> open <em>Settings → Variable Budget Settings → Change Budget Period</em> to switch, for example, from twice a month to weekly. By default the change takes effect when the current period ends, so nothing in the current period changes. You can also choose <strong>Now</strong>, which ends the current period tonight and starts the new type tomorrow; before doing that, change your current variable budget amounts (<em>Edit Budget Amounts → Immediately</em>) because the shortened period keeps its full amounts. When the new type begins, every category <strong>resets</strong> to the amount set in your options: leftover or overspent balances from the old periods are not carried over, and spending starts at $0. Those amounts do <strong>not</strong> change on their own, so review them in <em>Edit Budget Amounts</em> (choose <em>Next period</em>) so they fit the new period length. Your fixed expenses are not affected.</p>`
   },
   "add-transaction": {
     title: "Add Transaction",
